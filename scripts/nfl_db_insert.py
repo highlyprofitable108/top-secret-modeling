@@ -1,24 +1,25 @@
 import os
 import glob
-import json
+import yaml
 import sqlite3
+import json
 
-# Define base directory for data
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
-JSON_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'jsons')
+# Load the configuration
+with open("config.yaml", 'r') as stream:
+    config = yaml.safe_load(stream)
 
-# Path to the directory containing the game_stats files
-directory_path = JSON_DIR
+# Define paths using the config
+BASE_DIR = os.path.expandvars(config['default']['base_dir'])
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+JSON_DIR = os.path.join(DATA_DIR, 'jsons')
+DB_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 
-# Database connection details
-DB_PATH = os.path.join(DATA_DIR, 'nfl_data.db')
-
-# Connect to the database
+# Database connection setup
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-# Loop through all the game_stats_* files in the directory
-for file_path in glob.glob(os.path.join(directory_path, 'game_stats_*.json')):
+# Loop through all the game_stats_* files in the JSON_DIR directory
+for file_path in glob.glob(os.path.join(JSON_DIR, 'game_stats_*.json')):
     print(f"Reviewing: {file_path}")
     with open(file_path, 'r') as file:
         data = json.load(file)

@@ -3,13 +3,19 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
+import yaml
+
+# Load the configuration
+with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
+    config = yaml.safe_load(stream)
 
 # Define base directory for data
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+BASE_DIR = os.path.expandvars(config['default']['base_dir'])
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 
 # Connect to the SQLite database
-db_path = os.path.join(DATA_DIR, 'nfl_data.db')
-conn = sqlite3.connect(db_path)
+conn = sqlite3.connect(DATABASE_PATH)
 
 # Get the current date
 today = datetime.today().date()

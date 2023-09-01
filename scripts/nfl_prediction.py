@@ -5,10 +5,17 @@ import sqlite3
 import pandas as pd
 import numpy as np
 import os
+import yaml
 
-# Define base directory for data and models
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
+# Load the configuration
+with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
+    config = yaml.safe_load(stream)
+
+# Define base directory for data
+BASE_DIR = os.path.expandvars(config['default']['base_dir'])
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
+DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 
 # Constants
 NUMERICAL_FEATURES = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts', 'tackles_made', 'redzone_attempts', 'redzone_successes', 'turnovers', 'sack_rate', 'play_diversity_ratio', 'turnover_margin', 'pass_success_rate', 'rush_success_rate']
@@ -73,7 +80,7 @@ def monte_carlo_simulation(df, num_simulations=10000):
     return simulation_results
 
 def predict_scoring_differential():
-    conn = sqlite3.connect('/Users/michaelfuscoletti/Desktop/nfl_data.db')
+    conn = sqlite3.connect(DATABASE_PATH)
 
     # Fetch the teams table to create a mapping of team_alias to team_id
     teams_df = pd.read_sql_query("SELECT team_id, alias FROM teams", conn)
@@ -124,12 +131,12 @@ def predict_scoring_differential():
 
     sorted_results = sorted(simulation_results)
 
-     # Filter out the top and bottom 10% of results
+    # Filter out the top and bottom 10% of results
     sorted_results = sorted(simulation_results)
     lower_bound = int(0.1 * len(sorted_results))
     upper_bound = int(0.9 * len(sorted_results))
     filtered_results = sorted_results[lower_bound:upper_bound]
-    
+
     # Analyze simulation results
     print("Analyzing Simulation Results...")
     range_of_outcomes = (min(filtered_results), max(filtered_results))

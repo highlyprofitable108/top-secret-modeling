@@ -5,12 +5,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import os
+import yaml
 
-# Define base directory for data
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+# Load the configuration
+with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
+    config = yaml.safe_load(stream)
 
-# Constants
-DATABASE_PATH = os.path.join(DATA_DIR, 'nfl_data.db')
+# Define base for data
+BASE_DIR = os.path.expandvars(config['default']['base_dir'])
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 TARGET_VARIABLE = 'scoring_differential'
 
 

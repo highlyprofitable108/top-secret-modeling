@@ -7,13 +7,17 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
+import yaml
+
+# Load the configuration
+with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
+    config = yaml.safe_load(stream)
 
 # Define base directory for data
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
-
-# Constants
-DATABASE_PATH = os.path.join(DATA_DIR, 'nfl_data.db')
+BASE_DIR = os.path.expandvars(config['default']['base_dir'])
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
+DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 
 
 def preprocess_nfl_data(db_path):
