@@ -2,10 +2,13 @@ import sqlite3
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import os
 
+# Define base directory for data
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
 # Connect to the SQLite database
-db_path = '/Users/michaelfuscoletti/Desktop/nfl_data.db'
+db_path = os.path.join(DATA_DIR, 'nfl_data.db')
 conn = sqlite3.connect(db_path)
 
 # Get the current date
@@ -26,9 +29,11 @@ today = datetime.today()
 df['game_date'] = df['game_date'].dt.tz_localize(None)
 df['days_since_game'] = (today - df['game_date']).dt.days
 
+
 # Exponential decay function
 def decay_weight(days, lambda_val=0.03):
     return np.exp(-lambda_val * days)
+
 
 df['weight'] = df['days_since_game'].apply(decay_weight)
 

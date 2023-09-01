@@ -4,14 +4,19 @@ import joblib
 import sqlite3
 import pandas as pd
 import numpy as np
+import os
+
+# Define base directory for data and models
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
 
 # Constants
 NUMERICAL_FEATURES = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts', 'tackles_made', 'redzone_attempts', 'redzone_successes', 'turnovers', 'sack_rate', 'play_diversity_ratio', 'turnover_margin', 'pass_success_rate', 'rush_success_rate']
 CATEGORICAL_FEATURES = ['opponent_team_id', 'home_or_away']
-LOADED_MODEL = joblib.load('/Users/michaelfuscoletti/Desktop/trained_nfl_model.pkl')
-LOADED_SCALER = joblib.load('/Users/michaelfuscoletti/Desktop/data_scaler.pkl')
-ENCODER = joblib.load('/Users/michaelfuscoletti/Desktop/data_encoder.pkl')
-ENCODED_COLUMNS_TRAIN = joblib.load('/Users/michaelfuscoletti/Desktop/encoded_columns.pkl')
+LOADED_MODEL = joblib.load(os.path.join(MODEL_DIR, 'trained_nfl_model.pkl'))
+LOADED_SCALER = joblib.load(os.path.join(MODEL_DIR, 'data_scaler.pkl'))
+ENCODER = joblib.load(os.path.join(MODEL_DIR, 'data_encoder.pkl'))
+ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(MODEL_DIR, 'encoded_columns.pkl'))
 
 
 def monte_carlo_simulation(df, num_simulations=10000):

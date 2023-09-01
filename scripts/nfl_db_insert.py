@@ -3,11 +3,15 @@ import glob
 import json
 import sqlite3
 
+# Define base directory for data
+DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+JSON_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'jsons')
+
 # Path to the directory containing the game_stats files
-directory_path = '/Users/michaelfuscoletti/Desktop/jsons/'
+directory_path = JSON_DIR
 
 # Database connection details
-DB_PATH = "/Users/michaelfuscoletti/Desktop/nfl_data.db"
+DB_PATH = os.path.join(DATA_DIR, 'nfl_data.db')
 
 # Connect to the database
 conn = sqlite3.connect(DB_PATH)
