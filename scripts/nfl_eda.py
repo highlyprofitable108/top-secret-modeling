@@ -1,20 +1,26 @@
-import sqlite3
+from classes.config_manager import ConfigManager
+from classes.database_handler import DatabaseHandler
 import sweetviz as sv
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import os
-import yaml
 
-# Load the configuration
-with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
-    config = yaml.safe_load(stream)
+config = ConfigManager()
+
+# Get individual components
+base_dir = config.get_config('default', 'base_dir')
+data_dir = base_dir + config.get_config('paths', 'data_dir')
+database_name = config.get_config('database', 'database_name')
+
+# Construct the full path
+db_path = os.path.join(data_dir, database_name)
+
+# Establish database connection
+db_handler = DatabaseHandler(db_path)
 
 # Define base for data
-BASE_DIR = os.path.expandvars(config['default']['base_dir'])
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
 TARGET_VARIABLE = 'scoring_differential'
 
 
@@ -25,30 +31,35 @@ def load_and_process_data():
     Returns:
     DataFrame: The loaded data.
     """
-    with sqlite3.connect(DATABASE_PATH) as db_conn:
-        # Get the current date
-        today = datetime.today().date()
+    # Use db_handler to establish a connection
+    conn = db_handler.connect()
 
-        # Calculate the date for two years ago
-        two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
+    # Get the current date
+    today = datetime.today().date()
 
-        # Fetch the consolidated data from the last 2 years
-        query = f"SELECT * FROM consolidated AS c LEFT JOIN consolidated_advanced a ON c.team_id = a.team_id AND DATE(c.game_date) = DATE(a.game_date) WHERE c.game_date > '{two_years_ago}'"
-        df = pd.read_sql_query(query, db_conn)
+    # Calculate the date for two years ago
+    two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
-        # Convert columns to numeric where applicable
-        for col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce', downcast='float')
+    # Fetch the consolidated data from the last 2 years
+    query = f"SELECT * FROM consolidated AS c LEFT JOIN consolidated_advanced a ON c.team_id = a.team_id AND DATE(c.game_date) = DATE(a.game_date) WHERE c.game_date > '{two_years_ago}'"
+    df = pd.read_sql_query(query, conn)
 
-        # List of metrics to aggregate
-        metrics = [
-            'rating', 'rush_plays', 'avg_pass_yards', 'attempts',
-            'tackles_made', 'redzone_successes', 'turnovers',
-            'redzone_attempts', 'scoring_differential', 'sack_rate',
-            'play_diversity_ratio', 'turnover_margin',
-            'pass_success_rate', 'rush_success_rate'
-            ]
-        df = df[metrics]
+    # Convert columns to numeric where applicable
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce', downcast='float')
+
+    # List of metrics to aggregate
+    metrics = [
+        'rating', 'rush_plays', 'avg_pass_yards', 'attempts',
+        'tackles_made', 'redzone_successes', 'turnovers',
+        'redzone_attempts', 'scoring_differential', 'sack_rate',
+        'play_diversity_ratio', 'turnover_margin',
+        'pass_success_rate', 'rush_success_rate'
+    ]
+    df = df[metrics]
+
+    # Close the connection
+    db_handler.close()
 
     return df
 
@@ -91,7 +102,7 @@ def main():
 
     # Generate the report
     report = sv.analyze(df)
-    report.show_html(os.path.join(DATA_DIR, 'nfl_eda_report.html'))
+    report.show_html(os.path.join(data_dir, 'nfl_eda_report.html'))
 
 
 if __name__ == "__main__":

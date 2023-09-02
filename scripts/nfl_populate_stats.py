@@ -1,21 +1,25 @@
-import sqlite3
+from classes.config_manager import ConfigManager
+from classes.database_handler import DatabaseHandler
+import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import os
-import yaml
 
-# Load the configuration
-with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
-    config = yaml.safe_load(stream)
+config = ConfigManager()
 
-# Define base directory for data
-BASE_DIR = os.path.expandvars(config['default']['base_dir'])
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
+# Get individual components
+base_dir = config.get_config('default', 'base_dir')
+data_dir = base_dir + config.get_config('paths', 'data_dir')
+database_name = config.get_config('database', 'database_name')
+
+# Construct the full path
+db_path = os.path.join(data_dir, database_name)
+
+# Establish database connection
+db_handler = DatabaseHandler(db_path)
 
 # Connect to the SQLite database
-conn = sqlite3.connect(DATABASE_PATH)
+conn = db_handler.connect()
 
 # Get the current date
 today = datetime.today().date()

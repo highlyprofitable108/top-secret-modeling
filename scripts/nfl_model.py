@@ -1,4 +1,6 @@
-import sqlite3
+from classes.config_manager import ConfigManager
+from classes.database_handler import DatabaseHandler
+import os
 import joblib
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
@@ -6,23 +8,25 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import os
-import yaml
 
-# Load the configuration
-with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
-    config = yaml.safe_load(stream)
+config = ConfigManager()
 
-# Define base directory for data
-BASE_DIR = os.path.expandvars(config['default']['base_dir'])
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
-DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
+# Get individual components
+base_dir = config.get_config('default', 'base_dir')
+data_dir = base_dir + config.get_config('paths', 'data_dir')
+model_dir = base_dir + config.get_config('paths', 'model_dir')
+database_name = config.get_config('database', 'database_name')
+
+# Construct the full path
+db_path = os.path.join(data_dir, database_name)
+
+# Establish database connection
+db_handler = DatabaseHandler(db_path)
 
 
-def preprocess_nfl_data(db_path):
-    # Connect to the SQLite database
-    conn = sqlite3.connect(db_path)
+def preprocess_nfl_data():
+    # Use db_handler to establish a connection
+    conn = db_handler.connect()
 
     # Perform the join operation
     query = """
@@ -108,7 +112,7 @@ def preprocess_nfl_data(db_path):
 
     # Save the Blind Test Set to a File
     blind_test_data = pd.concat([X_blind_test, y_blind_test], axis=1)
-    blind_test_data.to_csv(os.path.join(DATA_DIR, 'blind_test_data.csv'), index=False)
+    blind_test_data.to_csv(os.path.join(data_dir, 'blind_test_data.csv'), index=False)
 
     # Print the shape of the data
     print(f"Shape of the training data: {X_train.shape}")
@@ -140,7 +144,7 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
     print(f'R^2 Score: {r2}')
 
     # Load the blind test data
-    df_blind = pd.read_csv(os.path.join(DATA_DIR, 'blind_test_data.csv'))
+    df_blind = pd.read_csv(os.path.join(data_dir, 'blind_test_data.csv'))
 
     # Separate features and target
     X_blind = df_blind.drop(columns=['scoring_differential'])
@@ -162,14 +166,14 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
 
 
 # Usage
-X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns = preprocess_nfl_data(DATABASE_PATH)
+X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns = preprocess_nfl_data()
 model = train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test)
 
 # Save the model and related files to the models directory
-joblib.dump(model, os.path.join(MODEL_DIR, 'trained_nfl_model.pkl'))
-joblib.dump(scaler, os.path.join(MODEL_DIR, 'data_scaler.pkl'))
-joblib.dump(encoder, os.path.join(MODEL_DIR, 'data_encoder.pkl'))
-joblib.dump(encoded_columns, os.path.join(MODEL_DIR, 'encoded_columns.pkl'))
+joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
+joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))
+joblib.dump(encoder, os.path.join(model_dir, 'data_encoder.pkl'))
+joblib.dump(encoded_columns, os.path.join(model_dir, 'encoded_columns.pkl'))
 
 
 feature_importances = model.feature_importances_

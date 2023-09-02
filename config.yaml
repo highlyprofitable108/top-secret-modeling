@@ -1,9 +1,6 @@
 default:
   base_dir: .
 
-database:
-  database_name: "nfl_data.db"
-
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
   api_key: "ymuwdu4r4pbayf8n32h5ppxh"
@@ -11,5 +8,10 @@ nfl_api:
   endpoint_stats: "/{game_id}/stats.json"
 
 
-model:
-  model_dir: "${default.base_dir}/models"
+paths:
+  model_dir: "/models"
+  json_dir: "/jsons"
+  data_dir: "/data"
+
+database:
+  database_name: "nfl_data.db"

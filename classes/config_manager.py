@@ -14,3 +14,12 @@ class ConfigManager:
         if key:
             return self.config_data.get(section, {}).get(key)
         return self.config_data.get(section)
+
+    def get_json_dir(self):
+        return self.config_data['paths']['json_dir']
+    
+    def get_data_dir(self):
+        return self.config_data['paths']['data_dir']
+
+    def get_db_path(self):
+        return self.config_data['database']['db_path']

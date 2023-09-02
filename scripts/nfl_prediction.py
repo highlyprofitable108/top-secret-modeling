@@ -1,29 +1,32 @@
+from classes.config_manager import ConfigManager
+from classes.database_handler import DatabaseHandler
+import os
 import time
 import random
 import joblib
-import sqlite3
 import pandas as pd
 import numpy as np
-import os
-import yaml
 
-# Load the configuration
-with open(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'), 'r') as stream:
-    config = yaml.safe_load(stream)
+config = ConfigManager()
 
-# Define base directory for data
-BASE_DIR = os.path.expandvars(config['default']['base_dir'])
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
-DATABASE_PATH = os.path.join(DATA_DIR, config['database']['database_name'])
+# Get individual components
+base_dir = config.get_config('default', 'base_dir')
+data_dir = base_dir + config.get_config('paths', 'data_dir')
+model_dir = base_dir + config.get_config('paths', 'model_dir')
+database_name = config.get_config('database', 'database_name')
 
+# Construct the full path
+db_path = os.path.join(data_dir, database_name)
+
+# Establish database connection
+db_handler = DatabaseHandler(db_path)
 # Constants
 NUMERICAL_FEATURES = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts', 'tackles_made', 'redzone_attempts', 'redzone_successes', 'turnovers', 'sack_rate', 'play_diversity_ratio', 'turnover_margin', 'pass_success_rate', 'rush_success_rate']
 CATEGORICAL_FEATURES = ['opponent_team_id', 'home_or_away']
-LOADED_MODEL = joblib.load(os.path.join(MODEL_DIR, 'trained_nfl_model.pkl'))
-LOADED_SCALER = joblib.load(os.path.join(MODEL_DIR, 'data_scaler.pkl'))
-ENCODER = joblib.load(os.path.join(MODEL_DIR, 'data_encoder.pkl'))
-ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(MODEL_DIR, 'encoded_columns.pkl'))
+LOADED_MODEL = joblib.load(os.path.join(model_dir, 'trained_nfl_model.pkl'))
+LOADED_SCALER = joblib.load(os.path.join(model_dir, 'data_scaler.pkl'))
+ENCODER = joblib.load(os.path.join(model_dir, 'data_encoder.pkl'))
+ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(model_dir, 'encoded_columns.pkl'))
 
 
 def monte_carlo_simulation(df, num_simulations=10000):
@@ -80,7 +83,7 @@ def monte_carlo_simulation(df, num_simulations=10000):
     return simulation_results
 
 def predict_scoring_differential():
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = db_handler.connect()
 
     # Fetch the teams table to create a mapping of team_alias to team_id
     teams_df = pd.read_sql_query("SELECT team_id, alias FROM teams", conn)
