@@ -1,108 +1,98 @@
-from classes.config_manager import ConfigManager
-from classes.database_handler import DatabaseHandler
-import sweetviz as sv
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
-import os
+import sweetviz as sv
+from pymongo import MongoClient
+import warnings
 
-config = ConfigManager()
+# Suppress warning about DataFrame fragmentation
+warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
 
-# Get individual components
-base_dir = config.get_config('default', 'base_dir')
-data_dir = base_dir + config.get_config('paths', 'data_dir')
-database_name = config.get_config('database', 'database_name')
+# MongoDB connection details
+MONGO_URI = "mongodb://localhost:27017/"
+DATABASE_NAME = "nfl_db"
 
-# Construct the full path
-db_path = os.path.join(data_dir, database_name)
+# Connect to MongoDB
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
 
-# Establish database connection
-db_handler = DatabaseHandler(db_path)
-
-# Define base for data
 TARGET_VARIABLE = 'scoring_differential'
 
 
-def load_and_process_data():
-    """
-    Load data from the SQLite database and process it.
-
-    Returns:
-    DataFrame: The loaded data.
-    """
-    # Use db_handler to establish a connection
-    conn = db_handler.connect()
-
-    # Get the current date
-    today = datetime.today().date()
-
-    # Calculate the date for two years ago
-    two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
-
-    # Fetch the consolidated data from the last 2 years
-    query = f"SELECT * FROM consolidated AS c LEFT JOIN consolidated_advanced a ON c.team_id = a.team_id AND DATE(c.game_date) = DATE(a.game_date) WHERE c.game_date > '{two_years_ago}'"
-    df = pd.read_sql_query(query, conn)
-
-    # Convert columns to numeric where applicable
-    for col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors='coerce', downcast='float')
-
-    # List of metrics to aggregate
-    metrics = [
-        'rating', 'rush_plays', 'avg_pass_yards', 'attempts',
-        'tackles_made', 'redzone_successes', 'turnovers',
-        'redzone_attempts', 'scoring_differential', 'sack_rate',
-        'play_diversity_ratio', 'turnover_margin',
-        'pass_success_rate', 'rush_success_rate'
-    ]
-    df = df[metrics]
-
-    # Close the connection
-    db_handler.close()
-
+def fetch_data_from_mongodb(collection_name):
+    """Fetch data from a MongoDB collection."""
+    cursor = db[collection_name].find()
+    df = pd.DataFrame(list(cursor))
     return df
 
 
-def plot_numerical(df, column):
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df[column], kde=True)
-    plt.title(f"Distribution of {column}")
-    plt.show()
+def flatten_and_merge_data(df):
+    """Flatten the nested MongoDB data."""
+    # Flatten each category and store in a list
+    dataframes = []
+    for column in df.columns:
+        if isinstance(df[column][0], dict):
+            flattened_df = pd.json_normalize(df[column])
+            flattened_df.columns = [f"{column}_{subcolumn}" for subcolumn in flattened_df.columns]
+            dataframes.append(flattened_df)
+
+    # Merge flattened dataframes
+    merged_df = pd.concat(dataframes, axis=1)
+    return merged_df
 
 
-def plot_box(df, column):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(df[column])
-    plt.title(f"Boxplot of {column}")
-    plt.show()
+def load_and_process_data():
+    """Load data from MongoDB and process it."""
+    df = fetch_data_from_mongodb("games")
+    processed_df = flatten_and_merge_data(df)
 
+    # Convert columns with list values to string
+    for col in processed_df.columns:
+        if processed_df[col].apply(type).eq(list).any():
+            processed_df[col] = processed_df[col].astype(str)
 
-def print_correlations(correlations, n):
-    print(f"Correlations with {TARGET_VARIABLE}:")
-    for feature, correlation in correlations[:n].items():
-        print(f"{feature}: {correlation:.4f}")
+    # Convert necessary columns to numeric types
+    numeric_columns = ['summary_home.points', 'summary_away.points']
+    processed_df[numeric_columns] = processed_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
+    # Drop rows with missing values in either 'summary_home_points' or 'summary_away_points'
+    processed_df.dropna(subset=numeric_columns, inplace=True)
 
-def print_missing_values(df):
-    missing_values = df.isnull().sum()
-    missing_values_percent = 100 * df.isnull().sum() / len(df)
-    missing_df = pd.concat([missing_values, missing_values_percent], axis=1)
-    missing_df = missing_df.rename(
-        columns={0: 'Missing Values', 1: '% of Total Values'}
-    )
-    missing_df = missing_df[missing_df.iloc[:, 1] != 0].sort_values(
-        '% of Total Values', ascending=False
-    )
-    print(missing_df)
+    # Check if necessary columns are present and have numeric data types
+    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(processed_df[col]) for col in numeric_columns):
+        processed_df['scoring_differential'] = processed_df['summary_home.points'] - processed_df['summary_away.points']
+        print("Computed 'scoring_differential' successfully.")
+    else:
+        print("Unable to compute 'scoring_differential' due to unsuitable data types.")
+
+    # Drop games if 'scoring_differential' key does not exist
+    if 'scoring_differential' not in processed_df.columns:
+        print("'scoring_differential' key does not exist. Dropping games.")
+        return pd.DataFrame()  # Return an empty dataframe
+    else:
+        return processed_df
 
 
 def main():
-    df = load_and_process_data()
+    # Load and process data
+    processed_df = load_and_process_data()
 
-    # Generate the report
-    report = sv.analyze(df)
-    report.show_html(os.path.join(data_dir, 'nfl_eda_report.html'))
+    # Create a copy of the DataFrame
+    df = processed_df.copy()
+
+    if df.empty:
+        return
+
+    # List of external factors and relevant statistics
+    # external_factors = ['weather_condition', 'venue']
+    # relevant_statistics = ['statistics_home.passing.yards', 'statistics_home.rushing.yards', ...]
+
+    # Select columns for analysis
+    # columns_for_analysis = external_factors + relevant_statistics
+
+    # Calculate the report
+    report = sv.analyze(df, target_feat=TARGET_VARIABLE, pairwise_analysis='on')
+
+    # Show the report
+    report.show_html('nfl_eda_report.html')
 
 
 if __name__ == "__main__":
