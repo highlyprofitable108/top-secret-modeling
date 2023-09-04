@@ -7,7 +7,7 @@ from constants import COLUMNS_TO_KEEP
 # Suppress warning about DataFrame fragmentation
 warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
 
-# MongoDB connection details
+# MongoDB connection
 MONGO_URI = "mongodb://localhost:27017/"
 DATABASE_NAME = "nfl_db"
 
