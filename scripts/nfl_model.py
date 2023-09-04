@@ -1,28 +1,25 @@
 from classes.config_manager import ConfigManager
-from pymongo import MongoClient
+from .constants import COLUMNS_TO_KEEP
 import os
 import joblib
 import pandas as pd
-# from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import train_test_split
+from pymongo import MongoClient
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from .constants import COLUMNS_TO_KEEP
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 
+# TODO: 1. Implement error handling to manage potential issues during database connections or data processing.
+# TODO: 2. Introduce logging to keep track of the operations and potential errors during the script execution.
+
+# Configuration and Database Connection
 config = ConfigManager()
-
-# Get individual components
 base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-
-# MongoDB connection
 MONGO_URI = "mongodb://localhost:27017/"
 DATABASE_NAME = "nfl_db"
-
-# Connect to MongoDB
 client = MongoClient(MONGO_URI)
 db = client[DATABASE_NAME]
 
@@ -49,6 +46,9 @@ def flatten_and_merge_data(df):
     # Merge flattened dataframes
     merged_df = pd.concat(dataframes, axis=1)
     return merged_df
+
+# TODO: 3. Implement data validation checks to ensure the data fetched from the database meets the expected format and structure.
+# TODO: 4. Consider adding functionality to handle different data types more efficiently during the flattening process.
 
 
 def load_and_process_data():
@@ -93,14 +93,20 @@ def load_and_process_data():
     else:
         return processed_df
 
+# TODO: 5. Implement more robust error handling and data validation to ensure the 'scoring_differential' is computed correctly.
+# TODO: 6. Consider adding a logging mechanism to track the data processing steps and potential issues.
+
 
 def time_to_minutes(time_str):
     """Convert time string 'MM:SS' to minutes as a float."""
     minutes, seconds = map(int, time_str.split(':'))
     return minutes + seconds / 60
 
+# TODO: 7. Consider adding error handling to manage incorrect time formats.
+
 
 def preprocess_nfl_data(df):
+    # TODO: Revisit feature selection and encoding section
     """
     # Feature Selection
     numerical_features = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts',
@@ -120,19 +126,17 @@ def preprocess_nfl_data(df):
     encoded_columns = df.columns
     """
 
-    # Drop rows with any NaN values
-    df.dropna(inplace=True)
-
-    # Separate the features and the target variable
+    # Separate the target variable
     X = df.drop('scoring_differential', axis=1)  # Features
     y = df['scoring_differential']  # Target
 
-    # Normalize/Standardize Numerical Features
-    scaler = MinMaxScaler()
-    X = scaler.fit_transform(X)
+    # Check for NaN values and handle them before splitting
+    if X.isnull().sum().sum() > 0:
+        # TODO: Handle NaN values appropriately here
+        pass
 
-    # Convert numpy array back to DataFrame
-    X = pd.DataFrame(X, columns=df.columns.drop('scoring_differential'))
+    # Split the Data
+    # TODO: Consider implementing stratified split here to maintain the distribution of the target variable in both train and test sets
 
     # Splitting into train and temp sets (80% train, 20% temp)
     X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.2, random_state=108)
@@ -140,8 +144,18 @@ def preprocess_nfl_data(df):
     # Splitting the temp set into test and blind_test sets (50% test, 50% blind_test)
     X_test, X_blind_test, y_test, y_blind_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=108)
 
+    # Apply scaling after splitting the data to prevent data leakage
+    scaler = MinMaxScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    X_blind_test = scaler.transform(X_blind_test)
+
+    # TODO: Implement cross-validation here for a more robust evaluation of the model
+
     # Save the Blind Test Set to a File
-    blind_test_data = pd.concat([X_blind_test, y_blind_test], axis=1)
+    # Convert numpy arrays back to dataframes before concatenating
+    X_blind_test = pd.DataFrame(X_blind_test, columns=df.columns.drop('scoring_differential'))
+    blind_test_data = pd.concat([X_blind_test, y_blind_test.reset_index(drop=True)], axis=1)
     blind_test_data.to_csv(os.path.join(data_dir, 'blind_test_data.csv'), index=False)
 
     # Print the shape of the data
@@ -151,50 +165,60 @@ def preprocess_nfl_data(df):
 
     # Print the first few rows of the training data for inspection
     print("\nFirst few rows of the training data:")
+    X_train = pd.DataFrame(X_train, columns=df.columns.drop('scoring_differential'))
     print(X_train.head())
 
     return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler
     # encoder, encoded_columns
 
 
-def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
-    # Initialize and train the Linear Regression model
-    model = RandomForestRegressor(n_estimators=100, random_state=108)
-    model.fit(X_train, y_train)
+def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test):
+    """
+    This function trains the model on the training data and evaluates it on the test data and blind test data.
+    """
+    # Convert numpy arrays back to dataframes to preserve feature names
+    feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']   
+    
+    X_train_df = pd.DataFrame(X_train, columns=feature_columns)
+    X_test_df = pd.DataFrame(X_test, columns=feature_columns)
+    X_blind_test_df = pd.DataFrame(X_blind_test, columns=feature_columns)
 
-    # Predict on the test set
-    y_pred = model.predict(X_test)
+    # Initialize the model
+    model = RandomForestRegressor(random_state=108)
 
-    # Evaluate the model
+    # Train the model
+    model.fit(X_train_df, y_train)
+
+    # Make predictions on the test data
+    y_pred = model.predict(X_test_df)
+
+    # Calculate performance metrics on the test data
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
-    print(f'Mean Absolute Error: {mae}')
-    print(f'Mean Squared Error: {mse}')
-    print(f'R^2 Score: {r2}')
+    print("Mean Absolute Error:", mae)
+    print("Mean Squared Error:", mse)
+    print("R^2 Score:", r2)
 
-    # Load the blind test data
-    df_blind = pd.read_csv(os.path.join(data_dir, 'blind_test_data.csv'))
-    df_blind.dropna(inplace=True)
+    # Make predictions on the blind test data
+    y_pred_blind = model.predict(X_blind_test_df)
 
-    # Separate features and target
-    X_blind = df_blind.drop(columns=['scoring_differential'])
-    y_blind = df_blind['scoring_differential']
+    # Calculate performance metrics on the blind test data
+    mae_blind = mean_absolute_error(y_blind_test, y_pred_blind)
+    mse_blind = mean_squared_error(y_blind_test, y_pred_blind)
+    r2_blind = r2_score(y_blind_test, y_pred_blind)
 
-    # Predict using the trained model
-    y_pred_blind = model.predict(X_blind)
+    print("Mean Absolute Error on Blind Test Data:", mae_blind)
+    print("Mean Squared Error on Blind Test Data:", mse_blind)
+    print("R^2 Score on Blind Test Data:", r2_blind)
 
-    # Evaluate the model's performance
-    mae_blind = mean_absolute_error(y_blind, y_pred_blind)
-    mse_blind = mean_squared_error(y_blind, y_pred_blind)
-    r2_blind = r2_score(y_blind, y_pred_blind)
-
-    print(f'Mean Absolute Error on Blind Test Data: {mae_blind}')
-    print(f'Mean Squared Error on Blind Test Data: {mse_blind}')
-    print(f'R^2 Score on Blind Test Data: {r2_blind}')
+    # Get feature importances
+    feature_importances = pd.DataFrame({'Feature': feature_columns, 'Importance': model.feature_importances_})
+    print(feature_importances)
 
     return model
+
 
 
 # Usage
