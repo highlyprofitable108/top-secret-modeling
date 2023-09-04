@@ -1,7 +1,8 @@
+import warnings
 import pandas as pd
 import sweetviz as sv
 from pymongo import MongoClient
-import warnings
+from constants import COLUMNS_TO_KEEP
 
 # Suppress warning about DataFrame fragmentation
 warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
@@ -31,7 +32,9 @@ def flatten_and_merge_data(df):
     for column in df.columns:
         if isinstance(df[column][0], dict):
             flattened_df = pd.json_normalize(df[column])
-            flattened_df.columns = [f"{column}_{subcolumn}" for subcolumn in flattened_df.columns]
+            flattened_df.columns = [
+                f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
+            ]
             dataframes.append(flattened_df)
 
     # Merge flattened dataframes
@@ -51,17 +54,28 @@ def load_and_process_data():
 
     # Convert necessary columns to numeric types
     numeric_columns = ['summary_home.points', 'summary_away.points']
-    processed_df[numeric_columns] = processed_df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+    processed_df[numeric_columns] = processed_df[numeric_columns].apply(
+        pd.to_numeric, errors='coerce'
+    )
 
-    # Drop rows with missing values in either 'summary_home_points' or 'summary_away_points'
+    # Drop rows with missing values in eithers
+    # 'summary_home_points' or 'summary_away_points'
     processed_df.dropna(subset=numeric_columns, inplace=True)
 
     # Check if necessary columns are present and have numeric data types
-    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(processed_df[col]) for col in numeric_columns):
-        processed_df['scoring_differential'] = processed_df['summary_home.points'] - processed_df['summary_away.points']
+    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(
+        processed_df[col]
+    ) for col in numeric_columns):
+        processed_df['scoring_differential'] = processed_df[
+            'summary_home.points'
+        ] - processed_df[
+            'summary_away.points'
+        ]
         print("Computed 'scoring_differential' successfully.")
     else:
-        print("Unable to compute 'scoring_differential' due to unsuitable data types.")
+        print(
+            "Unable to compute due to unsuitable data types."
+        )
 
     # Drop games if 'scoring_differential' key does not exist
     if 'scoring_differential' not in processed_df.columns:
@@ -78,21 +92,16 @@ def main():
     # Create a copy of the DataFrame
     df = processed_df.copy()
 
-    if df.empty:
-        return
-
-    # List of external factors and relevant statistics
-    # external_factors = ['weather_condition', 'venue']
-    # relevant_statistics = ['statistics_home.passing.yards', 'statistics_home.rushing.yards', ...]
-
-    # Select columns for analysis
-    # columns_for_analysis = external_factors + relevant_statistics
+    # Drop columns that are not in the COLUMNS_TO_KEEP list
+    df = df[COLUMNS_TO_KEEP]
 
     # Calculate the report
-    report = sv.analyze(df, target_feat=TARGET_VARIABLE, pairwise_analysis='on')
+    report = sv.analyze(
+        df, target_feat=TARGET_VARIABLE, pairwise_analysis='on'
+    )
 
     # Show the report
-    report.show_html('nfl_eda_report.html')
+    report.show_html('./data/nfl_eda_report.html')
 
 
 if __name__ == "__main__":
