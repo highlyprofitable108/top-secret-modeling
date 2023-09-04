@@ -1,11 +1,9 @@
-from ..classes.config_manager import ConfigManager
+from classes.config_manager import ConfigManager
 from pymongo import MongoClient
-import requests
-from datetime import datetime, timedelta
 import os
 import joblib
 import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
+# from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
@@ -102,45 +100,6 @@ def time_to_minutes(time_str):
     return minutes + seconds / 60
 
 
-def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
-    # Initialize and train the Linear Regression model
-    model = RandomForestRegressor(n_estimators=100, random_state=108)
-    model.fit(X_train, y_train)
-
-    # Predict on the test set
-    y_pred = model.predict(X_test)
-
-    # Evaluate the model
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f'Mean Absolute Error: {mae}')
-    print(f'Mean Squared Error: {mse}')
-    print(f'R^2 Score: {r2}')
-
-    # Load the blind test data
-    df_blind = pd.read_csv(os.path.join(data_dir, 'blind_test_data.csv'))
-
-    # Separate features and target
-    X_blind = df_blind.drop(columns=['scoring_differential'])
-    y_blind = df_blind['scoring_differential']
-
-    # Predict using the trained model
-    y_pred_blind = model.predict(X_blind)
-
-    # Evaluate the model's performance
-    mae_blind = mean_absolute_error(y_blind, y_pred_blind)
-    mse_blind = mean_squared_error(y_blind, y_pred_blind)
-    r2_blind = r2_score(y_blind, y_pred_blind)
-
-    print(f'Mean Absolute Error on Blind Test Data: {mae_blind}')
-    print(f'Mean Squared Error on Blind Test Data: {mse_blind}')
-    print(f'R^2 Score on Blind Test Data: {r2_blind}')
-
-    return model
-
-
 def preprocess_nfl_data(df):
     """
     # Feature Selection
@@ -164,15 +123,16 @@ def preprocess_nfl_data(df):
     # Drop rows with any NaN values
     df.dropna(inplace=True)
 
-    # Normalize/Standardize Numerical Features
-    scaler = MinMaxScaler()
-    df = scaler.fit_transform(df)
-
-    # Split the Data
+    # Separate the features and the target variable
     X = df.drop('scoring_differential', axis=1)  # Features
     y = df['scoring_differential']  # Target
 
-    print(df)
+    # Normalize/Standardize Numerical Features
+    scaler = MinMaxScaler()
+    X = scaler.fit_transform(X)
+
+    # Convert numpy array back to DataFrame
+    X = pd.DataFrame(X, columns=df.columns.drop('scoring_differential'))
 
     # Splitting into train and temp sets (80% train, 20% temp)
     X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.2, random_state=108)
@@ -193,7 +153,48 @@ def preprocess_nfl_data(df):
     print("\nFirst few rows of the training data:")
     print(X_train.head())
 
-    return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns
+    return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler
+    # encoder, encoded_columns
+
+
+def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
+    # Initialize and train the Linear Regression model
+    model = RandomForestRegressor(n_estimators=100, random_state=108)
+    model.fit(X_train, y_train)
+
+    # Predict on the test set
+    y_pred = model.predict(X_test)
+
+    # Evaluate the model
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    print(f'Mean Absolute Error: {mae}')
+    print(f'Mean Squared Error: {mse}')
+    print(f'R^2 Score: {r2}')
+
+    # Load the blind test data
+    df_blind = pd.read_csv(os.path.join(data_dir, 'blind_test_data.csv'))
+    df_blind.dropna(inplace=True)
+
+    # Separate features and target
+    X_blind = df_blind.drop(columns=['scoring_differential'])
+    y_blind = df_blind['scoring_differential']
+
+    # Predict using the trained model
+    y_pred_blind = model.predict(X_blind)
+
+    # Evaluate the model's performance
+    mae_blind = mean_absolute_error(y_blind, y_pred_blind)
+    mse_blind = mean_squared_error(y_blind, y_pred_blind)
+    r2_blind = r2_score(y_blind, y_pred_blind)
+
+    print(f'Mean Absolute Error on Blind Test Data: {mae_blind}')
+    print(f'Mean Squared Error on Blind Test Data: {mse_blind}')
+    print(f'R^2 Score on Blind Test Data: {r2_blind}')
+
+    return model
 
 
 # Usage
@@ -215,14 +216,14 @@ def main():
         'statistics_away.summary.possession_time'
     ].apply(time_to_minutes)
 
-    X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns = preprocess_nfl_data(df)
+    X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler = preprocess_nfl_data(df)
     model = train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test)
 
     # Save the model and related files to the models directory
     joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
     joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))
-    joblib.dump(encoder, os.path.join(model_dir, 'data_encoder.pkl'))
-    joblib.dump(encoded_columns, os.path.join(model_dir, 'encoded_columns.pkl'))
+    # joblib.dump(encoder, os.path.join(model_dir, 'data_encoder.pkl'))
+    # joblib.dump(encoded_columns, os.path.join(model_dir, 'encoded_columns.pkl'))
 
     feature_importances = model.feature_importances_
     importance_df = pd.DataFrame({
