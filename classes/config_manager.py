@@ -17,9 +17,12 @@ class ConfigManager:
 
     def get_json_dir(self):
         return self.config_data['paths']['json_dir']
-    
+
     def get_data_dir(self):
         return self.config_data['paths']['data_dir']
+
+    def get_model_dir(self):
+        return self.config_data['paths']['model_dir']
 
     def get_db_path(self):
         return self.config_data['database']['db_path']

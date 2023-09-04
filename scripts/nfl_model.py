@@ -1,5 +1,7 @@
-from classes.config_manager import ConfigManager
-from classes.database_handler import DatabaseHandler
+from ..classes.config_manager import ConfigManager
+from pymongo import MongoClient
+import requests
+from datetime import datetime, timedelta
 import os
 import joblib
 import pandas as pd
@@ -8,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from .constants import COLUMNS_TO_KEEP
 
 config = ConfigManager()
 
@@ -17,113 +20,86 @@ data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
 
-# Construct the full path
-db_path = os.path.join(data_dir, database_name)
+# MongoDB connection
+MONGO_URI = "mongodb://localhost:27017/"
+DATABASE_NAME = "nfl_db"
 
-# Establish database connection
-db_handler = DatabaseHandler(db_path)
+# Connect to MongoDB
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
 
 
-def preprocess_nfl_data():
-    # Use db_handler to establish a connection
-    conn = db_handler.connect()
+def fetch_data_from_mongodb(collection_name):
+    """Fetch data from a MongoDB collection."""
+    cursor = db[collection_name].find()
+    df = pd.DataFrame(list(cursor))
+    return df
 
-    # Perform the join operation
-    query = """
-        SELECT c.*, p.power_rank
-        FROM consolidated c
-        LEFT JOIN power_rank p ON c.team_id = p.team_id AND DATE(c.game_date) = DATE(p.game_date)
-    """
-    df = pd.read_sql_query(query, conn)
 
-    # Advanced Metrics
-    # Defensive Efficiency
-    df['sack_rate'] = df['defensive_sacks'] / df['attempts']
+def flatten_and_merge_data(df):
+    """Flatten the nested MongoDB data."""
+    # Flatten each category and store in a list
+    dataframes = []
+    for column in df.columns:
+        if isinstance(df[column][0], dict):
+            flattened_df = pd.json_normalize(df[column])
+            flattened_df.columns = [
+                f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
+            ]
+            dataframes.append(flattened_df)
 
-    # Play Diversity
-    df['play_diversity_ratio'] = df['rush_plays'] / df['play_count']
+    # Merge flattened dataframes
+    merged_df = pd.concat(dataframes, axis=1)
+    return merged_df
 
-    # Turnover Margin
-    df['turnover_margin'] = (df['interceptions_made'] + df['fumble_recoveries']) - (df['interceptions'] + df['lost_fumbles'])
 
-    # Special Teams Efficiency
-    # df['field_goal_efficiency'] = df['field_goals_made'] / (df['attempts'] - df['field_goals_made'] + 1)  # +1 to avoid division by zero
+def load_and_process_data():
+    """Load data from MongoDB and process it."""
+    df = fetch_data_from_mongodb("games")
+    processed_df = flatten_and_merge_data(df)
 
-    # Success Rate
-    df['pass_success_rate'] = df['completions'] / df['attempts']
-    df['rush_success_rate'] = (df['rush_attempts'] * df['avg_rush_yards'] >= 4).astype(int) / df['rush_attempts']
+    # Convert columns with list values to string
+    for col in processed_df.columns:
+        if processed_df[col].apply(type).eq(list).any():
+            processed_df[col] = processed_df[col].astype(str)
 
-    # Drop rows with missing values for scoring_differential
-    df.dropna(subset=['scoring_differential'], inplace=True)
+    # Convert necessary columns to numeric types
+    numeric_columns = ['summary_home.points', 'summary_away.points']
+    processed_df[numeric_columns] = processed_df[numeric_columns].apply(
+        pd.to_numeric, errors='coerce'
+    )
 
-    # Extract the derived metrics along with team_id and game_date into a new DataFrame
-    columns_to_extract = ['team_id', 'game_date', 'sack_rate', 'play_diversity_ratio', 'turnover_margin', 'pass_success_rate', 'rush_success_rate']
-    df_advanced = df[columns_to_extract]
+    # Drop rows with missing values in eithers
+    # 'summary_home_points' or 'summary_away_points'
+    processed_df.dropna(subset=numeric_columns, inplace=True)
 
-    # Save the new DataFrame to the SQLite database as a new table
-    df_advanced.to_sql('consolidated_advanced', conn, if_exists='replace', index=False)
+    # Check if necessary columns are present and have numeric data types
+    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(
+        processed_df[col]
+    ) for col in numeric_columns):
+        processed_df['scoring_differential'] = processed_df[
+            'summary_home.points'
+        ] - processed_df[
+            'summary_away.points'
+        ]
+        print("Computed 'scoring_differential' successfully.")
+    else:
+        print(
+            "Unable to compute due to unsuitable data types."
+        )
 
-    # Drop unneeded columns
-    columns_to_keep = [
-                        'scoring_differential', 'rating', 'rush_plays',
-                        'avg_pass_yards', 'attempts', 'tackles_made',
-                        'redzone_successes', 'turnovers', 'redzone_attempts',
-                        'opponent_team_id', 'home_or_away',
-                        'sack_rate', 'play_diversity_ratio', 'turnover_margin',
-                        'pass_success_rate', 'rush_success_rate'
-                       ]
-    df = df[columns_to_keep]
+    # Drop games if 'scoring_differential' key does not exist
+    if 'scoring_differential' not in processed_df.columns:
+        print("'scoring_differential' key does not exist. Dropping games.")
+        return pd.DataFrame()  # Return an empty dataframe
+    else:
+        return processed_df
 
-    # Feature Selection
-    numerical_features = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts',
-                          'tackles_made', 'redzone_attempts',
-                          'redzone_successes', 'turnovers',
-                          'sack_rate', 'play_diversity_ratio',
-                          'turnover_margin', 'pass_success_rate',
-                          'rush_success_rate'
-                          ]
-    categorical_features = ['opponent_team_id', 'home_or_away']
 
-    # One-Hot Encode Categorical Features
-    encoder = OneHotEncoder(drop='first', sparse=False)
-    encoded_features = encoder.fit_transform(df[categorical_features])
-    df_encoded = pd.DataFrame(encoded_features, columns=encoder.get_feature_names_out(categorical_features))
-    df = pd.concat([df.drop(columns=categorical_features), df_encoded], axis=1)
-    encoded_columns = df.columns
-
-    # Drop rows with any NaN values
-    df.dropna(inplace=True)
-
-    # Normalize/Standardize Numerical Features
-    scaler = MinMaxScaler()
-    df[numerical_features] = scaler.fit_transform(df[numerical_features])
-
-    # Split the Data
-    X = df.drop('scoring_differential', axis=1)  # Features
-    y = df['scoring_differential']  # Target
-
-    print(df)
-
-    # Splitting into train and temp sets (80% train, 20% temp)
-    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.2, random_state=108)
-
-    # Splitting the temp set into test and blind_test sets (50% test, 50% blind_test)
-    X_test, X_blind_test, y_test, y_blind_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=108)
-
-    # Save the Blind Test Set to a File
-    blind_test_data = pd.concat([X_blind_test, y_blind_test], axis=1)
-    blind_test_data.to_csv(os.path.join(data_dir, 'blind_test_data.csv'), index=False)
-
-    # Print the shape of the data
-    print(f"Shape of the training data: {X_train.shape}")
-    print(f"Shape of the test data: {X_test.shape}")
-    print(f"Shape of the blind test data: {X_blind_test.shape}")
-
-    # Print the first few rows of the training data for inspection
-    print("\nFirst few rows of the training data:")
-    print(X_train.head())
-
-    return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns
+def time_to_minutes(time_str):
+    """Convert time string 'MM:SS' to minutes as a float."""
+    minutes, seconds = map(int, time_str.split(':'))
+    return minutes + seconds / 60
 
 
 def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
@@ -165,21 +141,97 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind, y_blind):
     return model
 
 
+def preprocess_nfl_data(df):
+    """
+    # Feature Selection
+    numerical_features = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts',
+                          'tackles_made', 'redzone_attempts',
+                          'redzone_successes', 'turnovers',
+                          'sack_rate', 'play_diversity_ratio',
+                          'turnover_margin', 'pass_success_rate',
+                          'rush_success_rate'
+                          ]
+    categorical_features = ['opponent_team_id', 'home_or_away']
+
+    # One-Hot Encode Categorical Features
+    encoder = OneHotEncoder(drop='first', sparse=False)
+    encoded_features = encoder.fit_transform(df[categorical_features])
+    df_encoded = pd.DataFrame(encoded_features, columns=encoder.get_feature_names_out(categorical_features))
+    df = pd.concat([df.drop(columns=categorical_features), df_encoded], axis=1)
+    encoded_columns = df.columns
+    """
+
+    # Drop rows with any NaN values
+    df.dropna(inplace=True)
+
+    # Normalize/Standardize Numerical Features
+    scaler = MinMaxScaler()
+    df = scaler.fit_transform(df)
+
+    # Split the Data
+    X = df.drop('scoring_differential', axis=1)  # Features
+    y = df['scoring_differential']  # Target
+
+    print(df)
+
+    # Splitting into train and temp sets (80% train, 20% temp)
+    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.2, random_state=108)
+
+    # Splitting the temp set into test and blind_test sets (50% test, 50% blind_test)
+    X_test, X_blind_test, y_test, y_blind_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=108)
+
+    # Save the Blind Test Set to a File
+    blind_test_data = pd.concat([X_blind_test, y_blind_test], axis=1)
+    blind_test_data.to_csv(os.path.join(data_dir, 'blind_test_data.csv'), index=False)
+
+    # Print the shape of the data
+    print(f"Shape of the training data: {X_train.shape}")
+    print(f"Shape of the test data: {X_test.shape}")
+    print(f"Shape of the blind test data: {X_blind_test.shape}")
+
+    # Print the first few rows of the training data for inspection
+    print("\nFirst few rows of the training data:")
+    print(X_train.head())
+
+    return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns
+
+
 # Usage
-X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns = preprocess_nfl_data()
-model = train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test)
+def main():
+    # Load and process data
+    processed_df = load_and_process_data()
 
-# Save the model and related files to the models directory
-joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
-joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))
-joblib.dump(encoder, os.path.join(model_dir, 'data_encoder.pkl'))
-joblib.dump(encoded_columns, os.path.join(model_dir, 'encoded_columns.pkl'))
+    # Create a copy of the DataFrame
+    df = processed_df.copy()
+
+    # Drop columns that are not in the COLUMNS_TO_KEEP list
+    df = df[COLUMNS_TO_KEEP]
+
+    # Convert time strings to minutes (apply this to the relevant columns)
+    df['statistics_home.summary.possession_time'] = df[
+        'statistics_home.summary.possession_time'
+    ].apply(time_to_minutes)
+    df['statistics_away.summary.possession_time'] = df[
+        'statistics_away.summary.possession_time'
+    ].apply(time_to_minutes)
+
+    X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, encoder, encoded_columns = preprocess_nfl_data(df)
+    model = train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test)
+
+    # Save the model and related files to the models directory
+    joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
+    joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))
+    joblib.dump(encoder, os.path.join(model_dir, 'data_encoder.pkl'))
+    joblib.dump(encoded_columns, os.path.join(model_dir, 'encoded_columns.pkl'))
+
+    feature_importances = model.feature_importances_
+    importance_df = pd.DataFrame({
+        'Feature': X_train.columns,
+        'Importance': feature_importances
+    })
+    importance_df = importance_df.sort_values(by='Importance', ascending=False)
+    print(importance_df)
 
 
-feature_importances = model.feature_importances_
-importance_df = pd.DataFrame({
-    'Feature': X_train.columns,
-    'Importance': feature_importances
-})
-importance_df = importance_df.sort_values(by='Importance', ascending=False)
-print(importance_df)
+if __name__ == "__main__":
+    main()

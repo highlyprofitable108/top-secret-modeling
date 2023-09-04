@@ -1,5 +1,5 @@
-from classes.config_manager import ConfigManager
-from classes.api_handler import APIHandler
+from ..classes.config_manager import ConfigManager
+from ..classes.api_handler import APIHandler
 
 config_manager = ConfigManager()
 api_config = config_manager.get_config("nfl_api")

@@ -85,6 +85,12 @@ def load_and_process_data():
         return processed_df
 
 
+def time_to_minutes(time_str):
+    """Convert time string 'MM:SS' to minutes as a float."""
+    minutes, seconds = map(int, time_str.split(':'))
+    return minutes + seconds / 60
+
+
 def main():
     # Load and process data
     processed_df = load_and_process_data()
@@ -94,6 +100,24 @@ def main():
 
     # Drop columns that are not in the COLUMNS_TO_KEEP list
     df = df[COLUMNS_TO_KEEP]
+
+    # Convert time strings to minutes (apply this to the relevant columns)
+    df['statistics_home.summary.possession_time'] = df[
+        'statistics_home.summary.possession_time'
+    ].apply(time_to_minutes)
+    df['statistics_away.summary.possession_time'] = df[
+        'statistics_away.summary.possession_time'
+    ].apply(time_to_minutes)
+
+    # Calculate the correlation matrix and print the absolute values
+    correlation_matrix = df.corr().abs()
+    scoring_diff_correlations = correlation_matrix[
+        'scoring_differential'
+        ].drop('scoring_differential')
+
+    # Convert the series to a list and loop through it to print each value
+    for index, value in scoring_diff_correlations.items():
+        print(f"{index}: {value}")
 
     # Calculate the report
     report = sv.analyze(
