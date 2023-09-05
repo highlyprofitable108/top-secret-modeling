@@ -14,4 +14,5 @@ paths:
   data_dir: "/data"
 
 database:
-  database_name: "nfl_data.db"
+  mongo_uri: "mongodb://localhost:27017/"
+  database_name: "nfl_db"
