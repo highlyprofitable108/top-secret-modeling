@@ -1,39 +1,142 @@
 from classes.config_manager import ConfigManager
-from classes.database_handler import DatabaseHandler
+from .constants import COLUMNS_TO_KEEP
 import os
+import joblib
+from pymongo import MongoClient
 import time
 import random
-import joblib
 import pandas as pd
 import numpy as np
 
+# Configuration and Database Connection
 config = ConfigManager()
-
-# Get individual components
 base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
-database_name = config.get_config('database', 'database_name')
+MONGO_URI = config.get_config('database', 'mongo_uri')  # Moved to config file
+DATABASE_NAME = config.get_config('database', 'database_name')  # Moved to config file
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
 
-# Construct the full path
-db_path = os.path.join(data_dir, database_name)
-
-# Establish database connection
-db_handler = DatabaseHandler(db_path)
 # Constants
-NUMERICAL_FEATURES = ['rating', 'rush_plays', 'avg_pass_yards', 'attempts', 'tackles_made', 'redzone_attempts', 'redzone_successes', 'turnovers', 'sack_rate', 'play_diversity_ratio', 'turnover_margin', 'pass_success_rate', 'rush_success_rate']
-CATEGORICAL_FEATURES = ['opponent_team_id', 'home_or_away']
-LOADED_MODEL = joblib.load(os.path.join(model_dir, 'trained_nfl_model.pkl'))
-LOADED_SCALER = joblib.load(os.path.join(model_dir, 'data_scaler.pkl'))
-ENCODER = joblib.load(os.path.join(model_dir, 'data_encoder.pkl'))
-ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(model_dir, 'encoded_columns.pkl'))
+# Define the feature columns by removing the target variable from COLUMNS_TO_KEEP
+feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
+
+# Loading the pre-trained model and the data scaler
+try:
+    LOADED_MODEL = joblib.load(os.path.join(model_dir, 'trained_nfl_model.pkl'))
+    LOADED_SCALER = joblib.load(os.path.join(model_dir, 'data_scaler.pkl'))
+except FileNotFoundError as e:
+    print(f"Error loading files: {e}")
+    # Exit the script or handle the error appropriately
 
 
-def monte_carlo_simulation(df, num_simulations=10000):
+# ENCODER = joblib.load(os.path.join(model_dir, 'data_encoder.pkl'))
+# ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(model_dir, 'encoded_columns.pkl'))
+def time_to_minutes(time_str):
+    """Convert time string 'MM:SS' to minutes as a float."""
+    minutes, seconds = map(int, time_str.split(':'))
+    return minutes + seconds / 60
+
+
+def fetch_data_from_mongodb(collection_name):
+    """Fetch data from a MongoDB collection."""
+    try:
+        cursor = db[collection_name].find()
+        df = pd.DataFrame(list(cursor))
+        return df
+    except Exception as e:
+        print(f"Error fetching data from MongoDB: {e}")
+        # Handle the error appropriately (e.g., return an empty DataFrame or exit the script)
+        return pd.DataFrame()
+
+
+def flatten_and_merge_data(df):
+    """Flatten the nested MongoDB data."""
+    try:
+        # Flatten each category and store in a list
+        dataframes = []
+        for column in df.columns:
+            if isinstance(df[column][0], dict):
+                flattened_df = pd.json_normalize(df[column])
+                flattened_df.columns = [
+                    f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
+                ]
+                dataframes.append(flattened_df)
+
+        # Merge flattened dataframes
+        merged_df = pd.concat(dataframes, axis=1)
+        return merged_df
+    except Exception as e:
+        print(f"Error flattening and merging data: {e}")
+        # Handle the error appropriately (e.g., return the original DataFrame or an empty DataFrame)
+        return pd.DataFrame()
+
+# TODO: 3. Implement data validation checks to ensure the data fetched from the database meets the expected format and structure.
+# TODO: 4. Consider adding functionality to handle different data types more efficiently during the flattening process.
+
+
+def load_and_process_data():
+    """Load data from MongoDB and process it."""
+    df = fetch_data_from_mongodb("games")
+    processed_df = flatten_and_merge_data(df)
+
+    # Convert columns with list values to string
+    for col in processed_df.columns:
+        if processed_df[col].apply(type).eq(list).any():
+            processed_df[col] = processed_df[col].astype(str)
+
+    # Convert necessary columns to numeric types
+    numeric_columns = ['summary_home.points', 'summary_away.points']
+    processed_df[numeric_columns] = processed_df[numeric_columns].apply(
+        pd.to_numeric, errors='coerce'
+    )
+
+    # Drop rows with missing values in either 'summary_home_points' or 'summary_away_points'
+    processed_df.dropna(subset=numeric_columns, inplace=True)
+
+    # Check if necessary columns are present and have numeric data types
+    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(
+        processed_df[col]
+    ) for col in numeric_columns):
+        processed_df['scoring_differential'] = processed_df[
+            'summary_home.points'
+        ] - processed_df[
+            'summary_away.points'
+        ]
+        print("Computed 'scoring_differential' successfully.")
+    else:
+        print(
+            "Unable to compute due to unsuitable data types."
+        )
+
+    # Drop games if 'scoring_differential' key does not exist
+    if 'scoring_differential' not in processed_df.columns:
+        print("'scoring_differential' key does not exist. Dropping games.")
+        return pd.DataFrame()  # Return an empty dataframe
+    else:
+        return processed_df
+
+# TODO: 5. Implement more robust error handling and data validation to ensure the 'scoring_differential' is computed correctly.
+# TODO: 6. Consider adding a logging mechanism to track the data processing steps and potential issues.
+
+
+def time_to_minutes(time_str):
+    """Convert time string 'MM:SS' to minutes as a float."""
+    print(time_str)
+    try:
+        minutes, seconds = map(int, time_str.split(':'))
+        return minutes + seconds / 60
+    except ValueError:
+        print(f"Invalid time format: {time_str}. Unable to convert to minutes.")
+        return None  # or return a default value
+
+# TODO: 7. Consider adding error handling to manage incorrect time formats.
+
+
+def monte_carlo_simulation(df, num_simulations=1000):
     print("Starting Monte Carlo Simulation...")
     simulation_results = []
-
-    # List of funny messages
     funny_messages = [
         "Simulating... Did you hear about the mathematician who’s afraid of negative numbers? He'll stop at nothing to avoid them!",
         "Crunching numbers... Why did the student do multiplication problems on the floor? The teacher told him not to use tables.",
@@ -45,36 +148,21 @@ def monte_carlo_simulation(df, num_simulations=10000):
     start_time = time.time()
     for _ in range(num_simulations):
         sampled_df = df.copy()
-        for column in df.columns:
-            if column + '_stddev' in df.columns:
+        for column in sampled_df.columns:
+            if column + '_stddev' in sampled_df.columns:
+
                 mean_value = df[column].iloc[0]
                 stddev_value = df[column + '_stddev'].iloc[0]
                 sampled_value = np.random.normal(mean_value, stddev_value)
                 sampled_df[column] = sampled_value
-        # Exclude 'scoring_differential' from the sampled DataFrame
 
-        # print(f"Sampled Data at iteration {_}:\n", sampled_df)
+        # Filter columns and scale numeric features
+        sampled_df = sampled_df[feature_columns]
+        sampled_df[feature_columns] = LOADED_SCALER.transform(sampled_df[feature_columns])
 
-        # Preprocess the sampled DataFrame (encoding, scaling, etc.)
-        encoded_features = ENCODER.transform(sampled_df[CATEGORICAL_FEATURES])
-        df_encoded = pd.DataFrame(encoded_features, columns=ENCODER.get_feature_names_out(CATEGORICAL_FEATURES))
-        sampled_df = pd.concat([sampled_df.drop(columns=CATEGORICAL_FEATURES), df_encoded], axis=1)
-        for col in ENCODED_COLUMNS_TRAIN:
-            if col not in sampled_df.columns:
-                sampled_df[col] = 0
-        sampled_df = sampled_df[ENCODED_COLUMNS_TRAIN]
-
-        # Exclude 'scoring_differential' from scaling
-        features_to_scale = [feature for feature in NUMERICAL_FEATURES if feature != 'scoring_differential']
-        sampled_df[features_to_scale] = LOADED_SCALER.transform(sampled_df[features_to_scale])
-
-        sampled_df = sampled_df.drop(columns=['scoring_differential'])
         prediction = LOADED_MODEL.predict(sampled_df)
         simulation_results.append(prediction[0])
 
-        # print(f"Prediction at iteration {_}: {prediction[0]}")
-
-        # Check if 10 seconds have passed
         if time.time() - start_time > 10:
             print(random.choice(funny_messages))
             start_time = time.time()
@@ -82,12 +170,11 @@ def monte_carlo_simulation(df, num_simulations=10000):
     print("Monte Carlo Simulation Completed!")
     return simulation_results
 
-def predict_scoring_differential():
-    conn = db_handler.connect()
 
-    # Fetch the teams table to create a mapping of team_alias to team_id
-    teams_df = pd.read_sql_query("SELECT team_id, alias FROM teams", conn)
-    team_alias_to_id = dict(zip(teams_df['alias'], teams_df['team_id']))
+def predict_scoring_differential():
+    # Fetch the teams collection to create a mapping of team_alias to team_id
+    teams_df = fetch_data_from_mongodb('teams')  # Adjusted to use your new method
+    team_alias_to_id = dict(zip(teams_df['alias'], teams_df['id']))
 
     # Display available team aliases in a 6 by X grid
     print("Available Team Aliases:")
@@ -96,48 +183,71 @@ def predict_scoring_differential():
         print("\t".join(aliases[i:i+6]))
 
     # Prompt user for input
-    team_alias = input("Enter team alias: ")
-    while team_alias not in team_alias_to_id:
+    home_team_alias = input("Enter home team alias: ")
+    while home_team_alias not in team_alias_to_id:
         print("Invalid team alias. Please enter a valid team alias from the list above.")
-        team_alias = input("Enter team alias: ")
+        home_team_alias = input("Enter home team alias: ")
 
-    # Fetch data only for the selected team from the team_aggregated_metrics table
-    query = f"SELECT * FROM team_aggregated_metrics WHERE alias = '{team_alias}'"
-    df = pd.read_sql_query(query, conn)
-    df = df.rename(columns={'normalized_power_rank': 'power_rank'})
-
-    opponent_alias = input("Enter opponent team alias: ")
-    while opponent_alias not in team_alias_to_id:
+    away_team_alias = input("Enter away team alias: ")
+    while away_team_alias not in team_alias_to_id:
         print("Invalid opponent team alias. Please enter a valid team alias from the list above.")
-        opponent_alias = input("Enter opponent team alias: ")
+        away_team_alias = input("Enter away team alias: ")
 
-    home_or_away = input("Enter location (Home/Away): ")
-    while home_or_away not in ['Home', 'Away']:
-        print("Invalid location. Please enter 'Home' or 'Away'.")
-        home_or_away = input("Enter location (Home/Away): ")
+    # Fetch data only for the selected teams from the team_aggregated_metrics collection
+    df = fetch_data_from_mongodb('team_aggregated_metrics')  # Adjusted to use your new method
 
-    # Create a DataFrame with user input
-    input_data = {
-        'team_id': [team_alias_to_id[team_alias]],
-        'opponent_team_id': [team_alias_to_id[opponent_alias]],
-        'home_or_away': [home_or_away]
-    }
-    input_df = pd.DataFrame(input_data)
+    home_team_data = df[df['alias'] == home_team_alias]
+    away_team_data = df[df['alias'] == away_team_alias]
 
-    # Update the main DataFrame with the input data
-    for col in input_df.columns:
-        df[col] = input_df[col].iloc[0]
+    def rename_columns(data, prefix):
+        columns_to_rename = [
+            'summary.possession_time',
+            'passing.totals.rating',
+            'efficiency.redzone.successes',
+            'summary.turnovers',
+            'summary.avg_gain',
+            'rushing.totals.redzone_attempts',
+            'efficiency.goaltogo.successes',
+            'defense.totals.sacks',
+            'efficiency.thirddown.successes',
+            'defense.totals.qb_hits'
+        ]
+
+        rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
+        return data.rename(columns=rename_dict)
+
+    home_team_data = rename_columns(home_team_data.reset_index(drop=True), "statistics_home.")
+    away_team_data = rename_columns(away_team_data.reset_index(drop=True), "statistics_away.")
+
+    # Step 1: Identify and rename standard deviation columns
+    home_team_data_stddev = home_team_data.filter(like='stddev').rename(columns=lambda x: "statistics_home." + x)
+    away_team_data_stddev = away_team_data.filter(like='stddev').rename(columns=lambda x: "statistics_away." + x)
+
+    # Step 2: Merge data including the standard deviation columns
+    merged_data = pd.concat([home_team_data, home_team_data_stddev, away_team_data, away_team_data_stddev], axis=1)
+
+    # Step 3: Modify feature_columns list to include standard deviation columns
+    feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
+    feature_columns += [col for col in merged_data.columns if 'stddev' in col]
+
+    # Step 4: Filter merged_data using the modified feature_columns list
+    merged_data = merged_data[feature_columns]
+
+    # Adding missing columns with default values
+    for column in COLUMNS_TO_KEEP:
+        if column not in merged_data.columns:
+            merged_data[column] = 0  # or another appropriate default value
 
     # Run Monte Carlo simulations
     print("\nRunning Simulations...")
-    simulation_results = monte_carlo_simulation(df)
+    simulation_results = monte_carlo_simulation(merged_data)
 
     sorted_results = sorted(simulation_results)
 
     # Filter out the top and bottom 10% of results
     sorted_results = sorted(simulation_results)
-    lower_bound = int(0.1 * len(sorted_results))
-    upper_bound = int(0.9 * len(sorted_results))
+    lower_bound = int(0.01 * len(sorted_results))
+    upper_bound = int(0.99 * len(sorted_results))
     filtered_results = sorted_results[lower_bound:upper_bound]
 
     # Analyze simulation results
@@ -149,7 +259,7 @@ def predict_scoring_differential():
 
     # User-friendly output
     print("\nPrediction Results:")
-    print(f"Based on our model, the expected scoring differential for {team_alias} against {opponent_alias} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
+    print(f"Based on our model, the expected scoring differential for {home_team_alias} against {away_team_alias} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
     print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.\n")
 
 

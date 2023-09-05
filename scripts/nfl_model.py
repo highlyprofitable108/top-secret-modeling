@@ -213,12 +213,7 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_t
     print("Mean Squared Error on Blind Test Data:", mse_blind)
     print("R^2 Score on Blind Test Data:", r2_blind)
 
-    # Get feature importances
-    feature_importances = pd.DataFrame({'Feature': feature_columns, 'Importance': model.feature_importances_})
-    print(feature_importances)
-
     return model
-
 
 
 # Usage
