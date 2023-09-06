@@ -5,8 +5,13 @@ import joblib
 from pymongo import MongoClient
 import time
 import random
+import seaborn as sns
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from scipy.stats import mode, gaussian_kde
+
 
 # Configuration and Database Connection
 config = ConfigManager()
@@ -137,38 +142,36 @@ def time_to_minutes(time_str):
 def monte_carlo_simulation(df, num_simulations=1000):
     print("Starting Monte Carlo Simulation...")
     simulation_results = []
-    funny_messages = [
-        "Simulating... Did you hear about the mathematician who’s afraid of negative numbers? He'll stop at nothing to avoid them!",
-        "Crunching numbers... Why did the student do multiplication problems on the floor? The teacher told him not to use tables.",
-        "Still working... Why was the equal sign so humble? Because she realized she wasn't less than or greater than anyone else!",
-        "Hang tight... Why did the two fours skip lunch? Because they already eight!",
-        "Almost there... Why did the student wear glasses in math class? To improve di-vision!"
-    ]
 
     start_time = time.time()
-    for _ in range(num_simulations):
-        sampled_df = df.copy()
-        for column in sampled_df.columns:
-            if column + '_stddev' in sampled_df.columns:
+    with tqdm(total=num_simulations, ncols=100) as pbar:  # Initialize tqdm with total number of simulations
+        for _ in range(num_simulations):
+            sampled_df = df.copy()
+            for column in sampled_df.columns:
+                if column + '_stddev' in sampled_df.columns:
+                    mean_value = df[column].iloc[0]
+                    stddev_value = df[column + '_stddev'].iloc[0]
+                    sampled_value = np.random.normal(mean_value, stddev_value)
+                    sampled_df[column] = sampled_value
 
-                mean_value = df[column].iloc[0]
-                stddev_value = df[column + '_stddev'].iloc[0]
-                sampled_value = np.random.normal(mean_value, stddev_value)
-                sampled_df[column] = sampled_value
+            # Filter columns and scale numeric features
+            sampled_df = sampled_df[feature_columns]
+            sampled_df[feature_columns] = LOADED_SCALER.transform(sampled_df[feature_columns])
 
-        # Filter columns and scale numeric features
-        sampled_df = sampled_df[feature_columns]
-        sampled_df[feature_columns] = LOADED_SCALER.transform(sampled_df[feature_columns])
+            prediction = LOADED_MODEL.predict(sampled_df)
+            simulation_results.append(prediction[0])
 
-        prediction = LOADED_MODEL.predict(sampled_df)
-        simulation_results.append(prediction[0])
+            pbar.update(1)  # Increment tqdm progress bar
+            if time.time() - start_time > 10:
+                pbar.set_postfix_str("Running simulations...")
+                start_time = time.time()
 
-        if time.time() - start_time > 10:
-            print(random.choice(funny_messages))
-            start_time = time.time()
+    # After obtaining simulation_results
+    kernel = gaussian_kde(simulation_results)
+    most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
 
     print("Monte Carlo Simulation Completed!")
-    return simulation_results
+    return simulation_results, most_likely_outcome
 
 
 def predict_scoring_differential():
@@ -240,27 +243,51 @@ def predict_scoring_differential():
 
     # Run Monte Carlo simulations
     print("\nRunning Simulations...")
-    simulation_results = monte_carlo_simulation(merged_data)
+    simulation_results, most_likely_outcome = monte_carlo_simulation(merged_data)
 
     sorted_results = sorted(simulation_results)
 
-    # Filter out the top and bottom 10% of results
+    # Filter out the 10% of results
     sorted_results = sorted(simulation_results)
-    lower_bound = int(0.01 * len(sorted_results))
-    upper_bound = int(0.99 * len(sorted_results))
+    lower_bound = int(0.1 * len(sorted_results))
+    upper_bound = int(1 * len(sorted_results))
     filtered_results = sorted_results[lower_bound:upper_bound]
 
     # Analyze simulation results
     print("Analyzing Simulation Results...")
-    range_of_outcomes = (min(filtered_results), max(filtered_results))
-    most_likely_outcome = np.mean(filtered_results)
-    print(f"Range of Score Differentials: {range_of_outcomes}")
-    print(f"Most Likely Score Differential: {most_likely_outcome}")
+    range_of_outcomes = (min(filtered_results) + 2.5, max(filtered_results) + 2.5)
+    standard_deviation = np.std(filtered_results)
+    # most_likely_outcome = np.mean(filtered_results) + 2.5
+
+    # Inside the predict_scoring_differential function, uncomment the visualization section and adjust as follows:
+    plt.figure(figsize=(10, 6))
+    sns.histplot(simulation_results, bins=50, kde=True, color='blue')
+    plt.axvline(most_likely_outcome, color='red', linestyle='--')
+    plt.title("Monte Carlo Simulation Results")
+    plt.xlabel("Scoring Differential")
+    plt.ylabel("Density")
+    plt.grid()
+    plt.show()
+
+    # Calculate the highest occurring value on the histogram
+    # max_value_index = np.argmax(hist_values)
+    # highest_occurring_value = ((bins[max_value_index] + bins[max_value_index + 1]) / 2)
+
+    # Round the highest occurring value to the nearest half point (0.5 increments)
+    # rounded_highest_occurring_value = round(highest_occurring_value) + 2.5
+    rounded_most_likely_outcome = ((round(most_likely_outcome * 2) / 2)  + 2.5) * (-1)
+    # Add a leading + sign for positive values
+    if rounded_most_likely_outcome > 0:
+        formatted_most_likely_outcome = f"+{rounded_most_likely_outcome:.2f}"
+    else:
+        formatted_most_likely_outcome = f"{rounded_most_likely_outcome:.2f}"
 
     # User-friendly output
     print("\nPrediction Results:")
     print(f"Based on our model, the expected scoring differential for {home_team_alias} against {away_team_alias} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
-    print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.\n")
+    print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")
+    print(f"The standard deviation of the scoring differentials is approximately {standard_deviation:.2f} points.\n")
+    print(f"The projected spread on this game should be {home_team_alias} {formatted_most_likely_outcome}.\n")
 
 
 # Usage
