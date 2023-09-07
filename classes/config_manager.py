@@ -21,12 +21,15 @@ class ConfigManager:
             print(f"Error: Could not parse the configuration file: {exc}")
             return {}
 
-    def get_config(self, section, key=None):
+    def get_config(self, section=None, key=None):
         """Gets a configuration setting from the specified section and key."""
         try:
-            if key:
+            if section is None:
+                return self.config_data
+            elif key:
                 return self.config_data.get(section, {}).get(key)
-            return self.config_data.get(section)
+            else:
+                return self.config_data.get(section)
         except AttributeError:
             print("Error: Configuration data is not loaded correctly.")
             return None

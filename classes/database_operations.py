@@ -1,3 +1,4 @@
+import pandas as pd
 from pymongo import MongoClient
 from classes.config_manager import ConfigManager
 

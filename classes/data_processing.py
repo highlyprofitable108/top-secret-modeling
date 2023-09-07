@@ -34,6 +34,39 @@ class DataProcessing:
             print(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None  # or return a default value
 
+    def calculate_scoring_differential(self, df):
+        # Convert necessary columns to numeric types
+        numeric_columns = ['summary_home.points', 'summary_away.points']
+        df[numeric_columns] = df[numeric_columns].apply(
+            pd.to_numeric, errors='coerce'
+        )
+
+        # Drop rows with missing values in eithers
+        # 'summary_home_points' or 'summary_away_points'
+        df.dropna(subset=numeric_columns, inplace=True)
+
+        # Check if necessary columns are present and have numeric data types
+        if all(col in df.columns and pd.api.types.is_numeric_dtype(
+            df[col]
+        ) for col in numeric_columns):
+            df['scoring_differential'] = df[
+                'summary_home.points'
+            ] - df[
+                'summary_away.points'
+            ]
+            print("Computed 'scoring_differential' successfully.")
+        else:
+            print(
+                "Unable to compute due to unsuitable data types."
+            )
+
+        # Drop games if 'scoring_differential' key does not exist
+        if 'scoring_differential' not in df.columns:
+            print("'scoring_differential' key does not exist. Dropping games.")
+            return pd.DataFrame()  # Return an empty dataframe
+        else:
+            return df
+
     def validate_data(self, df):
         """Implement data validation checks to ensure the data fetched from the database meets the expected format and structure."""
         # TODO: Implement data validation logic here
