@@ -2,6 +2,7 @@ import pandas as pd
 from pymongo import MongoClient
 from classes.config_manager import ConfigManager
 
+
 class DatabaseOperations:
     def __init__(self):
         self.config = ConfigManager()

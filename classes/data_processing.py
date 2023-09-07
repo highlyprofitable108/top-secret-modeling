@@ -16,14 +16,17 @@ class DataProcessing:
                         f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
                     ]
                     dataframes.append(flattened_df)
+                else:
+                    dataframes.append(df[[column]])
 
-            # Merge flattened dataframes
+            # Merge flattened dataframes along with root level columns
             merged_df = pd.concat(dataframes, axis=1)
             return merged_df
         except Exception as e:
             print(f"Error flattening and merging data: {e}")
             # Handle the error appropriately (e.g., return the original DataFrame or an empty DataFrame)
             return pd.DataFrame()
+
 
     def time_to_minutes(self, time_str):
         """Convert time string 'MM:SS' to minutes as a float."""

@@ -1,4 +1,3 @@
-from pymongo import MongoClient
 from .constants import COLUMNS_TO_KEEP
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
@@ -9,20 +8,18 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+# Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
-data_processing = DataProcessing()
 database_operations = DatabaseOperations()
+data_processing = DataProcessing()
 
-# Get individual components
+# Fetch configurations using ConfigManager
 base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
-feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
+database_name = config.get_config('database', 'database_name')
+feature_columns = COLUMNS_TO_KEEP
 LOADED_MODEL = joblib.load(os.path.join(model_dir, 'trained_nfl_model.pkl'))
-MONGO_URI = "mongodb://localhost:27017/"
-DATABASE_NAME = "nfl_db"
-client = MongoClient(MONGO_URI)
-db = client[DATABASE_NAME]
 
 # Get the current date
 today = datetime.today().date()
@@ -46,7 +43,7 @@ def load_and_process_data():
         if processed_df[col].apply(type).eq(list).any():
             processed_df[col] = processed_df[col].astype(str)
 
-    df = data_processing.calculate_scoring_differential(df)
+    processed_df = data_processing.calculate_scoring_differential(processed_df)
 
     # Drop games if 'scoring_differential' key does not exist
     if 'scoring_differential' not in processed_df.columns:
@@ -113,6 +110,10 @@ weights = dict(zip(feature_columns, feature_importances))
 # Separate Home and Away Data
 df_home = df[['summary_home.id', 'summary_home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
 df_away = df[['summary_away.id', 'summary_away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
+
+print(df_home.head)
+print(df_away.head)
+
 
 # Compute Power Ranks
 def compute_power_rank(row, metrics):
@@ -220,12 +221,12 @@ df_stddev = pd.DataFrame(stddev_data)
 
 # Merge the standard deviation DataFrame with the aggregated_df DataFrame
 aggregated_df = aggregated_df.reset_index()
-processed_teams_df['id'] = processed_teams_df['id'].astype(str)
+teams_df['id'] = teams_df['id'].astype(str)
 aggregated_df['id'] = aggregated_df['id'].astype(str)
 aggregated_df = aggregated_df.merge(df_stddev, left_on='id', right_index=True)
 print(aggregated_df.head())
-print(processed_teams_df.head())
-aggregated_df = aggregated_df.merge(processed_teams_df, left_on='id', right_on='id', how='left')
+print(teams_df.head())
+aggregated_df = aggregated_df.merge(teams_df, left_on='id', right_on='id', how='left')
 
 # Drop the team_aggregated_metrics collection if it exists
 db.team_aggregated_metrics.drop()
