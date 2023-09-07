@@ -1,108 +1,55 @@
 from classes.config_manager import ConfigManager
-from .constants import COLUMNS_TO_KEEP
-import os
-import joblib
-import pandas as pd
-from pymongo import MongoClient
+from classes.database_operations import DatabaseOperations
+from classes.data_processing import DataProcessing
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+import joblib
+import os
+import pandas as pd
+from .constants import COLUMNS_TO_KEEP
 
 # TODO: 1. Implement error handling to manage potential issues during database connections or data processing.
 # TODO: 2. Introduce logging to keep track of the operations and potential errors during the script execution.
 
-# Configuration and Database Connection
+# Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
+db_operations = DatabaseOperations()
+data_processing = DataProcessing()
+
+# Fetch configurations using ConfigManager
 base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-MONGO_URI = "mongodb://localhost:27017/"
-DATABASE_NAME = "nfl_db"
-client = MongoClient(MONGO_URI)
-db = client[DATABASE_NAME]
-
-
-def fetch_data_from_mongodb(collection_name):
-    """Fetch data from a MongoDB collection."""
-    cursor = db[collection_name].find()
-    df = pd.DataFrame(list(cursor))
-    return df
-
-
-def flatten_and_merge_data(df):
-    """Flatten the nested MongoDB data."""
-    # Flatten each category and store in a list
-    dataframes = []
-    for column in df.columns:
-        if isinstance(df[column][0], dict):
-            flattened_df = pd.json_normalize(df[column])
-            flattened_df.columns = [
-                f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
-            ]
-            dataframes.append(flattened_df)
-
-    # Merge flattened dataframes
-    merged_df = pd.concat(dataframes, axis=1)
-    return merged_df
-
-# TODO: 3. Implement data validation checks to ensure the data fetched from the database meets the expected format and structure.
-# TODO: 4. Consider adding functionality to handle different data types more efficiently during the flattening process.
 
 
 def load_and_process_data():
-    """Load data from MongoDB and process it."""
-    df = fetch_data_from_mongodb("games")
-    processed_df = flatten_and_merge_data(df)
+    """Load and process data."""
+    # Fetch data from MongoDB using DatabaseOperations class
+    collection_name = "games"
+    df = db_operations.fetch_data_from_mongodb(collection_name)
 
-    # Convert columns with list values to string
-    for col in processed_df.columns:
-        if processed_df[col].apply(type).eq(list).any():
-            processed_df[col] = processed_df[col].astype(str)
+    # Flatten and merge data using DataProcessing class
+    df = data_processing.flatten_and_merge_data(df)
 
-    # Convert necessary columns to numeric types
-    numeric_columns = ['summary_home.points', 'summary_away.points']
-    processed_df[numeric_columns] = processed_df[numeric_columns].apply(
-        pd.to_numeric, errors='coerce'
-    )
+    # Compute scoring differential using DataProcessing class
+    df = data_processing.calculate_scoring_differential(df)
 
-    # Drop rows with missing values in eithers
-    # 'summary_home_points' or 'summary_away_points'
-    processed_df.dropna(subset=numeric_columns, inplace=True)
+    # Keep only the columns specified in COLUMNS_TO_KEEP
+    df = df[COLUMNS_TO_KEEP]
 
-    # Check if necessary columns are present and have numeric data types
-    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(
-        processed_df[col]
-    ) for col in numeric_columns):
-        processed_df['scoring_differential'] = processed_df[
-            'summary_home.points'
-        ] - processed_df[
-            'summary_away.points'
-        ]
-        print("Computed 'scoring_differential' successfully.")
-    else:
-        print(
-            "Unable to compute due to unsuitable data types."
-        )
+    # Convert time strings to minutes (apply this to the relevant columns)
+    df['statistics_home.summary.possession_time'] = df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
+    df['statistics_away.summary.possession_time'] = df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
 
     # Drop games if 'scoring_differential' key does not exist
-    if 'scoring_differential' not in processed_df.columns:
+    if 'scoring_differential' not in df.columns:
         print("'scoring_differential' key does not exist. Dropping games.")
         return pd.DataFrame()  # Return an empty dataframe
     else:
-        return processed_df
-
-# TODO: 5. Implement more robust error handling and data validation to ensure the 'scoring_differential' is computed correctly.
-# TODO: 6. Consider adding a logging mechanism to track the data processing steps and potential issues.
-
-
-def time_to_minutes(time_str):
-    """Convert time string 'MM:SS' to minutes as a float."""
-    minutes, seconds = map(int, time_str.split(':'))
-    return minutes + seconds / 60
-
-# TODO: 7. Consider adding error handling to manage incorrect time formats.
+        return df
 
 
 def preprocess_nfl_data(df):
@@ -178,7 +125,7 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_t
     """
     # Convert numpy arrays back to dataframes to preserve feature names
     feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']   
-    
+
     X_train_df = pd.DataFrame(X_train, columns=feature_columns)
     X_test_df = pd.DataFrame(X_test, columns=feature_columns)
     X_blind_test_df = pd.DataFrame(X_blind_test, columns=feature_columns)
@@ -216,26 +163,15 @@ def train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_t
     return model
 
 
-# Usage
 def main():
+    """Main function."""
     # Load and process data
     processed_df = load_and_process_data()
 
-    # Create a copy of the DataFrame
-    df = processed_df.copy()
+    # Preprocess data
+    X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler = preprocess_nfl_data(processed_df)
 
-    # Drop columns that are not in the COLUMNS_TO_KEEP list
-    df = df[COLUMNS_TO_KEEP]
-
-    # Convert time strings to minutes (apply this to the relevant columns)
-    df['statistics_home.summary.possession_time'] = df[
-        'statistics_home.summary.possession_time'
-    ].apply(time_to_minutes)
-    df['statistics_away.summary.possession_time'] = df[
-        'statistics_away.summary.possession_time'
-    ].apply(time_to_minutes)
-
-    X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler = preprocess_nfl_data(df)
+    # Train and evaluate model
     model = train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test)
 
     # Save the model and related files to the models directory

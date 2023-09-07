@@ -1,6 +1,8 @@
 from pymongo import MongoClient
 from .constants import COLUMNS_TO_KEEP
 from classes.config_manager import ConfigManager
+from classes.data_processing import DataProcessing
+from classes.database_operations import DatabaseOperations
 import os
 import joblib
 import pandas as pd
@@ -8,6 +10,8 @@ import numpy as np
 from datetime import datetime
 
 config = ConfigManager()
+data_processing = DataProcessing()
+database_operations = DatabaseOperations()
 
 # Get individual components
 base_dir = config.get_config('default', 'base_dir')
@@ -26,75 +30,23 @@ today = datetime.today().date()
 # Calculate the date for two years ago
 two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
-
-# Fetching data from MongoDB (modify to fetch data based on date)
-def fetch_data_from_mongodb(collection_name):
-    cursor = db[collection_name].find()
-    df = pd.DataFrame(list(cursor))
-    return df
-
-
-def flatten_and_merge_data(df):
-    """Flatten the nested MongoDB data."""
-    # Flatten each category and store in a list
-    dataframes = []
-    for column in df.columns:
-        if isinstance(df[column][0], dict):
-            flattened_df = pd.json_normalize(df[column])
-            flattened_df.columns = [
-                f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
-            ]
-            dataframes.append(flattened_df)
-        else:
-            dataframes.append(df[[column]])
-
-    # Merge flattened dataframes
-    merged_df = pd.concat(dataframes, axis=1)
-
-    return merged_df
-
-
 # TODO: 3. Implement data validation checks to ensure the data fetched from the database meets the expected format and structure.
 # TODO: 4. Consider adding functionality to handle different data types more efficiently during the flattening process.
 
 
 def load_and_process_data():
     """Load data from MongoDB and process it."""
-    df = fetch_data_from_mongodb("games")
-    teams_df = fetch_data_from_mongodb("teams")
-    processed_df = flatten_and_merge_data(df)
-    processed_teams_df = flatten_and_merge_data(teams_df)
-
+    df = database_operations.fetch_data_from_mongodb("games")
+    teams_df = database_operations.fetch_data_from_mongodb("teams")
+    processed_df = data_processing.flatten_and_merge_data(df)
+    processed_teams_df = data_processing.flatten_and_merge_data(teams_df)
 
     # Convert columns with list values to string
     for col in processed_df.columns:
         if processed_df[col].apply(type).eq(list).any():
             processed_df[col] = processed_df[col].astype(str)
 
-    # Convert necessary columns to numeric types
-    numeric_columns = ['summary_home.points', 'summary_away.points']
-    processed_df[numeric_columns] = processed_df[numeric_columns].apply(
-        pd.to_numeric, errors='coerce'
-    )
-
-    # Drop rows with missing values in eithers
-    # 'summary_home_points' or 'summary_away_points'
-    processed_df.dropna(subset=numeric_columns, inplace=True)
-
-    # Check if necessary columns are present and have numeric data types
-    if all(col in processed_df.columns and pd.api.types.is_numeric_dtype(
-        processed_df[col]
-    ) for col in numeric_columns):
-        processed_df['scoring_differential'] = processed_df[
-            'summary_home.points'
-        ] - processed_df[
-            'summary_away.points'
-        ]
-        print("Computed 'scoring_differential' successfully.")
-    else:
-        print(
-            "Unable to compute due to unsuitable data types."
-        )
+    df = data_processing.calculate_scoring_differential(df)
 
     # Drop games if 'scoring_differential' key does not exist
     if 'scoring_differential' not in processed_df.columns:
@@ -107,24 +59,12 @@ def load_and_process_data():
 # TODO: 6. Consider adding a logging mechanism to track the data processing steps and potential issues.
 
 
-def time_to_minutes(time_str):
-    """Convert time string 'MM:SS' to minutes as a float."""
-    minutes, seconds = map(int, time_str.split(':'))
-    return minutes + seconds / 60
-
-# TODO: 7. Consider adding error handling to manage incorrect time formats.
-
-
 processed_df, processed_teams_df = load_and_process_data()
 processed_teams_df = processed_teams_df.drop_duplicates(subset='id')
 
 # Convert time strings to minutes (apply this to the relevant columns)
-processed_df['statistics_home.summary.possession_time'] = processed_df[
-    'statistics_home.summary.possession_time'
-].apply(time_to_minutes)
-processed_df['statistics_away.summary.possession_time'] = processed_df[
-    'statistics_away.summary.possession_time'
-].apply(time_to_minutes)
+processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
+processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
 
 processed_df['game_date'] = pd.to_datetime(processed_df['scheduled'])
 
@@ -137,7 +77,6 @@ processed_df['days_since_game'] = (today - processed_df['game_date']).dt.days
 # Drop all games played more than 104 weeks (728 days) ago
 max_days_since_game = 104 * 7
 df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
-
 
 # Exponential decay function
 def decay_weight(days):
