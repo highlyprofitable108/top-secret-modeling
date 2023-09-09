@@ -18,7 +18,7 @@ base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-feature_columns = COLUMNS_TO_KEEP
+feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
 LOADED_MODEL = joblib.load(os.path.join(model_dir, 'trained_nfl_model.pkl'))
 
 # Get the current date
@@ -32,7 +32,7 @@ two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
 
 def load_and_process_data():
-    """Load data from MongoDB and process it."""
+    """Load data from Mongodatabase_operations and process it."""
     df = database_operations.fetch_data_from_mongodb("games")
     teams_df = database_operations.fetch_data_from_mongodb("teams")
     processed_df = data_processing.flatten_and_merge_data(df)
@@ -75,6 +75,7 @@ processed_df['days_since_game'] = (today - processed_df['game_date']).dt.days
 max_days_since_game = 104 * 7
 df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
 
+
 # Exponential decay function
 def decay_weight(days):
     if days <= 42:  # Last 6 weeks
@@ -111,9 +112,6 @@ weights = dict(zip(feature_columns, feature_importances))
 df_home = df[['summary_home.id', 'summary_home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
 df_away = df[['summary_away.id', 'summary_away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
 
-print(df_home.head)
-print(df_away.head)
-
 
 # Compute Power Ranks
 def compute_power_rank(row, metrics):
@@ -136,10 +134,6 @@ df_away.columns = df_away.columns.str.replace('summary_away.', '').str.replace('
 
 # Concatenate the dataframes to create a single dataframe with all team performances
 df = pd.concat([df_home, df_away], ignore_index=True)
-
-print("Step 8: Concatenating DataFrames and Normalizing Power Rank Values")
-print("DF Head after concatenation and normalization:")
-print(df)
 
 # Determine the week number based on the Tuesday-to-Monday window
 df['week_number'] = (df['game_date'] - pd.Timedelta(days=1)).dt.isocalendar().week
@@ -166,11 +160,12 @@ columns_for_power_rank_table = ['id', 'name', 'game_date', 'days_since_game', 'w
 power_rank_df = df[columns_for_power_rank_table]
 
 # Drop the power_rank collection if it exists
-db.power_rank.drop()
+if 'power_rank' in database_operations.db.list_collection_names():
+    database_operations.db.power_rank.drop()
 
 # Save to a new collection in the database
 power_rank_df.reset_index(inplace=True, drop=True)
-db.power_rank.insert_many(power_rank_df.to_dict('records'))
+database_operations.insert_data_into_mongodb('power_rank', power_rank_df.to_dict('records'))
 
 df['weighted_power_rank'] = df['power_rank'] * df['weight']
 
@@ -221,18 +216,17 @@ df_stddev = pd.DataFrame(stddev_data)
 
 # Merge the standard deviation DataFrame with the aggregated_df DataFrame
 aggregated_df = aggregated_df.reset_index()
-teams_df['id'] = teams_df['id'].astype(str)
+processed_teams_df['id'] = processed_teams_df['id'].astype(str)
 aggregated_df['id'] = aggregated_df['id'].astype(str)
 aggregated_df = aggregated_df.merge(df_stddev, left_on='id', right_index=True)
-print(aggregated_df.head())
-print(teams_df.head())
-aggregated_df = aggregated_df.merge(teams_df, left_on='id', right_on='id', how='left')
+aggregated_df = aggregated_df.merge(processed_teams_df, left_on='id', right_on='id', how='left')
 
 # Drop the team_aggregated_metrics collection if it exists
-db.team_aggregated_metrics.drop()
+if 'team_aggregated_metrics' in database_operations.db.list_collection_names():
+    database_operations.db.team_aggregated_metrics.drop()
 
 # Save to a new collection in the database
 aggregated_df.reset_index(inplace=True)
-db.team_aggregated_metrics.insert_many(aggregated_df.to_dict('records'))
+database_operations.insert_data_into_mongodb('team_aggregated_metrics', aggregated_df.to_dict('records'))
 
 print('Aggregated metrics saved to team_aggregated_metrics collection.')
