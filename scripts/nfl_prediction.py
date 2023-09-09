@@ -1,4 +1,6 @@
 from classes.config_manager import ConfigManager
+from classes.data_processing import DataProcessing
+from classes.database_operations import DatabaseOperations
 from .constants import COLUMNS_TO_KEEP
 import os
 import joblib
@@ -12,9 +14,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.stats import mode, gaussian_kde
 
-
 # Configuration and Database Connection
 config = ConfigManager()
+data_processing = DataProcessing()
+database_operations = DatabaseOperations()
+
+# Constants
 base_dir = config.get_config('default', 'base_dir')
 data_dir = base_dir + config.get_config('paths', 'data_dir')
 model_dir = base_dir + config.get_config('paths', 'model_dir')
@@ -23,7 +28,6 @@ DATABASE_NAME = config.get_config('database', 'database_name')  # Moved to confi
 client = MongoClient(MONGO_URI)
 db = client[DATABASE_NAME]
 
-# Constants
 # Define the feature columns by removing the target variable from COLUMNS_TO_KEEP
 feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
 
@@ -35,56 +39,10 @@ except FileNotFoundError as e:
     print(f"Error loading files: {e}")
     # Exit the script or handle the error appropriately
 
-
-# ENCODER = joblib.load(os.path.join(model_dir, 'data_encoder.pkl'))
-# ENCODED_COLUMNS_TRAIN = joblib.load(os.path.join(model_dir, 'encoded_columns.pkl'))
-def time_to_minutes(time_str):
-    """Convert time string 'MM:SS' to minutes as a float."""
-    minutes, seconds = map(int, time_str.split(':'))
-    return minutes + seconds / 60
-
-
-def fetch_data_from_mongodb(collection_name):
-    """Fetch data from a MongoDB collection."""
-    try:
-        cursor = db[collection_name].find()
-        df = pd.DataFrame(list(cursor))
-        return df
-    except Exception as e:
-        print(f"Error fetching data from MongoDB: {e}")
-        # Handle the error appropriately (e.g., return an empty DataFrame or exit the script)
-        return pd.DataFrame()
-
-
-def flatten_and_merge_data(df):
-    """Flatten the nested MongoDB data."""
-    try:
-        # Flatten each category and store in a list
-        dataframes = []
-        for column in df.columns:
-            if isinstance(df[column][0], dict):
-                flattened_df = pd.json_normalize(df[column])
-                flattened_df.columns = [
-                    f"{column}_{subcolumn}" for subcolumn in flattened_df.columns
-                ]
-                dataframes.append(flattened_df)
-
-        # Merge flattened dataframes
-        merged_df = pd.concat(dataframes, axis=1)
-        return merged_df
-    except Exception as e:
-        print(f"Error flattening and merging data: {e}")
-        # Handle the error appropriately (e.g., return the original DataFrame or an empty DataFrame)
-        return pd.DataFrame()
-
-# TODO: 3. Implement data validation checks to ensure the data fetched from the database meets the expected format and structure.
-# TODO: 4. Consider adding functionality to handle different data types more efficiently during the flattening process.
-
-
 def load_and_process_data():
     """Load data from MongoDB and process it."""
-    df = fetch_data_from_mongodb("games")
-    processed_df = flatten_and_merge_data(df)
+    df = database_operations.fetch_data_from_mongodb("games")
+    processed_df = data_processing.flatten_and_merge_data(df)
 
     # Convert columns with list values to string
     for col in processed_df.columns:
@@ -121,22 +79,6 @@ def load_and_process_data():
         return pd.DataFrame()  # Return an empty dataframe
     else:
         return processed_df
-
-# TODO: 5. Implement more robust error handling and data validation to ensure the 'scoring_differential' is computed correctly.
-# TODO: 6. Consider adding a logging mechanism to track the data processing steps and potential issues.
-
-
-def time_to_minutes(time_str):
-    """Convert time string 'MM:SS' to minutes as a float."""
-    print(time_str)
-    try:
-        minutes, seconds = map(int, time_str.split(':'))
-        return minutes + seconds / 60
-    except ValueError:
-        print(f"Invalid time format: {time_str}. Unable to convert to minutes.")
-        return None  # or return a default value
-
-# TODO: 7. Consider adding error handling to manage incorrect time formats.
 
 
 def monte_carlo_simulation(df, num_simulations=1000):
@@ -176,7 +118,7 @@ def monte_carlo_simulation(df, num_simulations=1000):
 
 def predict_scoring_differential():
     # Fetch the teams collection to create a mapping of team_alias to team_id
-    teams_df = fetch_data_from_mongodb('teams')  # Adjusted to use your new method
+    teams_df = database_operations.fetch_data_from_mongodb('teams')  # Adjusted to use your new method
     team_alias_to_id = dict(zip(teams_df['alias'], teams_df['id']))
 
     # Display available team aliases in a 6 by X grid
@@ -197,7 +139,7 @@ def predict_scoring_differential():
         away_team_alias = input("Enter away team alias: ")
 
     # Fetch data only for the selected teams from the team_aggregated_metrics collection
-    df = fetch_data_from_mongodb('team_aggregated_metrics')  # Adjusted to use your new method
+    df = database_operations.fetch_data_from_mongodb('team_aggregated_metrics')  # Adjusted to use your new method
 
     home_team_data = df[df['alias'] == home_team_alias]
     away_team_data = df[df['alias'] == away_team_alias]
@@ -249,13 +191,13 @@ def predict_scoring_differential():
 
     # Filter out the 10% of results
     sorted_results = sorted(simulation_results)
-    lower_bound = int(0.1 * len(sorted_results))
-    upper_bound = int(1 * len(sorted_results))
+    lower_bound = int(0.050 * len(sorted_results))
+    upper_bound = int(0.950 * len(sorted_results))
     filtered_results = sorted_results[lower_bound:upper_bound]
 
     # Analyze simulation results
     print("Analyzing Simulation Results...")
-    range_of_outcomes = (min(filtered_results) + 2.5, max(filtered_results) + 2.5)
+    range_of_outcomes = (min(filtered_results), max(filtered_results))
     standard_deviation = np.std(filtered_results)
     # most_likely_outcome = np.mean(filtered_results) + 2.5
 
@@ -275,7 +217,7 @@ def predict_scoring_differential():
 
     # Round the highest occurring value to the nearest half point (0.5 increments)
     # rounded_highest_occurring_value = round(highest_occurring_value) + 2.5
-    rounded_most_likely_outcome = ((round(most_likely_outcome * 2) / 2)  + 2.5) * (-1)
+    rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2) * (-1)
     # Add a leading + sign for positive values
     if rounded_most_likely_outcome > 0:
         formatted_most_likely_outcome = f"+{rounded_most_likely_outcome:.2f}"
