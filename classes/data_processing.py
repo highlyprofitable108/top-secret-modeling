@@ -21,6 +21,10 @@ class DataProcessing:
 
             # Merge flattened dataframes along with root level columns
             merged_df = pd.concat(dataframes, axis=1)
+
+            # for column in merged_df.columns:
+            #     print(column)
+
             return merged_df
         except Exception as e:
             print(f"Error flattening and merging data: {e}")
