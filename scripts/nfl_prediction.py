@@ -20,9 +20,8 @@ data_processing = DataProcessing()
 database_operations = DatabaseOperations()
 
 # Constants
-base_dir = config.get_config('default', 'base_dir')
-data_dir = base_dir + config.get_config('paths', 'data_dir')
-model_dir = base_dir + config.get_config('paths', 'model_dir')
+data_dir = config.get_config('paths', 'data_dir')
+model_dir = config.get_config('paths', 'model_dir')
 MONGO_URI = config.get_config('database', 'mongo_uri')  # Moved to config file
 DATABASE_NAME = config.get_config('database', 'database_name')  # Moved to config file
 client = MongoClient(MONGO_URI)
@@ -38,6 +37,7 @@ try:
 except FileNotFoundError as e:
     print(f"Error loading files: {e}")
     # Exit the script or handle the error appropriately
+
 
 def load_and_process_data():
     """Load data from MongoDB and process it."""
@@ -145,20 +145,7 @@ def predict_scoring_differential():
     away_team_data = df[df['alias'] == away_team_alias]
 
     def rename_columns(data, prefix):
-        columns_to_rename = [
-            'summary.possession_time',
-            'passing.totals.rating',
-            'efficiency.redzone.successes',
-            'summary.turnovers',
-            'summary.avg_gain',
-            'rushing.totals.redzone_attempts',
-            'efficiency.goaltogo.successes',
-            'defense.totals.sacks',
-            'efficiency.thirddown.successes',
-            'defense.totals.qb_hits'
-        ]
-
-        rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
+        rename_dict = {col: f"{prefix}{col}" for col in data}
         return data.rename(columns=rename_dict)
 
     home_team_data = rename_columns(home_team_data.reset_index(drop=True), "statistics_home.")
@@ -170,6 +157,7 @@ def predict_scoring_differential():
 
     # Step 2: Merge data including the standard deviation columns
     merged_data = pd.concat([home_team_data, home_team_data_stddev, away_team_data, away_team_data_stddev], axis=1)
+    print(merged_data)
 
     # Step 3: Modify feature_columns list to include standard deviation columns
     feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']

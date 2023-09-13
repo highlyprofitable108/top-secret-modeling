@@ -11,8 +11,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class DBInserter:
     """A class to handle the insertion of data into the database."""
 
-    def __init__(self, config):
+    def __init__(self):
         """Initializes the DBInserter with the given configuration."""
+        config_manager = ConfigManager()
+        config = config_manager.get_config()
+
         self.mongo_uri = config.get('database', {}).get('mongo_uri')
         self.db_name = config.get('database', {}).get('database_name')
         self.json_dir = config.get('paths', {}).get('json_dir')
@@ -81,14 +84,11 @@ class DBInserter:
         """Inserts players data into the database."""
         if 'statistics' in data:
             players_collection = self.db['players']
-            for category, stats in data['statistics']['home'].items():
-                if isinstance(stats, dict) and 'players' in stats:
-                    for player in stats['players']:
-                        players_collection.insert_one(player)
-            for category, stats in data['statistics']['away'].items():
-                if isinstance(stats, dict) and 'players' in stats:
-                    for player in stats['players']:
-                        players_collection.insert_one(player)
+            for team in ['home', 'away']:
+                for category, stats in data['statistics'][team].items():
+                    if isinstance(stats, dict) and 'players' in stats:
+                        for player in stats['players']:
+                            players_collection.insert_one(player)
 
     def insert_summary_data(self, data):
         """Inserts summary data into the database."""
@@ -112,8 +112,5 @@ class DBInserter:
 
 if __name__ == "__main__":
     # Usage example:
-    config_manager = ConfigManager()
-    config = config_manager.get_config()
-    db_inserter = DBInserter(config)
+    db_inserter = DBInserter()
     db_inserter.insert_data_from_directory()
-    
