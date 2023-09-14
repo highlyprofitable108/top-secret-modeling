@@ -27,24 +27,6 @@ today = datetime.today().date()
 two_years_ago = (today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
 
-def load_configuration(config_manager):
-    """
-    This function handles the loading of configurations using the ConfigManager.
-    :param config_manager: An instance of ConfigManager class
-    :return: A dictionary containing various configurations
-    """
-    try:
-        configurations = {
-            "database": config_manager.get_config('database'),
-            "paths": config_manager.get_config('paths'),
-            "model": config_manager.get_config('model')
-        }
-        return configurations
-    except Exception as e:
-        print(f"Error loading configurations: {e}")
-        return None
-
-
 def load_and_process_data(database_operations, data_processing):
     """
     This function handles the loading and initial processing of data.
@@ -56,6 +38,7 @@ def load_and_process_data(database_operations, data_processing):
         # Step 1: Fetch data from the database
         games_df = database_operations.fetch_data_from_mongodb("games")
         teams_df = database_operations.fetch_data_from_mongodb("teams")
+        teams_df.loc[teams_df['name'] == 'Football Team', 'name'] = 'Commanders'
 
         if games_df.empty or teams_df.empty:
             print("No data fetched from the database.")
@@ -293,45 +276,36 @@ def insert_aggregated_data_into_database(aggregated_df, database_operations):
 
 
 if __name__ == "__main__":
-    config_manager = ConfigManager()
-    configurations = load_configuration(config_manager)
+    # Load and process data
+    processed_games_df, processed_teams_df = load_and_process_data(database_operations, data_processing)
 
-    if configurations:
-        data_processing = DataProcessing()
-        database_operations = DatabaseOperations()
+    if processed_games_df is not None and processed_teams_df is not None:
+        # Transform data
+        df_home, df_away = transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
 
-        # Load and process data
-        processed_games_df, processed_teams_df = load_and_process_data(database_operations, data_processing)
+        if df_home is not None and df_away is not None:
+            # Calculate power rank
+            metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
+            metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
+            feature_importances = LOADED_MODEL.feature_importances_
+            weights = dict(zip(feature_columns, feature_importances))
+            df = calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
 
-        if processed_games_df is not None and processed_teams_df is not None:
-            # Transform data
-            df_home, df_away = transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
+            if df is not None:
+                # Aggregate and normalize data
+                cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
+                aggregated_df = aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
 
-            if df_home is not None and df_away is not None:
-                # Calculate power rank
-                metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
-                metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
-                feature_importances = LOADED_MODEL.feature_importances_
-                weights = dict(zip(feature_columns, feature_importances))
-                df = calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
+                if aggregated_df is not None:
+                    # Insert aggregated data into MongoDB
+                    insert_aggregated_data_into_database(aggregated_df, database_operations)
 
-                if df is not None:
-                    # Aggregate and normalize data
-                    cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
-                    aggregated_df = aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
-
-                    if aggregated_df is not None:
-                        # Insert aggregated data into MongoDB
-                        insert_aggregated_data_into_database(aggregated_df, database_operations)
-
-                        # Further script implementation here, where you can use aggregated_df for analysis
-                    else:
-                        print("Error in aggregating and normalizing data. Exiting script.")
+                    # Further script implementation here, where you can use aggregated_df for analysis
                 else:
-                    print("Error in calculating power rank. Exiting script.")
+                    print("Error in aggregating and normalizing data. Exiting script.")
             else:
-                print("Error in data transformation. Exiting script.")
+                print("Error in calculating power rank. Exiting script.")
         else:
-            print("Error in data loading and processing. Exiting script.")
+            print("Error in data transformation. Exiting script.")
     else:
-        print("Error loading configurations. Exiting script.")
+        print("Error in data loading and processing. Exiting script.")
