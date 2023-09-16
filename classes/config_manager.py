@@ -67,6 +67,10 @@ class ConfigManager:
     def get_model_dir(self) -> str:
         """Gets the model directory path from the configuration data."""
         return self.get_config('paths', 'model_dir')
+    
+    def get_static_dir(self) -> str:
+        """Gets the static directory path from the configuration data."""
+        return self.get_config('paths', 'static_dir')
 
     def get_db_path(self) -> str:
         """Gets the database path from the configuration data."""
