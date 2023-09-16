@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>NFL Data Analysis</title>
+    <!-- Include Plotly.js for interactive plots -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    color: #fff;
+  }
+  .navbar {
+    background-color: rgba(0, 0, 0, 0.8);
+    margin-bottom: 20px;
+  }
+  .navbar-brand, .navbar-nav .nav-link {
+    color: #fff;
+  }
+  .container {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+  }
+  .btn-primary {
+    background-color: #28a745;
+  }
+  .hero-section {
+    background-image: url('https://www.ncl.ac.uk/mediav8/mathematics-statistics-and-physics/images/stats_header_image_1_opt.jpg');
+    background-size: cover;
+    background-position: center;
+    color: white;
+    padding: 100px 20px;
+    text-align: center;
+  }
+  .secondary-nav {
+    background-color: #f8f9fa;
+    padding: 10px;
+    text-align: center;
+  }
+  .feature-icon {
+    font-size: 50px;
+    color: #007bff;
+  }
+  .footer {
+    background-color: #f8f9fa;
+    padding: 20px;
+    text-align: center;
+  }
+</style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <a class="navbar-brand" href="/">Home</a>
+      <div class="navbar-nav">
+        <a class="nav-link" href="/columns">Columns</a>
+        <a class="nav-link" href="/generate_analysis">Generate Analysis</a>
+      </div>
+    </nav>
+
+    <div class="hero-section">
+      <h1>NFL Data Analysis</h1>
+      <p>Insights from the latest NFL games data</p>
+    </div>
+
+    <div class="container">
+      <h2>Analysis Results</h2>
+      <div>
+        <h3>Correlation Heatmap</h3>
+        <img src="{{ data.heatmap_path }}" alt="Heatmap">
+      </div>
+      <div>
+        <h3>Feature Importance</h3>
+        <img src="{{ data.feature_importance_path }}" alt="Feature Importance">
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2023 NFL Data Analysis</p>
+    </div>
+  </body>
+</html>

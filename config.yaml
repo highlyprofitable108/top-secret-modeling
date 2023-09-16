@@ -11,6 +11,7 @@ paths:
   model_dir: "./models"
   json_dir: "./data/jsons"
   data_dir: "./data"
+  static_dir: "./flask_app/static"
 
 database:
   mongo_uri: "mongodb://localhost:27017/"

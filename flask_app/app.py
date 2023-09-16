@@ -1,5 +1,6 @@
 from scripts import nfl_stats_select, constants
-from flask import Flask, render_template, request, redirect, url_for  
+from scripts.nfl_eda import NFLDataAnalyzer
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 # , flash, session
 from collections import defaultdict
 import importlib
@@ -7,10 +8,20 @@ import importlib
 app = Flask(__name__)
 app.secret_key = '4815162342'  # Change this to a random secret key
 
+analyzer = NFLDataAnalyzer()
+
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    # Regenerate the active constants list
+    active_constants = constants.COLUMNS_TO_KEEP  # Assuming get_active_constants is a function that returns the list of active constants
+    active_constants = [col.replace('statistics_*.', '') for col in active_constants if 'scoring_differential' not in col]
+    active_constants = sorted(set(active_constants))
+
+    # Reload the constants module to get the updated list of active constants
+    importlib.reload(constants)
+
+    return render_template('index.html', active_constants=active_constants)
 
 
 @app.route('/columns')
@@ -50,6 +61,24 @@ def process_columns():
 
     # Redirect the user back to the columns page
     return redirect(url_for('columns'))
+
+
+@app.route('/generate_analysis', methods=['POST'])
+def generate_analysis():
+    collection_name = request.json.get('collection_name', 'games')  # Get the collection name from the JSON body, default is 'games'
+    df = analyzer.load_and_process_data(collection_name)
+    analyzer.generate_eda_report(df)
+    return jsonify(status="success")  # Return a JSON response indicating success
+
+
+@app.route('/view_analysis')
+def view_analysis():
+    data = {
+        "heatmap_path": "/static/heatmap.png",
+        "feature_importance_path": "/static/feature_importance.png"
+    }
+
+    return render_template('view_analysis.html', data=data)
 
 
 if __name__ == "__main__":
