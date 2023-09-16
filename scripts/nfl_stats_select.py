@@ -12,51 +12,20 @@ def display_columns(columns, page):
         print(f"{i+1}. {col}")
 
 
-def get_user_selection():
-    """Prompts the user to select columns and returns the selected columns."""
-    selected_columns = set()
-    page = 0
-    total_pages = (len(ALL_COLUMNS) - 1) // PAGE_SIZE + 1
+def get_user_selection(selected_columns):
+    """Receives the selected columns from the web interface and returns the selected columns."""
 
-    while True:
-        print(f"Page {page+1}/{total_pages}")
-        display_columns(ALL_COLUMNS, page)
-        user_input = input("Enter indices to add/remove (comma separated), 'g' to generate the file, 'q' to quit, 'all' to select all, 'random' for random selection, or n/p for next/previous page: ").strip()
+    # If 'all' is selected, return all columns
+    if 'all' in selected_columns:
+        return list(ALL_COLUMNS)
 
-        if user_input.lower() == 'n':
-            page = min(page + 1, total_pages - 1)
-        elif user_input.lower() == 'q':
-            exit()
-        elif user_input.lower() == 'g':
-            break
-        elif user_input.lower() == 'p':
-            page = max(page - 1, 0)
-        elif user_input.lower() == 'done':
-            break
-        elif user_input.lower() == 'all':
-            selected_columns = set(ALL_COLUMNS)
-        elif user_input.lower() == 'random':
-            while True:
-                try:
-                    num = int(input("Enter the number of random columns to select: "))
-                    if 0 < num <= len(ALL_COLUMNS):
-                        selected_columns = set(random.sample(ALL_COLUMNS, num))
-                        break
-                    else:
-                        print(f"Please enter a number between 1 and {len(ALL_COLUMNS)}.")
-                except ValueError:
-                    print("Invalid input. Please enter a valid number.")
-        else:
-            indices = [int(index) - 1 for index in user_input.split(",") if index.isdigit()]
-            for index in indices:
-                if index < len(ALL_COLUMNS):
-                    column = ALL_COLUMNS[index]
-                    if column in selected_columns:
-                        selected_columns.remove(column)
-                    else:
-                        selected_columns.add(column)
+    # If 'random' is selected, return a random selection of columns
+    if 'random' in selected_columns:
+        num = random.randint(1, len(ALL_COLUMNS))  # You might want to change this to a fixed number or get it from the web interface
+        return random.sample(ALL_COLUMNS, num)
 
-    return list(selected_columns)
+    # Otherwise, return the selected columns
+    return selected_columns
 
 
 def generate_constants_file(selected_columns):
