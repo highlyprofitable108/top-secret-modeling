@@ -6,14 +6,13 @@ from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-# , flash, session
 from collections import defaultdict
 from datetime import datetime
 import os
 import importlib
 
 app = Flask(__name__)
-app.secret_key = '4815162342'  # Change this to a random secret key
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
 
 # Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
@@ -25,19 +24,57 @@ analyzer = NFLDataAnalyzer()
 data_dir = config.get_config('paths', 'data_dir')
 model_dir = config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-feature_columns = [col for col in constants.COLUMNS_TO_KEEP if col != 'scoring_differential']
+feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'scoring_differential'))
+
+
+def get_active_constants():
+    active_constants = list(set(col.replace('statistics_*.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
+    active_constants.sort()
+    importlib.reload(constants)
+    return active_constants
+
+
+def load_and_process_collection_data(collection_name):
+    return analyzer.load_and_process_data(collection_name)
+
+
+def generate_eda_report(df):
+    return analyzer.generate_eda_report(df)
+
+
+def initialize_and_run_model():
+    nfl_model = NFLModel()
+    return nfl_model.main()
+
+
+def load_and_process_stats_data(database_operations, data_processing):
+    return load_and_process_data(database_operations, data_processing)
+
+
+def transform_stats_data(processed_games_df, processed_teams_df, data_processing, feature_columns):
+    return transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
+
+
+def calculate_power_ranking(df_home, df_away, feature_columns):
+    metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
+    metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
+    feature_importances = LOADED_MODEL.feature_importances_
+    weights = dict(zip(feature_columns, feature_importances))
+    return calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
+
+
+def aggregate_and_normalize_stats_data(df, feature_columns, database_operations, processed_teams_df):
+    cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
+    return aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
+
+
+def insert_aggregated_data_to_db(aggregated_df, database_operations):
+    return insert_aggregated_data_into_database(aggregated_df, database_operations)
 
 
 @app.route('/')
 def home():
-    # Regenerate the active constants list
-    active_constants = constants.COLUMNS_TO_KEEP  # Assuming get_active_constants is a function that returns the list of active constants
-    active_constants = [col.replace('statistics_*.', '') for col in active_constants if 'scoring_differential' not in col]
-    active_constants = sorted(set(active_constants))
-
-    # Reload the constants module to get the updated list of active constants
-    importlib.reload(constants)
-
+    active_constants = get_active_constants()
     return render_template('index.html', active_constants=active_constants)
 
 
@@ -49,11 +86,7 @@ def columns():
         prefix = column.split('.')[0]
         categorized_columns[prefix].append(column)
 
-    # Get the active constants from the constants.py file
-    active_constants = constants.COLUMNS_TO_KEEP  # Assuming COLUMNS_TO_KEEP is the variable holding the list of active constants in constants.py
-    active_constants = [col.replace('statistics_away.', '') for col in active_constants if 'scoring_differential' not in col]
-    active_constants = [col.replace('statistics_home.', '') for col in active_constants if 'scoring_differential' not in col]
-    active_constants = sorted(set(active_constants))
+    active_constants = get_active_constants()
 
     return render_template('columns.html', categorized_columns=categorized_columns, active_constants=active_constants)
 
@@ -75,63 +108,45 @@ def get_model_update_time():
 @app.route('/process_columns', methods=['POST'])
 def process_columns():
     selected_columns = request.form.getlist('columns')
-    # Call the modified get_user_selection function with the selected columns
     selected_columns = nfl_stats_select.get_user_selection(selected_columns)
-
-    # Now, selected_columns contains the processed list of selected columns
-    # You can now generate the constants file with these columns
     nfl_stats_select.generate_constants_file(selected_columns)
 
-    # Regenerate the active constants list
-    active_constants = constants.COLUMNS_TO_KEEP  # Assuming get_active_constants is a function that returns the list of active constants
-    active_constants = [col.replace('statistics_*.', '') for col in active_constants if 'scoring_differential' not in col]
-    active_constants = sorted(set(active_constants))
-
-    # Reload the constants module to get the updated list of active constants
-    importlib.reload(constants)
-
-    # Redirect the user back to the columns page
     return redirect(url_for('columns'))
 
 
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
-    collection_name = request.json.get('collection_name', 'games')
-    df = analyzer.load_and_process_data(collection_name)
-    analyzer.generate_eda_report(df)
+    try:
+        collection_name = request.json.get('collection_name', 'games')
+        df = load_and_process_collection_data(collection_name)
+        generate_eda_report(df)
 
-    # Create an instance of the NFLModel class and call the main method
-    nfl_model = NFLModel()
-    nfl_model.main()
+        initialize_and_run_model()
 
-    # Call the main function from nfl_populate_stats.py
-    processed_games_df, processed_teams_df = load_and_process_data(database_operations, data_processing)
+        processed_games_df, processed_teams_df = load_and_process_stats_data(database_operations, data_processing)
 
-    if processed_games_df is not None and processed_teams_df is not None:
-        df_home, df_away = transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
+        if processed_games_df is None or processed_teams_df is None:
+            raise ValueError("Error in data loading and processing.")
 
-        if df_home is not None and df_away is not None:
-            metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
-            metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
-            feature_importances = LOADED_MODEL.feature_importances_
-            weights = dict(zip(feature_columns, feature_importances))
-            df = calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
+        df_home, df_away = transform_stats_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
 
-            if df is not None:
-                cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
-                aggregated_df = aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
+        if df_home is None or df_away is None:
+            raise ValueError("Error in data transformation.")
 
-                if aggregated_df is not None:
-                    insert_aggregated_data_into_database(aggregated_df, database_operations)
-                    # Further script implementation here, where you can use aggregated_df for analysis
-                else:
-                    return jsonify(error="Error in aggregating and normalizing data."), 500
-            else:
-                return jsonify(error="Error in calculating power rank."), 500
-        else:
-            return jsonify(error="Error in data transformation."), 500
-    else:
-        return jsonify(error="Error in data loading and processing."), 500
+        df = calculate_power_ranking(df_home, df_away, feature_columns)
+
+        if df is None:
+            raise ValueError("Error in calculating power rank.")
+
+        aggregated_df = aggregate_and_normalize_stats_data(df, feature_columns, database_operations, processed_teams_df)
+
+        if aggregated_df is None:
+            raise ValueError("Error in aggregating and normalizing data.")
+
+        insert_aggregated_data_to_db(aggregated_df, database_operations)
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
     return jsonify(status="success")
 
