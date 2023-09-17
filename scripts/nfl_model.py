@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import joblib
 import os
+import json
 import numpy as np
 import pandas as pd
 from .constants import COLUMNS_TO_KEEP
@@ -34,6 +35,11 @@ class NFLModel:
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
         self.database_name = self.config.get_config('database', 'database_name')
+
+    def update_status(self, status):
+        """Updates the status and last update time in a JSON file."""
+        with open(self.status_file_path, "w") as status_file:
+            json.dump({"status": status, "last_updated": datetime.now().isoformat()}, status_file)
 
     def load_and_process_data(self):
         """Load and process data."""
@@ -65,10 +71,10 @@ class NFLModel:
     def preprocess_nfl_data(self, df):
         """Preprocess NFL data."""
         try:
-            df, columns_to_drop = data_processing.handle_null_values(df, return_columns_to_drop=True)
+            df = data_processing.handle_null_values(df)
 
             # Update the feature_columns list to reflect the changes
-            feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential' and col not in columns_to_drop]
+            feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
 
             # Separate the target variable
             X = df.drop('scoring_differential', axis=1)  # Features
