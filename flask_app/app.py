@@ -1,8 +1,13 @@
 from scripts import nfl_stats_select, constants
 from scripts.nfl_eda import NFLDataAnalyzer
+from scripts.nfl_model import NFLModel
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 # , flash, session
 from collections import defaultdict
+from datetime import datetime
+from flask import g
+import json
+import os
 import importlib
 
 app = Flask(__name__)
@@ -41,6 +46,20 @@ def columns():
     return render_template('columns.html', categorized_columns=categorized_columns, active_constants=active_constants)
 
 
+@app.route('/get_model_update_time')
+def get_model_update_time():
+    model_dir = "./models"
+    files = [f for f in os.listdir(model_dir) if f.endswith('.pkl')]
+
+    update_times = {}
+    for file in files:
+        file_path = os.path.join(model_dir, file)
+        mod_time = os.path.getmtime(file_path)
+        update_times[file] = datetime.fromtimestamp(mod_time).strftime('%Y-%m-%d %H:%M:%S')
+
+    return jsonify(update_times)
+
+
 @app.route('/process_columns', methods=['POST'])
 def process_columns():
     selected_columns = request.form.getlist('columns')
@@ -65,10 +84,15 @@ def process_columns():
 
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
-    collection_name = request.json.get('collection_name', 'games')  # Get the collection name from the JSON body, default is 'games'
+    collection_name = request.json.get('collection_name', 'games')
     df = analyzer.load_and_process_data(collection_name)
     analyzer.generate_eda_report(df)
-    return jsonify(status="success")  # Return a JSON response indicating success
+
+    # Create an instance of the NFLModel class and call the main method
+    nfl_model = NFLModel()
+    nfl_model.main()
+
+    return jsonify(status="success")
 
 
 @app.route('/view_analysis')

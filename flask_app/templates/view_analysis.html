@@ -57,6 +57,8 @@
       </div>
     </nav>
 
+    <div id="model-status"></div> 
+
     <div class="hero-section">
       <h1>NFL Data Analysis</h1>
       <p>Insights from the latest NFL games data</p>
@@ -79,3 +81,21 @@
     </div>
   </body>
 </html>
+<script>
+    function updateModelStatus() {
+        fetch('/get_nfl_model_status')
+            .then(response => response.json())
+            .then(data => {
+                // Update the UI with the new status
+                let statusDiv = document.getElementById('model-status');
+                statusDiv.innerHTML = data.status;
+            })
+            .catch(error => console.error('Error:', error));
+
+        // Poll the endpoint every 10 seconds (or any other interval you prefer)
+        setTimeout(updateModelStatus, 10000);
+    }
+
+    // Start polling when the page loads
+    window.onload = updateModelStatus;
+</script>
