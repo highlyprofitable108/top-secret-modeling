@@ -1,19 +1,31 @@
 from scripts import nfl_stats_select, constants
 from scripts.nfl_eda import NFLDataAnalyzer
 from scripts.nfl_model import NFLModel
+from scripts.nfl_populate_stats import load_and_process_data, transform_data, calculate_power_rank, aggregate_and_normalize_data, insert_aggregated_data_into_database, LOADED_MODEL
+from classes.config_manager import ConfigManager
+from classes.data_processing import DataProcessing
+from classes.database_operations import DatabaseOperations
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 # , flash, session
 from collections import defaultdict
 from datetime import datetime
-from flask import g
-import json
 import os
 import importlib
 
 app = Flask(__name__)
 app.secret_key = '4815162342'  # Change this to a random secret key
 
+# Initialize ConfigManager, DatabaseOperations, and DataProcessing
+config = ConfigManager()
+database_operations = DatabaseOperations()
+data_processing = DataProcessing()
 analyzer = NFLDataAnalyzer()
+
+# Fetch configurations using ConfigManager
+data_dir = config.get_config('paths', 'data_dir')
+model_dir = config.get_config('paths', 'model_dir')
+database_name = config.get_config('database', 'database_name')
+feature_columns = [col for col in constants.COLUMNS_TO_KEEP if col != 'scoring_differential']
 
 
 @app.route('/')
@@ -91,6 +103,35 @@ def generate_analysis():
     # Create an instance of the NFLModel class and call the main method
     nfl_model = NFLModel()
     nfl_model.main()
+
+    # Call the main function from nfl_populate_stats.py
+    processed_games_df, processed_teams_df = load_and_process_data(database_operations, data_processing)
+
+    if processed_games_df is not None and processed_teams_df is not None:
+        df_home, df_away = transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
+
+        if df_home is not None and df_away is not None:
+            metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
+            metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
+            feature_importances = LOADED_MODEL.feature_importances_
+            weights = dict(zip(feature_columns, feature_importances))
+            df = calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
+
+            if df is not None:
+                cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
+                aggregated_df = aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
+
+                if aggregated_df is not None:
+                    insert_aggregated_data_into_database(aggregated_df, database_operations)
+                    # Further script implementation here, where you can use aggregated_df for analysis
+                else:
+                    return jsonify(error="Error in aggregating and normalizing data."), 500
+            else:
+                return jsonify(error="Error in calculating power rank."), 500
+        else:
+            return jsonify(error="Error in data transformation."), 500
+    else:
+        return jsonify(error="Error in data loading and processing."), 500
 
     return jsonify(status="success")
 

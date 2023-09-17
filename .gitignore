@@ -13531,3 +13531,5 @@ venv/lib/python3.11/site-packages/yaml/__pycache__/tokens.cpython-311.pyc
 venv/share/man/man1/ttx.1
 scripts/__pycache__/nfl_model.cpython-311.pyc
 flask_app/__pycache__/app.cpython-311.pyc
+flask_app/__pycache__/app.cpython-311.pyc
+scripts/__pycache__/nfl_populate_stats.cpython-311.pyc

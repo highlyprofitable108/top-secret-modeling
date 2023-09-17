@@ -264,8 +264,8 @@ def insert_aggregated_data_into_database(aggregated_df, database_operations):
     """
     try:
         # Drop the collection if it exists
-        if 'aggregated_data' in database_operations.db.list_collection_names():
-            database_operations.db.aggregated_data.drop()
+        if 'team_aggregated_metrics' in database_operations.db.list_collection_names():
+            database_operations.db.team_aggregated_metrics.drop()
 
         # Insert the aggregated data into the collection
         aggregated_df.reset_index(inplace=True, drop=True)
