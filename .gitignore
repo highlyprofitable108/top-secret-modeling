@@ -1,3 +1,5 @@
 venv/*
 flask_app/static/*
-*/__pycache__/*
+classes/__pycache__/*
+flask_app/__pycache__/*
+scripts/__pycache__/*
