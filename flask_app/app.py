@@ -10,6 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 import os
 import importlib
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
@@ -34,12 +35,8 @@ def get_active_constants():
     return active_constants
 
 
-def load_and_process_collection_data(collection_name):
-    return analyzer.load_and_process_data(collection_name)
-
-
-def generate_eda_report(df):
-    return analyzer.generate_eda_report(df)
+def generate_eda_report():
+    return analyzer.main()
 
 
 def initialize_and_run_model():
@@ -117,10 +114,9 @@ def process_columns():
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
     try:
-        collection_name = request.json.get('collection_name', 'games')
-        df = load_and_process_collection_data(collection_name)
-        generate_eda_report(df)
+        analyzer.main()
 
+        """
         initialize_and_run_model()
 
         processed_games_df, processed_teams_df = load_and_process_stats_data(database_operations, data_processing)
@@ -144,6 +140,7 @@ def generate_analysis():
             raise ValueError("Error in aggregating and normalizing data.")
 
         insert_aggregated_data_to_db(aggregated_df, database_operations)
+        """
 
     except Exception as e:
         return jsonify(error=str(e)), 500
@@ -151,14 +148,43 @@ def generate_analysis():
     return jsonify(status="success")
 
 
+@app.route('/view_descriptive_stats')
+def view_descriptive_stats():
+    df = pd.read_csv(os.path.join(app.root_path, 'static', 'descriptive_statistics.csv'))
+    return render_template('csv_template.html', table=df.to_html(classes='table table-striped'), title='Descriptive Statistics')
+
+@app.route('/view_data_quality_report')
+def view_data_quality_report():
+    df = pd.read_csv(os.path.join(app.root_path, 'static', 'data_quality_report.csv'))
+    return render_template('csv_template.html', table=df.to_html(classes='table table-striped'), title='Data Quality Report')
+
+
 @app.route('/view_analysis')
 def view_analysis():
     data = {
         "heatmap_path": "/static/heatmap.png",
-        "feature_importance_path": "/static/feature_importance.png"
+        "feature_importance_path": "/static/feature_importance.html",
+        "descriptive_stats_path": "/static/descriptive_statistics.csv",
+        "data_quality_report_path": "/static/data_quality_report.csv"
     }
-
     return render_template('view_analysis.html', data=data)
+
+
+"""
+@app.route('/view_histograms')
+def view_histograms():
+    data = {
+        "histogram_path": "/static/histogram.png"
+    }
+    return render_template('view_histograms.html', data=data)
+
+@app.route('/view_boxplots')
+def view_boxplots():
+    data = {
+        "boxplot_path": "/static/boxplot.png"
+    }
+    return render_template('view_boxplots.html', data=data)
+"""
 
 
 if __name__ == "__main__":
