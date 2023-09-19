@@ -1,7 +1,7 @@
 from scripts import nfl_stats_select, constants
 from scripts.nfl_eda import NFLDataAnalyzer
 from scripts.nfl_model import NFLModel
-from scripts.nfl_populate_stats import load_and_process_data, transform_data, calculate_power_rank, aggregate_and_normalize_data, insert_aggregated_data_into_database, LOADED_MODEL
+from scripts.nfl_populate_stats import StatsCalculator
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
@@ -35,44 +35,10 @@ def get_active_constants():
     return active_constants
 
 
-def generate_eda_report():
-    return analyzer.main()
-
-
-def initialize_and_run_model():
-    nfl_model = NFLModel()
-    return nfl_model.main()
-
-
-def load_and_process_stats_data(database_operations, data_processing):
-    return load_and_process_data(database_operations, data_processing)
-
-
-def transform_stats_data(processed_games_df, processed_teams_df, data_processing, feature_columns):
-    return transform_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
-
-
-def calculate_power_ranking(df_home, df_away, feature_columns):
-    metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
-    metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
-    feature_importances = LOADED_MODEL.feature_importances_
-    weights = dict(zip(feature_columns, feature_importances))
-    return calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
-
-
-def aggregate_and_normalize_stats_data(df, feature_columns, database_operations, processed_teams_df):
-    cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in feature_columns]
-    return aggregate_and_normalize_data(df, cleaned_metrics, database_operations, processed_teams_df)
-
-
-def insert_aggregated_data_to_db(aggregated_df, database_operations):
-    return insert_aggregated_data_into_database(aggregated_df, database_operations)
-
-
 @app.route('/')
 def home():
     active_constants = get_active_constants()
-    return render_template('index.html', active_constants=active_constants)
+    return render_template('home.html', active_constants=active_constants)
 
 
 @app.route('/columns')
@@ -116,42 +82,49 @@ def generate_analysis():
     try:
         analyzer.main()
 
-        """
-        initialize_and_run_model()
-
-        processed_games_df, processed_teams_df = load_and_process_stats_data(database_operations, data_processing)
-
-        if processed_games_df is None or processed_teams_df is None:
-            raise ValueError("Error in data loading and processing.")
-
-        df_home, df_away = transform_stats_data(processed_games_df, processed_teams_df, data_processing, feature_columns)
-
-        if df_home is None or df_away is None:
-            raise ValueError("Error in data transformation.")
-
-        df = calculate_power_ranking(df_home, df_away, feature_columns)
-
-        if df is None:
-            raise ValueError("Error in calculating power rank.")
-
-        aggregated_df = aggregate_and_normalize_stats_data(df, feature_columns, database_operations, processed_teams_df)
-
-        if aggregated_df is None:
-            raise ValueError("Error in aggregating and normalizing data.")
-
-        insert_aggregated_data_to_db(aggregated_df, database_operations)
-        """
-
     except Exception as e:
         return jsonify(error=str(e)), 500
 
     return jsonify(status="success")
 
 
+@app.route('/generate_model', methods=['POST'])
+def generate_model():
+    try:
+        # Create an instance of the NFLModel class
+        nfl_model = NFLModel()
+
+        # Call the main method to generate the model
+        nfl_model.main()
+
+        # If successful, return a success message
+        return jsonify(status="success"), 200
+    except Exception as e:
+        # If there is an error, return an error message
+        return jsonify(error=str(e)), 500
+
+
+@app.route('/generate_power_ranks', methods=['POST'])
+def generate_power_ranks():
+    try:
+        # Create an instance of the NFLModel class
+        nfl_stats = StatsCalculator()
+
+        # Call the main method to generate the model
+        nfl_stats.main()
+
+        # If successful, return a success message
+        return jsonify(status="success"), 200
+    except Exception as e:
+        # If there is an error, return an error message
+        return jsonify(error=str(e)), 500
+
+
 @app.route('/view_descriptive_stats')
 def view_descriptive_stats():
     df = pd.read_csv(os.path.join(app.root_path, 'static', 'descriptive_statistics.csv'))
     return render_template('csv_template.html', table=df.to_html(classes='table table-striped'), title='Descriptive Statistics')
+
 
 @app.route('/view_data_quality_report')
 def view_data_quality_report():
@@ -170,21 +143,10 @@ def view_analysis():
     return render_template('view_analysis.html', data=data)
 
 
-"""
-@app.route('/view_histograms')
-def view_histograms():
-    data = {
-        "histogram_path": "/static/histogram.png"
-    }
-    return render_template('view_histograms.html', data=data)
-
-@app.route('/view_boxplots')
-def view_boxplots():
-    data = {
-        "boxplot_path": "/static/boxplot.png"
-    }
-    return render_template('view_boxplots.html', data=data)
-"""
+@app.route('/view_power_ranks')
+def view_power_ranks():
+    df = pd.read_csv(os.path.join(app.root_path, 'static', 'power_ranks.csv'))
+    return render_template('power_ranks.html', table=df.to_html(classes='table table-striped'), title='Custom Power Rankings')
 
 
 if __name__ == "__main__":

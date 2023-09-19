@@ -1,3 +1,4 @@
+from datetime import datetime
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
 from classes.data_processing import DataProcessing
@@ -8,7 +9,6 @@ from sklearn.preprocessing import MinMaxScaler
 import joblib
 import os
 import json
-import numpy as np
 import pandas as pd
 from .constants import COLUMNS_TO_KEEP
 import logging
@@ -53,6 +53,7 @@ class NFLModel:
             df = data_processing.calculate_scoring_differential(df)
             # Keep only the columns specified in COLUMNS_TO_KEEP
             df = df[COLUMNS_TO_KEEP]
+            df = self.data_processing.handle_null_values(df)
             # Convert time strings to minutes (apply this to the relevant columns)
             if 'statistics_home.summary.possession_time' in df.columns:
                 df['statistics_home.summary.possession_time'] = df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
@@ -74,7 +75,7 @@ class NFLModel:
             df = data_processing.handle_null_values(df)
 
             # Update the feature_columns list to reflect the changes
-            feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
+            feature_columns = [col for col in df.columns if col != 'scoring_differential']
 
             # Separate the target variable
             X = df.drop('scoring_differential', axis=1)  # Features
@@ -183,6 +184,8 @@ class NFLModel:
             logging.error(f"Error in main: {e}")
 
 
+"""
 if __name__ == "__main__":
     nfl_model = NFLModel()
     nfl_model.main()
+"""
