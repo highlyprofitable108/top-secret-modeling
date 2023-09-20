@@ -29,15 +29,27 @@ feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 's
 
 
 def get_active_constants():
-    active_constants = list(set(col.replace('statistics_*.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
+    active_constants = list(set(col.replace('statistics_home.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
+    active_constants = list(set(col.replace('statistics_away.', '') for col in active_constants))
     active_constants.sort()
     importlib.reload(constants)
-    return active_constants
+
+    # Categorizing the constants
+    categories = defaultdict(list)
+    for constant in active_constants:
+        category = constant.split('.')[0]
+        categories[category].append(constant)
+
+    # Sorting the constants within each category
+    sorted_categories = {category: sorted(sub_categories, key=lambda x: x.split('.')[1]) for category, sub_categories in categories.items()}
+
+    return sorted_categories
 
 
 @app.route('/')
 def home():
     active_constants = get_active_constants()
+
     return render_template('home.html', active_constants=active_constants)
 
 
@@ -46,8 +58,14 @@ def columns():
     columns = nfl_stats_select.ALL_COLUMNS
     categorized_columns = defaultdict(list)
     for column in columns:
-        prefix = column.split('.')[0]
-        categorized_columns[prefix].append(column)
+        column = column.replace('totals.', '').replace('kicks.', 'kicks ').replace('conversions.', 'conversions ')
+        prefix, rest = column.split('.', 1)
+        prefix_display = prefix.replace('_', ' ').title()
+        if prefix.lower() == "efficiency":
+            formatted_column = rest.replace('.', ' ').replace('_', ' ').title()
+        else:
+            formatted_column = rest.replace('_', ' ').title()
+        categorized_columns[prefix_display].append((formatted_column, column))
 
     active_constants = get_active_constants()
 

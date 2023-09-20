@@ -30,15 +30,26 @@
 
     <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
       <div class="mb-8">
-        <h5 class="font-bold mb-2 text-gray-800">Active Constants:</h5>
-        <p class="text-gray-700">
+        <h5 class="font-bold mb-2">Active Constants:</h5>
+        <div class="bg-white p-4 rounded-md shadow-md max-h-40 overflow-y-auto">
           {% if active_constants %}
-            {{ active_constants|join(', ') }}
+            <ul>
+              {% for category, constants in active_constants.items() %}
+                <li class="mb-2">
+                  <span class="font-bold">{{ category.replace('_', ' ').title() }}:</span>
+                  <span>
+                    {% for constant in constants %}
+                      {{ constant.split('.')[-1].replace('_', ' ').title() }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
           {% else %}
-            None
+            <p>None</p>
           {% endif %}
-        </p>
-      </div>
+        </div>
+      </div>      
     
       <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
         <h5 class="font-bold text-gray-800">Currently Selected Columns:</h5>
@@ -55,30 +66,28 @@
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="selectRandom">Random Selection</button>
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="clearSelection">Clear Selection</button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           {% for category, columns in categorized_columns.items() %}
-            <div class="bg-white p-4 rounded shadow-md">
-              <div class="font-bold text-gray-800 mb-2">
-                {{ category }}
-              </div>
-              <div class="space-y-2">
-                {% for column in columns %}
-                  <div class="flex items-center space-x-2">
-                    <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}">
-                    <label class="form-check-label text-gray-700" for="{{ column }}">
-                      {{ column.split('.')[-1] }}
-                    </label>
-                  </div>
-                {% endfor %}
-              </div>
+          <div class="bg-white p-4 rounded shadow-md">
+            <div class="font-bold text-gray-800 mb-2">
+              {{ category }}
             </div>
+            <div class="space-y-2">
+              {% for formatted_column, column in columns %}
+                <div class="flex items-center space-x-2">
+                  <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}">
+                  <label class="form-check-label text-gray-700" for="{{ column }}">
+                    {{ formatted_column }}
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
           {% endfor %}
         </div>
-        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded mt-3">Submit</button>
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="document.querySelector('form').submit();">Submit</button>
       </form>
     </div>
-
-    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 right-4 z-50" onclick="document.querySelector('form').submit();">Submit</button>
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -90,7 +99,6 @@
         const checkboxes = document.querySelectorAll('.column-checkbox');
         const selectAllButton = document.getElementById('selectAll');
         const selectRandomButton = document.getElementById('selectRandom');
-        const submitButton = document.querySelector('.submit-button');
         const form = document.querySelector('form');
     
         // Add event listener to update the list of selected columns whenever a checkbox is changed
@@ -121,20 +129,27 @@
           updateSelectedColumnsList();
         });
     
-        // Add event listener to submit the form when the floating submit button is clicked
-        submitButton.addEventListener('click', () => {
-          form.submit();
-        });
-    
         // Function to update the list of selected columns
         function updateSelectedColumnsList() {
-          const selectedColumns = [];
+          const selectedColumns = {};
           checkboxes.forEach(box => {
             if (box.checked) {
-              selectedColumns.push(box.value.split('.').pop());
+              const [category, ...columnParts] = box.value.split('.');
+              const column = columnParts.join('.');
+              if (!selectedColumns[category]) {
+                selectedColumns[category] = [];
+              }
+              selectedColumns[category].push(column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
             }
           });
-          selectedColumnsList.textContent = selectedColumns.join(', ') || 'None';
+
+          const selectedColumnsText = Object.entries(selectedColumns)
+            .map(([category, columns]) => {
+              return `<strong>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('Totals.', '')}:</strong> ${columns.join(', ')}`;
+            })
+            .join('<br>');
+
+          selectedColumnsList.innerHTML = selectedColumnsText || 'None';
         }
       });
     
@@ -145,6 +160,6 @@
         });
         document.getElementById('selectedColumnsList').textContent = 'None';
       });
-    </script>    
+    </script>       
   </body>
 </html>

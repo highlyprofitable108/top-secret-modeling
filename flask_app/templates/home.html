@@ -1,67 +1,80 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Tailwind CSS -->
-    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Roboto', sans-serif;
-        background-color: #f8f9fa;
-      }
-      /* We will update the rest of the styles step by step */
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
-    <title>Top Secret Modeling</title>
-  </head>    
-  <body>
+    <title>NFL Data Analysis</title>
+    <style>
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #3498db;
+        width: 120px;
+        height: 120px;
+        -webkit-animation: spin 2s linear infinite;
+        animation: spin 2s linear infinite;
+      }
 
+      @-webkit-keyframes spin {
+        0% { -webkit-transform: rotate(0deg); }
+        100% { -webkit-transform: rotate(360deg); }
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
     <nav class="bg-gray-800 p-4">
-      <div class="container mx-auto">
+      <div class="container mx-auto flex justify-between items-center">
         <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
-        <button class="text-white" type="button">
-          <span class="block w-6 h-0.5 bg-white mb-1"></span>
-          <span class="block w-6 h-0.5 bg-white mb-1"></span>
-          <span class="block w-6 h-0.5 bg-white"></span>
-        </button>
         <div class="flex space-x-4">
-          <a class="text-white" href="/columns">Columns Selection</a>
-          <a class="text-white" href="/view_analysis">View Analysis</a>
+          <a class="text-white" href="/">Home</a>
+          <!-- Additional links can be added here with the same classes as the Home link -->
         </div>
       </div>
-    </nav>    
+    </nav>
 
-    <section class="bg-gray-800 text-white py-20 text-center">
-      <h1 class="text-4xl mb-4">Welcome to Top Secret Modeling</h1>
-      <p class="mb-8">Your hub for comprehensive NFL data analysis and insights</p>
-      <button id="generate-analysis-btn" class="bg-green-500 py-2 px-4 rounded-full">Generate Analysis for Games Collection</button>
-      <div id="loading-spinner" class="mt-4" style="display: none;">
-        <i class="bi bi-arrow-repeat"></i> Generating analysis, please wait...
+    <section class="hero bg-gray-800 text-white py-16 container mx-auto text-center">
+      <h2 class="text-4xl font-bold mb-4">Welcome to the NFL Data Analysis Platform</h2>
+      <p class="text-xl mb-8">Get insights, generate analysis, and explore NFL data at your fingertips.</p>
+      <div class="hero-buttons flex justify-center space-x-4">
+        <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Select Columns</a>
+        <form action="{{ url_for('generate_analysis') }}" method="post" class="inline-form">
+          <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Re-generate Analysis</button>
+        </form>
+        <a href="{{ url_for('view_analysis') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">View Data</a>
       </div>
-
-      <button id="generate-power-ranks-btn" class="bg-green-500 py-2 px-4 rounded-full">Generate Power Ranks</button>
     </section>
 
-    <div class="bg-gray-100 py-4 text-center mb-8">
-      <a href="/columns" class="px-4 py-2 border border-blue-500 text-blue-500 rounded-full inline-block mr-4">Select Columns</a>
-      <a href="/view_analysis" class="px-4 py-2 border border-blue-500 text-blue-500 rounded-full inline-block">View Analysis</a>
-    </div>    
-
-    <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
+    <main class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
       <div class="mb-8">
         <h5 class="font-bold mb-2">Active Constants:</h5>
-        <p>
+        <div class="bg-gray-100 p-4 rounded-md shadow-md max-h-40 overflow-y-auto">
           {% if active_constants %}
-            {{ active_constants|join(', ') }}
+            <ul>
+              {% for category, constants in active_constants.items() %}
+                <li class="mb-2">
+                  <span class="font-bold">{{ category.replace('_', ' ').title() }}:</span>
+                  <span>
+                    {% for constant in constants %}
+                      {{ constant.split('.')[-1].replace('_', ' ').title() }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
           {% else %}
-            None
+            <p>None</p>
           {% endif %}
-        </p>
-      </div>
-      
+        </div>
+      </div>      
+    
       <section class="mb-10">
         <h2 class="text-2xl font-bold mb-4">About Us</h2>
         <p>Your go-to platform for data-driven insights and competitive analysis in the world of NFL. From casual fans to serious analysts, we have something for everyone.</p>
@@ -93,61 +106,74 @@
           </div>
         </div>
       </section>
-    </div>      
+    </main>
 
     <footer class="bg-gray-800 text-white py-4 text-center">
       <p class="font-semibold">&copy; 2023 Top Secret Modeling</p>
     </footer>
-    
-    <!-- Tailwind CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
-    
+
     <script>
-      document.getElementById('generate-analysis-btn').addEventListener('click', function() {
+      document.querySelector('form[action="{{ url_for('generate_analysis') }}"]').addEventListener('submit', function(event) {
         // Show the loading spinner
-        document.getElementById('loading-spinner').style.display = 'block';
-        // Make a POST request to the /generate_analysis route
-        fetch('/generate_analysis', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ collection_name: 'games' })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'success') {
-            // Redirect to the /view_analysis page
-            window.location.href = '/view_analysis';
-          } else {
-            // Handle error (you can add more error handling here)
-            alert('Error generating analysis');
-          }
-        });
+        document.getElementById('loading-spinner').style.display = 'flex';
       });
-
-      document.getElementById('generate-power-ranks-btn').addEventListener('click', async function() {
-      try {
-        document.getElementById('loading-spinner').style.display = 'block';
-
-        // Call /generate_model route
-        let response = await fetch('/generate_model', { method: 'POST' });
-        let data = await response.json();
-        if (data.status !== 'success') throw new Error(data.error);
-
-        // Call /generate_power_ranks route
-        response = await fetch('/generate_power_ranks', { method: 'POST' });
-        data = await response.json();
-        if (data.status !== 'success') throw new Error(data.error);
-
-        // Redirect to power ranks HTML page
-        window.location.href = '/view_power_ranks';
-      } catch (error) {
-        console.error('Error:', error);
-        alert('An error occurred while generating power ranks. Please try again later.');
-        document.getElementById('loading-spinner').style.display = 'none';
-      }
-    });
     </script>
+
+    <div id="loading-spinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px;">
+      <svg class="animate-spin h-5 w-5 mr-3 ..." viewBox="0 0 24 24" style="margin: 0 auto 10px auto;">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 018 20V4a8.962 8.962 0 00-2-.272V17.29z"></path>
+      </svg>
+      <p style="color: white; font-size: 16px;">This process can take some time. Please do not close or refresh the page.</p>
+    </div>
+
   </body>
 </html>
+
+<!--
+  document.getElementById('generate-analysis-btn').addEventListener('click', function() {
+          // Show the loading spinner
+          document.getElementById('loading-spinner').style.display = 'block';
+          // Make a POST request to the /generate_analysis route
+          fetch('/generate_analysis', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ collection_name: 'games' })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              // Redirect to the /view_analysis page
+              window.location.href = '/view_analysis';
+            } else {
+              // Handle error (you can add more error handling here)
+              alert('Error generating analysis');
+            }
+          });
+        });
+
+        document.getElementById('generate-power-ranks-btn').addEventListener('click', async function() {
+        try {
+          document.getElementById('loading-spinner').style.display = 'block';
+
+          // Call /generate_model route
+          let response = await fetch('/generate_model', { method: 'POST' });
+          let data = await response.json();
+          if (data.status !== 'success') throw new Error(data.error);
+
+          // Call /generate_power_ranks route
+          response = await fetch('/generate_power_ranks', { method: 'POST' });
+          data = await response.json();
+          if (data.status !== 'success') throw new Error(data.error);
+
+          // Redirect to power ranks HTML page
+          window.location.href = '/view_power_ranks';
+        } catch (error) {
+          console.error('Error:', error);
+          alert('An error occurred while generating power ranks. Please try again later.');
+          document.getElementById('loading-spinner').style.display = 'none';
+        }
+      });
+-->
