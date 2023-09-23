@@ -141,6 +141,16 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
+@app.route('/heatmap')
+def heatmap():
+    return render_template('interactive_heatmap.html')
+
+
+@app.route('/feature_importance')
+def feature_importance():
+    return render_template('feature_importance.html')
+
+
 @app.route('/view_descriptive_stats')
 def view_descriptive_stats():
     df = pd.read_csv(os.path.join(app.root_path, 'static', 'descriptive_statistics.csv'))
@@ -156,10 +166,10 @@ def view_data_quality_report():
 @app.route('/view_analysis')
 def view_analysis():
     data = {
-        "heatmap_path": "/static/interactive_heatmap.html",
-        "feature_importance_path": "/static/feature_importance.html",
-        "descriptive_stats_path": "/static/descriptive_statistics.csv",
-        "data_quality_report_path": "/static/data_quality_report.csv"
+        "heatmap_path": "/heatmap",
+        "feature_importance_path": "/feature_importance",
+        "descriptive_stats_path": "/view_descriptive_stats",
+        "data_quality_report_path": "/view_data_quality_report"
     }
     return render_template('view_analysis.html', data=data)
 

@@ -96,18 +96,15 @@
 
         </style>
 
-        <!-- Include Plotly.js for interactive plots -->
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
     </head>
     <body>
 
-        <nav class="bg-gray-800 p-4 sticky top-0 z-50">
-            <div class="container mx-auto">
-                <a class="text-white text-xl font-bold" href="/">Home</a>
+        <nav class="bg-gray-800 p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
                 <div class="flex space-x-4">
+                    <a class="text-white" href="/">Home</a>
                     <a class="text-white" href="/columns">Columns</a>
-                    <a class="text-white" href="/generate_analysis">Generate Analysis</a>
                 </div>
             </div>
         </nav>
@@ -124,14 +121,10 @@
             </div>
 
             <!-- Tab content for Correlation Heatmap -->
-            <div id="heatmap" class="tab-content">
-                <iframe src="{{ data.heatmap_path }}" width="100%" height="500px"></iframe>
-            </div>
+            <div id="heatmap" class="tab-content"></div>
 
             <!-- Tab content for Feature Importance -->
-            <div id="importance" class="tab-content hidden">
-                <iframe src="{{ data.feature_importance_path }}" width="100%" height="500px"></iframe>
-            </div>
+            <div id="importance" class="tab-content hidden"></div>
 
             <!-- Tab content for Descriptive Statistics -->
             <div class="scrollable-table">
@@ -149,9 +142,8 @@
 
         </div>
 
-        <footer class="bg-gray-800 text-white py-4 text-center">
-            <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
-        </footer>
+        <!-- Include Plotly.js for interactive plots -->
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         
         <script>
             function showTab(tabName) {
@@ -233,7 +225,26 @@
                     displayCSV(parsedData, 'quality-table');
                 });
 
-        </script>                 
-        
+            // Fetch and inject the content of the heatmap HTML into the heatmap tab
+            fetch('{{ data.heatmap_path }}')
+                .then(response => response.text())
+                .then(content => {
+                    document.getElementById('heatmap').innerHTML = content;
+                });
+
+            // Fetch and inject the content of the feature importance HTML into the importance tab
+            fetch('{{ data.feature_importance_path }}')
+                .then(response => response.text())
+                .then(content => {
+                    document.getElementById('importance').innerHTML = content;
+                });
+
+        </script>
+                
     </body>
+
+    <footer class="bg-gray-800 text-white py-4 text-center">
+        <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
+    </footer>
+
 </html>

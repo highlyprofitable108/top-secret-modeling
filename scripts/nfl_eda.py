@@ -37,6 +37,7 @@ class NFLDataAnalyzer:
         self.target_variable = 'scoring_differential'
         self.data_dir = self.get_config('paths', 'data_dir')
         self.static_dir = self.get_config('paths', 'static_dir')
+        self.template_dir = self.get_config('paths', 'template_dir')
         warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
 
     def get_config(self, section, key):
@@ -147,7 +148,7 @@ class NFLDataAnalyzer:
                         color='Highlight', color_discrete_map={'Positive': 'red', 'Negative': 'blue', 'Neutral': 'gray'})
 
             # Save the plot as an HTML file
-            feature_importance_path = os.path.join(self.static_dir, 'feature_importance.html')
+            feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
             fig.write_html(feature_importance_path)
 
             # Logging the best model's score
@@ -192,7 +193,7 @@ class NFLDataAnalyzer:
                     )
             fig.update_layout(annotations=annotations, title='Correlation Heatmap')
 
-            heatmap_path = os.path.join(self.static_dir, 'interactive_heatmap.html')
+            heatmap_path = os.path.join(self.template_dir, 'interactive_heatmap.html')
             fig.write_html(heatmap_path)
 
             return heatmap_path
@@ -200,10 +201,9 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating interactive correlation heatmap: {e}")
             return None
 
-
     def plot_interactive_histograms(self, df):
         """Plots interactive histograms for each numerical column using Plotly."""
-        histograms_dir = os.path.join(self.static_dir, 'interactive_histograms')
+        histograms_dir = os.path.join(self.template_dir, 'interactive_histograms')
         os.makedirs(histograms_dir, exist_ok=True)
 
         for col in df.select_dtypes(include=['float64', 'int64']).columns:
