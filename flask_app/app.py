@@ -32,6 +32,7 @@ def get_active_constants():
     active_constants = list(set(col.replace('statistics_home.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
     active_constants = list(set(col.replace('statistics_away.', '') for col in active_constants))
     active_constants.sort()
+
     importlib.reload(constants)
 
     # Categorizing the constants
@@ -92,7 +93,9 @@ def process_columns():
     selected_columns = nfl_stats_select.get_user_selection(selected_columns)
     nfl_stats_select.generate_constants_file(selected_columns)
 
-    return redirect(url_for('columns'))
+    importlib.reload(constants)
+
+    return jsonify(success=True)
 
 
 @app.route('/generate_analysis', methods=['POST'])
@@ -153,7 +156,7 @@ def view_data_quality_report():
 @app.route('/view_analysis')
 def view_analysis():
     data = {
-        "heatmap_path": "/static/heatmap.png",
+        "heatmap_path": "/static/interactive_heatmap.html",
         "feature_importance_path": "/static/feature_importance.html",
         "descriptive_stats_path": "/static/descriptive_statistics.csv",
         "data_quality_report_path": "/static/data_quality_report.csv"

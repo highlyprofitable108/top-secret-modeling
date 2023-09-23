@@ -85,7 +85,13 @@
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="document.querySelector('form').submit();">Submit</button>
+  
+        <div id="loading-spinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px;">
+          <div class="loader" style="margin: 0 auto 10px auto;"></div>
+          <p style="color: white; font-size: 16px;">Generating analysis. This process can take some time. Please do not close or refresh the page.</p>
+        </div>
+      
+        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Submit</button>
       </form>
     </div>
 
@@ -94,72 +100,115 @@
     
     <script>
       document.addEventListener('DOMContentLoaded', (event) => {
-        // Get references to DOM elements
-        const selectedColumnsList = document.getElementById('selectedColumnsList');
-        const checkboxes = document.querySelectorAll('.column-checkbox');
-        const selectAllButton = document.getElementById('selectAll');
-        const selectRandomButton = document.getElementById('selectRandom');
-        const form = document.querySelector('form');
-    
-        // Add event listener to update the list of selected columns whenever a checkbox is changed
-        checkboxes.forEach(checkbox => {
-          checkbox.addEventListener('change', () => {
-            updateSelectedColumnsList();
-          });
-        });
-    
-        // Add event listener to select all checkboxes when the "Select All" button is clicked
-        selectAllButton.addEventListener('click', () => {
+          // Get references to DOM elements
+          const selectedColumnsList = document.getElementById('selectedColumnsList');
+          const checkboxes = document.querySelectorAll('.column-checkbox');
+          const selectAllButton = document.getElementById('selectAll');
+          const selectRandomButton = document.getElementById('selectRandom');
+          const form = document.querySelector('form');
+  
+          // Add event listener to update the list of selected columns whenever a checkbox is changed
           checkboxes.forEach(checkbox => {
-            checkbox.checked = true;
+              checkbox.addEventListener('change', () => {
+                  updateSelectedColumnsList();
+              });
           });
-          updateSelectedColumnsList();
-        });
-    
-        // Add event listener to select a random number of checkboxes when the "Random Selection" button is clicked
-        selectRandomButton.addEventListener('click', () => {
-          const randomCount = Math.floor(Math.random() * checkboxes.length);
-          checkboxes.forEach(checkbox => {
-            checkbox.checked = false;
+  
+          // Add event listener to select all checkboxes when the "Select All" button is clicked
+          selectAllButton.addEventListener('click', () => {
+              checkboxes.forEach(checkbox => {
+                  checkbox.checked = true;
+              });
+              updateSelectedColumnsList();
           });
-          for (let i = 0; i < randomCount; i++) {
-            const randomIndex = Math.floor(Math.random() * checkboxes.length);
-            checkboxes[randomIndex].checked = true;
-          }
-          updateSelectedColumnsList();
-        });
-    
-        // Function to update the list of selected columns
-        function updateSelectedColumnsList() {
-          const selectedColumns = {};
-          checkboxes.forEach(box => {
-            if (box.checked) {
-              const [category, ...columnParts] = box.value.split('.');
-              const column = columnParts.join('.');
-              if (!selectedColumns[category]) {
-                selectedColumns[category] = [];
+  
+          // Add event listener to select a random number of checkboxes when the "Random Selection" button is clicked
+          selectRandomButton.addEventListener('click', () => {
+              const randomCount = Math.floor(Math.random() * checkboxes.length);
+              checkboxes.forEach(checkbox => {
+                  checkbox.checked = false;
+              });
+              for (let i = 0; i < randomCount; i++) {
+                  const randomIndex = Math.floor(Math.random() * checkboxes.length);
+                  checkboxes[randomIndex].checked = true;
               }
-              selectedColumns[category].push(column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-            }
+              updateSelectedColumnsList();
           });
+  
+          // Function to update the list of selected columns
+          function updateSelectedColumnsList() {
+              const selectedColumns = {};
+              checkboxes.forEach(box => {
+                  if (box.checked) {
+                      const [category, ...columnParts] = box.value.split('.');
+                      const column = columnParts.join('.');
+                      if (!selectedColumns[category]) {
+                          selectedColumns[category] = [];
+                      }
+                      selectedColumns[category].push(column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                  }
+              });
+  
+              const selectedColumnsText = Object.entries(selectedColumns)
+                  .map(([category, columns]) => {
+                      return `<strong>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('Totals.', '')}:</strong> ${columns.join(', ')}`;
+                  })
+                  .join('<br>');
+  
+              selectedColumnsList.innerHTML = selectedColumnsText || 'None';
+          }
+  
+          // Function to handle form submission
+          function handleFormSubmission(event) {
+            event.preventDefault(); // Prevent default form submission
 
-          const selectedColumnsText = Object.entries(selectedColumns)
-            .map(([category, columns]) => {
-              return `<strong>${category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('Totals.', '')}:</strong> ${columns.join(', ')}`;
+            // Show the loading spinner
+            document.getElementById('loading-spinner').style.display = 'block';
+
+            // First, send form data to /process_columns
+            fetch('/process_columns', {
+                method: 'POST',
+                body: new FormData(form)
             })
-            .join('<br>');
-
-          selectedColumnsList.innerHTML = selectedColumnsText || 'None';
-        }
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // If /process_columns is successful, send a request to /generate_analysis
+                    return fetch('/generate_analysis', {
+                        method: 'POST'
+                    });
+                } else {
+                    throw new Error('Error processing columns.');
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // If /generate_analysis is successful, redirect to /view_analysis
+                    window.location.href = '/view_analysis'; 
+                } else {
+                    throw new Error(data.error || 'Error generating analysis.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                document.getElementById('loading-spinner').style.display = 'none';
+            });
+          }
+  
+          // Attach the handleFormSubmission function to the form's submit event
+          form.addEventListener('submit', handleFormSubmission);
+  
+          // Add event listener to clear all selections when the "Clear Selection" button is clicked
+          document.getElementById('clearSelection').addEventListener('click', function() {
+              document.querySelectorAll('.form-check-input').forEach(function(checkbox) {
+                  checkbox.checked = false;
+              });
+              document.getElementById('selectedColumnsList').textContent = 'None';
+          });
       });
-    
-      // Add event listener to clear all selections when the "Clear Selection" button is clicked
-      document.getElementById('clearSelection').addEventListener('click', function() {
-        document.querySelectorAll('.form-check-input').forEach(function(checkbox) {
-          checkbox.checked = false;
-        });
-        document.getElementById('selectedColumnsList').textContent = 'None';
-      });
-    </script>       
+    </script>
+  
   </body>
 </html>
