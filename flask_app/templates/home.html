@@ -116,7 +116,35 @@
       document.querySelector('form[action="{{ url_for('generate_analysis') }}"]').addEventListener('submit', function(event) {
         // Show the loading spinner
         document.getElementById('loading-spinner').style.display = 'flex';
+
+        // Make a POST request to the /generate_analysis route
+        fetch('{{ url_for("generate_analysis") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Redirect to the /view_analysis page
+                window.location.href = '{{ url_for("view_analysis") }}';
+            } else {
+                // Handle error (you can add more error handling here)
+                alert('Error generating analysis');
+                document.getElementById('loading-spinner').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again later.');
+            document.getElementById('loading-spinner').style.display = 'none';
+        });
+
+        // Prevent the form from submitting the traditional way
+        event.preventDefault();
       });
+
     </script>
 
     <div id="loading-spinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px;">

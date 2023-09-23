@@ -1,12 +1,14 @@
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
+import scripts.constants
 import os
 import warnings
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
+from importlib import reload
 import numpy as np
 import seaborn as sns
 import matplotlib
@@ -14,6 +16,7 @@ import matplotlib.pyplot as plt
 import logging
 import plotly.express as px
 import plotly.figure_factory as ff
+import plotly.graph_objects as go
 from sklearn.inspection import permutation_importance
 import shap
 
@@ -73,23 +76,28 @@ class NFLDataAnalyzer:
             logging.error(f"Error processing data: {e}")
             return pd.DataFrame()
 
+    """
     def get_active_constants(self):
-        """Dynamically load and return the latest active constants from constants.py."""
+        Dynamically load and return the latest active constants from constants.py.
         try:
             import importlib.util
             # Load the constants module dynamically
             spec = importlib.util.spec_from_file_location("constants", "scripts/constants.py")
             constants = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(constants)
-            return constants.COLUMNS_TO_KEEP
+            return columns
         except Exception as e:
             logging.error(f"Error loading active constants: {e}")
             return []
+    """
 
     def filter_columns(self, df):
         """Filters the dataframe to keep only the necessary columns."""
         try:
-            return df[self.get_active_constants()]
+            # Filter only the columns that exist in both scripts.constants.COLUMNS_TO_KEEP and df
+            reload(scripts.constants)
+            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col in df.columns]
+            return df[columns_to_filter]
         except Exception as e:
             logging.error(f"Error filtering columns: {e}")
             return pd.DataFrame()
@@ -102,32 +110,13 @@ class NFLDataAnalyzer:
         df = self.data_processing.handle_null_values(df)
         return df
 
-    def plot_correlation_heatmap(self, df):
-        """Plots a correlation heatmap for the given dataframe."""
-        try:
-            corr = df.corr()
-            heatmap_path = os.path.join(self.static_dir, 'heatmap.png')
-
-            # Using seaborn to create a simpler heatmap
-            plt.figure(figsize=(10, 8))
-            sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', linewidths=1, linecolor='black')
-            plt.title('Correlation Heatmap', fontsize=16)
-
-            # Save the plot as an HTML file
-            plt.savefig(heatmap_path, format='png')
-
-            return heatmap_path
-        except Exception as e:
-            logging.error(f"Error generating correlation heatmap: {e}")
-            return None
-
     def plot_feature_importance(self, df):
-        """Plots the feature importance using a RandomForestRegressor."""
+        """Plots the feature importance using a RandomForestRegressor and highlights top correlations."""
         try:
             X = df.drop(columns=[self.target_variable])
             y = df[self.target_variable]
 
-            # Hyperparameter tuning (you can add more parameters here)
+            # Hyperparameter tuning
             param_grid = {
                 'n_estimators': [50, 100, 200],
                 'max_depth': [None, 10, 20],
@@ -135,15 +124,27 @@ class NFLDataAnalyzer:
             model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3)
             model.fit(X, y)
 
-            # Get feature importances
+            # Get feature importances and standardize them
             importances = model.best_estimator_.feature_importances_
+            importances = importances / importances.sum()
             feature_names = X.columns
 
-            # Create a DataFrame to hold the feature names and their importance scores
-            feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+            # Calculate correlations with the target variable
+            correlations = X.corrwith(y)
 
-            # Create a bar plot using Plotly
-            fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance')
+            # Get top 10% positive and negative correlations
+            top_10_percent = int(np.ceil(0.10 * len(correlations)))
+            top_positive = correlations.nlargest(top_10_percent).index.tolist()
+            top_negative = correlations.nsmallest(top_10_percent).index.tolist()
+
+            # Create a DataFrame to hold the feature names, their standardized importance scores, and correlation highlights
+            feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+            feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(lambda x: 'Positive' if x in top_positive else ('Negative' if x in top_negative else 'Neutral'))
+            feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+            # Create a bar plot using Plotly and highlight the top correlations
+            fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
+                        color='Highlight', color_discrete_map={'Positive': 'red', 'Negative': 'blue', 'Neutral': 'gray'})
 
             # Save the plot as an HTML file
             feature_importance_path = os.path.join(self.static_dir, 'feature_importance.html')
@@ -157,24 +158,59 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
 
-    def plot_histograms(self, df):
-        """Plots histograms for each numerical column in the dataframe."""
+    def plot_interactive_correlation_heatmap(self, df):
+        """Plots an interactive correlation heatmap using Plotly."""
         try:
-            # Create a directory to store all histogram plots
-            histograms_dir = os.path.join(self.static_dir, 'histograms')
-            os.makedirs(histograms_dir, exist_ok=True)
+            corr = df.corr()
 
-            # Loop through each numerical column and create a histogram
-            for col in df.select_dtypes(include=['float64', 'int64']).columns:
-                fig = px.histogram(df, x=col, title=f'Histogram of {col}', nbins=30)
-                fig.write_html(os.path.join(histograms_dir, f'{col}_histogram.html'))
+            # Using Plotly to create an interactive heatmap
+            fig = go.Figure(data=go.Heatmap(
+                z=corr.values,
+                x=corr.columns,
+                y=corr.columns,
+                hoverongaps=False,
+                colorscale=[[0, "red"], [0.5, "white"], [1, "blue"]],  # Setting colorscale with baseline at 0
+                zmin=-1,  # Setting minimum value for color scale
+                zmax=1,   # Setting maximum value for color scale
+                showscale=True,  # Display color scale bar
+            ))
 
-            logging.info("Histograms generated successfully")
-            return histograms_dir
+            # Adding annotations to the heatmap
+            annotations = []
+            for i, row in enumerate(corr.values):
+                for j, value in enumerate(row):
+                    annotations.append(
+                        {
+                            "x": corr.columns[j],
+                            "y": corr.columns[i],
+                            "font": {"color": "black"},
+                            "text": str(round(value, 2)),
+                            "xref": "x1",
+                            "yref": "y1",
+                            "showarrow": False
+                        }
+                    )
+            fig.update_layout(annotations=annotations, title='Correlation Heatmap')
 
+            heatmap_path = os.path.join(self.static_dir, 'interactive_heatmap.html')
+            fig.write_html(heatmap_path)
+
+            return heatmap_path
         except Exception as e:
-            logging.error(f"Error generating histograms: {e}")
+            logging.error(f"Error generating interactive correlation heatmap: {e}")
             return None
+
+
+    def plot_interactive_histograms(self, df):
+        """Plots interactive histograms for each numerical column using Plotly."""
+        histograms_dir = os.path.join(self.static_dir, 'interactive_histograms')
+        os.makedirs(histograms_dir, exist_ok=True)
+
+        for col in df.select_dtypes(include=['float64', 'int64']).columns:
+            fig = px.histogram(df, x=col, title=f'Histogram of {col}', nbins=30)
+            fig.write_html(os.path.join(histograms_dir, f'{col}_histogram.html'))
+
+        return histograms_dir
 
     def plot_boxplots(self, df):
         """Plots box plots for each numerical column in the dataframe."""
@@ -290,9 +326,9 @@ class NFLDataAnalyzer:
             logging.info("Generating EDA report")
 
             # Paths to save the generated plots
-            heatmap_path = self.plot_correlation_heatmap(df)
             feature_importance_path = self.plot_feature_importance(df)
-            # histogram_path = self.plot_histograms(df)
+            heatmap_path = self.plot_interactive_correlation_heatmap(df)
+            # histogram_path = self.plot_interactive_histograms(df)
             # boxplot_path = self.plot_boxplots(df)
             descriptive_stats_path = self.generate_descriptive_statistics(df)
             data_quality_report_path = self.generate_data_quality_report(df)
