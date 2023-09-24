@@ -96,62 +96,72 @@
 
         </style>
 
-        <!-- Include Plotly.js for interactive plots -->
-        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
     </head>
     <body>
 
-        <nav class="bg-gray-800 p-4 sticky top-0 z-50">
-            <div class="container mx-auto">
-                <a class="text-white text-xl font-bold" href="/">Home</a>
+        <nav class="bg-gray-800 p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
                 <div class="flex space-x-4">
+                    <a class="text-white" href="/">Home</a>
                     <a class="text-white" href="/columns">Columns</a>
-                    <a class="text-white" href="/generate_analysis">Generate Analysis</a>
                 </div>
             </div>
         </nav>
 
+        <!-- OVERVIEW FOR DUMMIES SECTION -->
+        <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+            <h3 class="text-2xl font-bold mb-4 text-gray-800">Overview for Dummies:</h3>
+            <p class="text-gray-700 mb-4">Building a model is like cooking a delicious dish. Just as you'd pick the best ingredients for your recipe, in data analysis, you choose the best pieces of information (called features) to predict something. In our case, we're trying to predict the "scoring differential" – that's the difference in scores between two teams in a game.</p>
+            <p class="text-gray-700 mb-4">That's where these reports come in! They help you understand which features are essential and which ones might not be. But remember, just like in cooking, understanding your ingredients (or in this case, football) is crucial. Knowing the game can help you make better decisions.</p>
+            <p class="text-gray-700 mb-4">Later on, we'll use the "scoring differential" and the features we select to run simulations. These simulations will help us see how different scenarios might play out in real games.</p>
+            <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
+        </div>
+
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Analysis Results</h2>
             
-            <!-- Tabs for different sections -->
-            <div class="tabs">
-                <button class="tab-button active" onclick="showTab('heatmap')">Correlation Heatmap</button>
-                <button class="tab-button" onclick="showTab('importance')">Feature Importance</button>
-                <button class="tab-button" onclick="showTab('statistics')">Descriptive Statistics</button>
-                <button class="tab-button" onclick="showTab('quality')">Data Quality Report</button>
-            </div>
-
-            <!-- Tab content for Correlation Heatmap -->
-            <div id="heatmap" class="tab-content">
-                <iframe src="{{ data.heatmap_path }}" width="100%" height="500px"></iframe>
-            </div>
-
-            <!-- Tab content for Feature Importance -->
-            <div id="importance" class="tab-content hidden">
-                <iframe src="{{ data.feature_importance_path }}" width="100%" height="500px"></iframe>
-            </div>
-
-            <!-- Tab content for Descriptive Statistics -->
-            <div class="scrollable-table">
-                <div id="statistics" class="tab-content hidden">
-                    <div id="statistics-table"></div>
-                    <a href="{{ data.descriptive_stats_path }}" download>Download Descriptive Statistics CSV</a>
-                </div>
-            </div>
-
-            <!-- Tab content for Data Quality Report -->
-            <div id="quality" class="tab-content hidden">
-                <div id="quality-table"></div>
-                <a href="{{ data.data_quality_report_path }}" download>Download Data Quality Report CSV</a>
+            <div class="space-y-4">
+                <a href="/interactive_heatmap" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Interactive Heatmap</a>
+                <a href="/feature_importance" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Feature Importance</a>
+                <a href="/data_quality_report" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Data Quality Report</a>
+                <a href="/descriptive_statistics" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Descriptive Statistics</a>
             </div>
 
         </div>
 
-        <footer class="bg-gray-800 text-white py-4 text-center">
-            <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
-        </footer>
+        <!-- EXPLANATION SECTION -->
+        <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+            <h3 class="text-2xl font-bold mb-4 text-gray-800">How to Interpret the Reports:</h3>
+
+            <!-- Interactive Heatmap Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">1. Interactive Heatmap:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a colorful puzzle. The colors show if two pieces (or features) like to play together or not.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The heatmap visualizes the correlation between different features. High positive or negative correlation indicates related features. Avoid multicollinearity by not selecting features that are highly correlated.</p>
+            </div>
+
+            <!-- Feature Importance Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">2. Feature Importance:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report tells us which toys (or features) are the most fun to play with when predicting something.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report ranks features based on their importance in predicting the target variable. Features with higher scores impact the model's predictions more. Prioritize these features in your model.</p>
+            </div>
+
+            <!-- Data Quality Report Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">3. Data Quality Report:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a toy inspector. It checks if any toys (or data) are broken or missing.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report provides insights into data quality, highlighting missing values, outliers, and potential errors. Ensure data cleanliness and address identified issues for better model accuracy.</p>
+            </div>
+
+            <!-- Descriptive Statistics Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">4. Descriptive Statistics:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a storybook. It tells us about the main characters (or data) and their adventures (or patterns).</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report summarizes the central tendency, dispersion, and shape of the dataset's distribution. Use this information for understanding and consider techniques like normalization or transformation if needed.</p>
+            </div>
+        </div>
         
         <script>
             function showTab(tabName) {
@@ -219,21 +229,12 @@
                 document.getElementById(elementId).appendChild(table);
             }
 
-            fetch('{{ data.descriptive_stats_path }}')
-                .then(response => response.text())
-                .then(data => {
-                    const parsedData = parseCSV(data);
-                    displayCSV(parsedData, 'statistics-table');
-                });
-
-            fetch('{{ data.data_quality_report_path }}')
-                .then(response => response.text())
-                .then(data => {
-                    const parsedData = parseCSV(data);
-                    displayCSV(parsedData, 'quality-table');
-                });
-
-        </script>                 
-        
+        </script>
+                
     </body>
+
+    <footer class="bg-gray-800 text-white py-4 text-center">
+        <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
+    </footer>
+
 </html>

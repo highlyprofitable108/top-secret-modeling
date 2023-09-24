@@ -37,6 +37,7 @@ class NFLDataAnalyzer:
         self.target_variable = 'scoring_differential'
         self.data_dir = self.get_config('paths', 'data_dir')
         self.static_dir = self.get_config('paths', 'static_dir')
+        self.template_dir = self.get_config('paths', 'template_dir')
         warnings.filterwarnings("ignore", message="DataFrame is highly fragmented")
 
     def get_config(self, section, key):
@@ -147,7 +148,7 @@ class NFLDataAnalyzer:
                         color='Highlight', color_discrete_map={'Positive': 'red', 'Negative': 'blue', 'Neutral': 'gray'})
 
             # Save the plot as an HTML file
-            feature_importance_path = os.path.join(self.static_dir, 'feature_importance.html')
+            feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
             fig.write_html(feature_importance_path)
 
             # Logging the best model's score
@@ -158,6 +159,7 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
 
+    # TODO: Fix chart coloring
     def plot_interactive_correlation_heatmap(self, df):
         """Plots an interactive correlation heatmap using Plotly."""
         try:
@@ -192,7 +194,7 @@ class NFLDataAnalyzer:
                     )
             fig.update_layout(annotations=annotations, title='Correlation Heatmap')
 
-            heatmap_path = os.path.join(self.static_dir, 'interactive_heatmap.html')
+            heatmap_path = os.path.join(self.template_dir, 'interactive_heatmap.html')
             fig.write_html(heatmap_path)
 
             return heatmap_path
@@ -200,10 +202,9 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating interactive correlation heatmap: {e}")
             return None
 
-
     def plot_interactive_histograms(self, df):
         """Plots interactive histograms for each numerical column using Plotly."""
-        histograms_dir = os.path.join(self.static_dir, 'interactive_histograms')
+        histograms_dir = os.path.join(self.template_dir, 'interactive_histograms')
         os.makedirs(histograms_dir, exist_ok=True)
 
         for col in df.select_dtypes(include=['float64', 'int64']).columns:
@@ -273,15 +274,16 @@ class NFLDataAnalyzer:
         pass
     """
 
+    # TODO: Better formatting for readability. Flip the axis?
     def generate_descriptive_statistics(self, df):
-        """Generates descriptive statistics for each column in the dataframe and saves it as a CSV file."""
+        """Generates descriptive statistics for each column in the dataframe and saves it as an HTML file."""
         try:
             # Generating descriptive statistics
             descriptive_stats = df.describe(include='all')
 
-            # Saving the descriptive statistics to a CSV file
-            descriptive_stats_path = os.path.join(self.static_dir, 'descriptive_statistics.csv')
-            descriptive_stats.to_csv(descriptive_stats_path)
+            # Saving the descriptive statistics to an HTML file
+            descriptive_stats_path = os.path.join(self.template_dir, 'descriptive_statistics.html')
+            descriptive_stats.to_html(descriptive_stats_path, classes='table table-bordered', justify='center')
 
             return descriptive_stats_path
         except Exception as e:
@@ -289,7 +291,7 @@ class NFLDataAnalyzer:
             return None
 
     def generate_data_quality_report(self, df):
-        """Generates a data quality report for the dataframe and saves it as a CSV file."""
+        """Generates a data quality report for the dataframe and saves it as an HTML file."""
         try:
             # Initializing an empty dictionary to store data quality metrics
             data_quality_report = {}
@@ -303,7 +305,7 @@ class NFLDataAnalyzer:
             # Checking data types of each column
             data_quality_report['data_types'] = df.dtypes
 
-            # Checking for outliers using Z-score (you can use other methods as well)
+            # Checking for outliers using Z-score
             from scipy.stats import zscore
             numeric_cols = df.select_dtypes(include=[np.number]).columns
             data_quality_report['outliers'] = df[numeric_cols].apply(lambda x: np.abs(zscore(x)) > 3).sum()
@@ -311,9 +313,9 @@ class NFLDataAnalyzer:
             # Converting the dictionary to a DataFrame
             data_quality_df = pd.DataFrame(data_quality_report)
 
-            # Saving the data quality report to a CSV file
-            data_quality_report_path = os.path.join(self.static_dir, 'data_quality_report.csv')
-            data_quality_df.to_csv(data_quality_report_path)
+            # Saving the data quality report to an HTML file
+            data_quality_report_path = os.path.join(self.template_dir, 'data_quality_report.html')
+            data_quality_df.to_html(data_quality_report_path, classes='table table-bordered', justify='center')
 
             return data_quality_report_path
         except Exception as e:

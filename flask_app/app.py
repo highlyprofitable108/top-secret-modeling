@@ -14,6 +14,7 @@ import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
@@ -141,27 +142,29 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
-@app.route('/view_descriptive_stats')
-def view_descriptive_stats():
-    df = pd.read_csv(os.path.join(app.root_path, 'static', 'descriptive_statistics.csv'))
-    return render_template('csv_template.html', table=df.to_html(classes='table table-striped'), title='Descriptive Statistics')
+@app.route('/interactive_heatmap')
+def heatmap():
+    return render_template('interactive_heatmap.html')
 
 
-@app.route('/view_data_quality_report')
-def view_data_quality_report():
-    df = pd.read_csv(os.path.join(app.root_path, 'static', 'data_quality_report.csv'))
-    return render_template('csv_template.html', table=df.to_html(classes='table table-striped'), title='Data Quality Report')
+@app.route('/feature_importance')
+def feature_importance():
+    return render_template('feature_importance.html')
+
+
+@app.route('/descriptive_statistics')
+def descriptive_statistics():
+    return render_template('descriptive_statistics.html')
+
+
+@app.route('/data_quality_report')
+def data_quality_report():
+    return render_template('data_quality_report.html')
 
 
 @app.route('/view_analysis')
 def view_analysis():
-    data = {
-        "heatmap_path": "/static/interactive_heatmap.html",
-        "feature_importance_path": "/static/feature_importance.html",
-        "descriptive_stats_path": "/static/descriptive_statistics.csv",
-        "data_quality_report_path": "/static/data_quality_report.csv"
-    }
-    return render_template('view_analysis.html', data=data)
+    return render_template('view_analysis.html')
 
 
 @app.route('/view_power_ranks')

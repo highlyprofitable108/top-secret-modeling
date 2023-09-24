@@ -28,6 +28,15 @@
       </div>
     </nav>
 
+    <!-- OVERVIEW FOR DUMMIES SECTION -->
+    <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h3 class="text-2xl font-bold mb-4 text-gray-800">Overview for Dummies:</h3>
+      <p class="text-gray-700 mb-4">Building a model is like cooking a delicious dish. Just as you'd pick the best ingredients for your recipe, in data analysis, you choose the best pieces of information (called features) to predict something. In our case, we're trying to predict the "scoring differential" – that's the difference in scores between two teams in a game.</p>
+      <p class="text-gray-700 mb-4">That's where the reports, we will soon generate, come in! They help you understand which features are essential and which ones might not be. But remember, just like in cooking, understanding your ingredients (or in this case, football) is crucial. Knowing the game can help you make better decisions.</p>
+      <p class="text-gray-700 mb-4">Later on, we'll use the "scoring differential" and the features we select to run simulations. These simulations will help us see how different scenarios might play out in real games.</p>
+      <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
+    </div>
+
     <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
       <div class="mb-8">
         <h5 class="font-bold mb-2">Active Constants:</h5>
@@ -50,7 +59,7 @@
           {% endif %}
         </div>
       </div>      
-    
+
       <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
         <h5 class="font-bold text-gray-800">Currently Selected Columns:</h5>
         <p id="selectedColumnsList" class="text-gray-700">None</p>
@@ -66,23 +75,29 @@
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="selectRandom">Random Selection</button>
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="clearSelection">Clear Selection</button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {% for category, columns in categorized_columns.items() %}
-          <div class="bg-white p-4 rounded shadow-md">
-            <div class="font-bold text-gray-800 mb-2">
-              {{ category }}
-            </div>
-            <div class="space-y-2">
-              {% for formatted_column, column in columns %}
-                <div class="flex items-center space-x-2">
-                  <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}">
-                  <label class="form-check-label text-gray-700" for="{{ column }}">
-                    {{ formatted_column }}
-                  </label>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for category, columns in categorized_columns.items() %}
+            <div class="bg-white p-4 rounded shadow-md">
+              <div class="flex justify-between items-center mb-2">
+                  <div class="font-bold text-gray-800">
+                      {{ category }}
+                  </div>
+                  <div>
+                      <input type="checkbox" class="category-select-all" data-category="{{ category }}">
+                      <label class="text-sm text-gray-600">Select All</label>
+                  </div>
+              </div>
+              <div class="space-y-2">
+                  {% for formatted_column, column in columns %}
+                      <div class="flex items-center space-x-2">
+                          <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}" data-category="{{ category }}">
+                          <label class="form-check-label text-gray-700" for="{{ column }}">
+                              {{ formatted_column }}
+                          </label>
+                      </div>
+                  {% endfor %}
+              </div>
+          </div>        
           {% endfor %}
         </div>
   
@@ -134,7 +149,20 @@
               }
               updateSelectedColumnsList();
           });
-  
+
+          // Add event listeners to category "Select All" checkboxes
+          const categorySelectAllCheckboxes = document.querySelectorAll('.category-select-all');
+          categorySelectAllCheckboxes.forEach(checkbox => {
+              checkbox.addEventListener('change', (event) => {
+                  const category = event.target.getAttribute('data-category');
+                  const categoryCheckboxes = document.querySelectorAll(`.column-checkbox[data-category="${category}"]`);
+                  categoryCheckboxes.forEach(box => {
+                      box.checked = event.target.checked;
+                  });
+                  updateSelectedColumnsList(); // Update the list of selected columns
+              });
+          });
+
           // Function to update the list of selected columns
           function updateSelectedColumnsList() {
               const selectedColumns = {};
