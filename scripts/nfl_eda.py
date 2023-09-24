@@ -130,22 +130,17 @@ class NFLDataAnalyzer:
             importances = importances / importances.sum()
             feature_names = X.columns
 
-            # Calculate correlations with the target variable
-            correlations = X.corrwith(y)
-
-            # Get top 10% positive and negative correlations
-            top_10_percent = int(np.ceil(0.10 * len(correlations)))
-            top_positive = correlations.nlargest(top_10_percent).index.tolist()
-            top_negative = correlations.nsmallest(top_10_percent).index.tolist()
-
-            # Create a DataFrame to hold the feature names, their standardized importance scores, and correlation highlights
+            # Create a DataFrame to hold the feature names and their standardized importance scores
             feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
-            feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(lambda x: 'Positive' if x in top_positive else ('Negative' if x in top_negative else 'Neutral'))
             feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
 
-            # Create a bar plot using Plotly and highlight the top correlations
+            # Highlight the top 20% of features based on importance
+            top_20_percent = int(np.ceil(0.20 * len(feature_importance_df)))
+            feature_importance_df['Highlight'] = ['Top 20%' if i < top_20_percent else 'Others' for i in range(len(feature_importance_df))]
+
+            # Create a bar plot using Plotly and highlight the top 20% of features
             fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
-                        color='Highlight', color_discrete_map={'Positive': 'red', 'Negative': 'blue', 'Neutral': 'gray'})
+                        color='Highlight', color_discrete_map={'Top 20%': 'red', 'Others': 'gray'})
 
             # Save the plot as an HTML file
             feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
@@ -159,7 +154,6 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
 
-    # TODO: Fix chart coloring
     def plot_interactive_correlation_heatmap(self, df):
         """Plots an interactive correlation heatmap using Plotly."""
         try:

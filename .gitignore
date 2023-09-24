@@ -8,3 +8,7 @@ flask_app/templates/data_quality_report.html
 flask_app/templates/descriptive_statistics.html
 flask_app/templates/feature_importance.html
 flask_app/templates/interactive_heatmap.html
+flask_app/templates/data_quality_report.html
+flask_app/templates/descriptive_statistics.html
+flask_app/templates/feature_importance.html
+flask_app/templates/interactive_heatmap.html
