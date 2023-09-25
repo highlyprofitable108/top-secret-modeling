@@ -1,5 +1,13 @@
 import requests
 import logging
+import time
+import json
+from classes.config_manager import ConfigManager
+
+HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+}
 
 
 class APIHandler:
@@ -12,7 +20,7 @@ class APIHandler:
         headers (dict): The headers for the API requests.
     """
 
-    def __init__(self, base_url, api_key):
+    def __init__(self):
         """
         Initializes the APIHandler with the base URL and API key.
 
@@ -20,15 +28,14 @@ class APIHandler:
             base_url (str): The base URL for the API.
             api_key (str): The API key for authentication.
         """
-        self.base_url = base_url
-        self.api_key = api_key
-        self.headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
+        self.config_manager = ConfigManager()
+        self.base_url = self.config_manager.get_config('nfl_api', 'base_url')
+        self.api_key = self.config_manager.get_config('nfl_api', 'api_key')
+        self.json_dir = self.config_manager.get_config('paths', 'json_dir')
+        self.headers = HEADERS
         self.logger = logging.getLogger(__name__)
 
-    def fetch_game_schedule(self, year, season, endpoint):
+    def fetch_game_schedule(self, year, season):
         """
         Fetches the game schedule for a given year and season.
 
@@ -40,16 +47,24 @@ class APIHandler:
         Returns:
             dict: The JSON response from the API.
         """
-        url = f"{self.base_url}{endpoint.format(year=year, season=season)}?api_key={self.api_key}"
-        response = requests.get(url, headers=self.headers)
+        endpoint = f"{self.base_url}/{year}/{season}/schedule.json?api_key={self.api_key}"
+        response = requests.get(endpoint, headers=HEADERS)
+        file_path = f"{self.json_dir}/game_schedule.json"
+        data = response.json()
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            self.logger.error(f"Failed to fetch game schedule: {response.status_code} - {response.text}")
-            return None
+        with open(file_path, 'w') as file:
+            json.dump(response.json(), file)
+        print("Data saved to game_schedule.json")
 
-    def fetch_game_statistics(self, game_id, endpoint):
+        # Extract all game_id values and store them in a list
+        game_ids = [game['id'] for week in data.get('weeks', []) for game in week.get('games', [])]
+
+        # Loop through the game_ids list and call fetch_game_statistics for each game_id
+        time.sleep(2)
+        for game_id in game_ids:
+            self.fetch_game_statistics(game_id)
+
+    def fetch_game_statistics(self, game_id):
         """
         Fetches the game statistics for a given game ID.
 
@@ -60,11 +75,14 @@ class APIHandler:
         Returns:
             dict: The JSON response from the API.
         """
-        url = f"{self.base_url}{endpoint.format(game_id=game_id)}?api_key={self.api_key}"
-        response = requests.get(url, headers=self.headers)
+        endpoint = f"{self.base_url}/{game_id}/statistics.json?api_key={self.api_key}"
+        response = requests.get(endpoint, headers=HEADERS)
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            self.logger.error(f"Failed to fetch game statistics: {response.status_code} - {response.text}")
-            return None
+        # Incorporate game_id into the filename to ensure uniqueness
+        file_path = f"{self.json_dir}/game_stats_{game_id}.json"
+
+        with open(file_path, 'w') as file:
+            json.dump(response.json(), file)
+
+        print(f"Data saved to game_stats_{game_id}.json")
+        time.sleep(2)
