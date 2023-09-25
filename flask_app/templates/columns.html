@@ -88,14 +88,15 @@
                   </div>
               </div>
               <div class="space-y-2">
-                  {% for formatted_column, column in columns %}
-                      <div class="flex items-center space-x-2">
-                          <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}" data-category="{{ category }}">
-                          <label class="form-check-label text-gray-700" for="{{ column }}">
-                              {{ formatted_column }}
-                          </label>
-                      </div>
-                  {% endfor %}
+                {% for formatted_column, column in columns %}
+                  <div class="flex items-center space-x-2">
+                      <input class="form-check-input column-checkbox" type="checkbox" name="columns" value="{{ column }}" id="{{ column }}" data-category="{{ category }}"
+                      {% if column in active_constants %} checked {% endif %}>
+                      <label class="form-check-label text-gray-700" for="{{ column }}">
+                          {{ formatted_column }}
+                      </label>
+                  </div>
+              {% endfor %}
               </div>
           </div>        
           {% endfor %}
