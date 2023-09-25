@@ -71,7 +71,6 @@ class NFLDataAnalyzer:
             # Descriptive Statistics (Integration of suggestion 2)
             descriptive_stats = df.describe()
             descriptive_stats.to_csv(os.path.join(self.static_dir, 'descriptive_statistics.csv'))
-
             return df
         except Exception as e:
             logging.error(f"Error processing data: {e}")
@@ -95,10 +94,18 @@ class NFLDataAnalyzer:
     def filter_columns(self, df):
         """Filters the dataframe to keep only the necessary columns."""
         try:
-            # Filter only the columns that exist in both scripts.constants.COLUMNS_TO_KEEP and df
+            # Reload constants
             reload(scripts.constants)
-            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col in df.columns]
-            return df[columns_to_filter]
+
+            # Filter columns with stripping whitespaces
+            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)]
+
+            # Check if any columns are filtered
+            if not columns_to_filter:
+                logging.error("No matching columns found.")
+                return pd.DataFrame()
+
+            return df[columns_to_filter].copy()
         except Exception as e:
             logging.error(f"Error filtering columns: {e}")
             return pd.DataFrame()
@@ -131,21 +138,33 @@ class NFLDataAnalyzer:
             feature_names = X.columns
 
             # Calculate correlations with the target variable
-            correlations = X.corrwith(y)
+            correlations = X.corrwith(y).abs()
 
-            # Get top 10% positive and negative correlations
-            top_10_percent = int(np.ceil(0.10 * len(correlations)))
-            top_positive = correlations.nlargest(top_10_percent).index.tolist()
-            top_negative = correlations.nsmallest(top_10_percent).index.tolist()
+            # Identify the top 20% of features based on importance and correlation
+            top_20_percent_importance = int(np.ceil(0.20 * len(importances)))
+            top_20_percent_correlation = int(np.ceil(0.20 * len(correlations)))
+            top_importance_features = feature_names[importances.argsort()[-top_20_percent_importance:]]
+            top_correlation_features = correlations.nlargest(top_20_percent_correlation).index.tolist()
 
-            # Create a DataFrame to hold the feature names, their standardized importance scores, and correlation highlights
+            # Determine the color for each feature
+            def determine_color(feature):
+                if feature in top_importance_features and feature in top_correlation_features:
+                    return 'Important and Related'
+                elif feature in top_importance_features:
+                    return 'Important'
+                elif feature in top_correlation_features:
+                    return 'Related to Target'
+                else:
+                    return 'Just Data'
+
+            # Create a DataFrame to hold the feature names, their standardized importance scores, and highlights
             feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
-            feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(lambda x: 'Positive' if x in top_positive else ('Negative' if x in top_negative else 'Neutral'))
+            feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(determine_color)
             feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
 
-            # Create a bar plot using Plotly and highlight the top correlations
+            # Create a bar plot using Plotly and highlight based on the determined colors
             fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
-                        color='Highlight', color_discrete_map={'Positive': 'red', 'Negative': 'blue', 'Neutral': 'gray'})
+                            color='Highlight', color_discrete_map={'Important': 'red', 'Related to Target': 'blue', 'Important and Related': 'purple', 'Just Data': 'gray'})
 
             # Save the plot as an HTML file
             feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
@@ -159,7 +178,6 @@ class NFLDataAnalyzer:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
 
-    # TODO: Fix chart coloring
     def plot_interactive_correlation_heatmap(self, df):
         """Plots an interactive correlation heatmap using Plotly."""
         try:
@@ -172,8 +190,8 @@ class NFLDataAnalyzer:
                 y=corr.columns,
                 hoverongaps=False,
                 colorscale=[[0, "red"], [0.5, "white"], [1, "blue"]],  # Setting colorscale with baseline at 0
-                zmin=-1,  # Setting minimum value for color scale
-                zmax=1,   # Setting maximum value for color scale
+                zmin=-.8,  # Setting minimum value for color scale
+                zmax=.8,   # Setting maximum value for color scale
                 showscale=True,  # Display color scale bar
             ))
 
@@ -274,12 +292,14 @@ class NFLDataAnalyzer:
         pass
     """
 
-    # TODO: Better formatting for readability. Flip the axis?
     def generate_descriptive_statistics(self, df):
         """Generates descriptive statistics for each column in the dataframe and saves it as an HTML file."""
         try:
             # Generating descriptive statistics
             descriptive_stats = df.describe(include='all')
+
+            # Transposing the DataFrame
+            descriptive_stats = descriptive_stats.transpose()
 
             # Saving the descriptive statistics to an HTML file
             descriptive_stats_path = os.path.join(self.template_dir, 'descriptive_statistics.html')

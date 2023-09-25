@@ -36,6 +36,11 @@ def generate_constants_file(selected_columns):
         file.write("COLUMNS_TO_KEEP = [\n")
         file.write('    "scoring_differential",\n')  # Ensure scoring_differential is always included
         for col in selected_columns:
+            if 'summary' not in col and 'efficiency' not in col:
+                # Find the last occurrence of '.' and replace it with '.totals.'
+                last_dot_index = col.rfind('.')
+                if last_dot_index != -1:  # Check if '.' is found in the string
+                    col = col[:last_dot_index] + '.totals.' + col[last_dot_index + 1:]
             file.write(f'    "statistics_home.{col}",\n')
             file.write(f'    "statistics_away.{col}",\n')
         file.write("]\n")
