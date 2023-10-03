@@ -47,18 +47,26 @@ class NFLModel:
             # Fetch data from MongoDB using DatabaseOperations class
             collection_name = "games"
             df = db_operations.fetch_data_from_mongodb(collection_name)
+            
             # Flatten and merge data using DataProcessing class
             df = data_processing.flatten_and_merge_data(df)
+            
             # Compute scoring differential using DataProcessing class
             df = data_processing.calculate_scoring_differential(df)
+            
             # Keep only the columns specified in COLUMNS_TO_KEEP
             df = df[COLUMNS_TO_KEEP]
             df = self.data_processing.handle_null_values(df)
+            
+            # TODO: Remove values not used in calculation from constants.py
+
+
             # Convert time strings to minutes (apply this to the relevant columns)
             if 'statistics_home.summary.possession_time' in df.columns:
                 df['statistics_home.summary.possession_time'] = df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
             if 'statistics_away.summary.possession_time' in df.columns:
                 df['statistics_away.summary.possession_time'] = df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
+            
             # Drop games if 'scoring_differential' key does not exist
             if 'scoring_differential' not in df.columns:
                 logging.warning("'scoring_differential' key does not exist. Dropping games.")
@@ -76,6 +84,7 @@ class NFLModel:
 
             # Update the feature_columns list to reflect the changes
             feature_columns = [col for col in df.columns if col != 'scoring_differential']
+            print(feature_columns)
 
             # Separate the target variable
             X = df.drop('scoring_differential', axis=1)  # Features
@@ -166,10 +175,13 @@ class NFLModel:
         try:
             # Load and process data
             processed_df = self.load_and_process_data()
+
             # Preprocess data
             X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(processed_df)
+            
             # Train and evaluate model
             model = self.train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns)
+            
             # Save the model and related files to the models directory
             joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
             joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))
@@ -184,8 +196,6 @@ class NFLModel:
             logging.error(f"Error in main: {e}")
 
 
-"""
 if __name__ == "__main__":
     nfl_model = NFLModel()
     nfl_model.main()
-"""

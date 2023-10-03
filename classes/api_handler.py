@@ -32,6 +32,7 @@ class APIHandler:
         self.base_url = self.config_manager.get_config('nfl_api', 'base_url')
         self.api_key = self.config_manager.get_config('nfl_api', 'api_key')
         self.json_dir = self.config_manager.get_config('paths', 'json_dir')
+        self.data_dir = self.config_manager.get_config('paths', 'data_dir')
         self.headers = HEADERS
         self.logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class APIHandler:
         """
         endpoint = f"{self.base_url}/{year}/{season}/schedule.json?api_key={self.api_key}"
         response = requests.get(endpoint, headers=HEADERS)
-        file_path = f"{self.json_dir}/game_schedule.json"
+        file_path = f"{self.data_dir}/game_schedule.json"
         data = response.json()
 
         with open(file_path, 'w') as file:

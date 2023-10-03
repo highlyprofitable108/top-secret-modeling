@@ -65,6 +65,8 @@ def filter_and_scale_data(merged_data, feature_columns):
 
 def monte_carlo_simulation(df, num_simulations=1000):
     print("Starting Monte Carlo Simulation...")
+    df = data_processing.handle_prediction_values(df)
+
     simulation_results = []
 
     start_time = time.time()
@@ -78,8 +80,11 @@ def monte_carlo_simulation(df, num_simulations=1000):
                     sampled_value = np.random.normal(mean_value, stddev_value)
                     sampled_df[column] = sampled_value
 
+            # TODO: Get updated list excluding NULLs
+
             # Filter columns and scale numeric features
             sampled_df = sampled_df[feature_columns]
+            sampled_df = data_processing.handle_null_values(sampled_df)
             sampled_df[feature_columns] = LOADED_SCALER.transform(sampled_df[feature_columns])
 
             prediction = LOADED_MODEL.predict(sampled_df)

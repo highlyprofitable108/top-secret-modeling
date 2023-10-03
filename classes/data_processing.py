@@ -120,6 +120,31 @@ class DataProcessing:
         except Exception as e:
             logging.error(f"Error in handle_null_values: {e}")
             return df
+        
+    def handle_prediction_values(self, df):
+        """Handles null values in the dataframe by dropping columns with high NaN count and filling others with mean."""
+        try:
+            nan_counts = df.isnull().sum()
+            columns_to_drop = nan_counts[nan_counts > 1].index.tolist()
+            if columns_to_drop:
+                logging.warning(f"Dropping columns with more NaN values: {columns_to_drop}")
+                df = df.drop(columns=columns_to_drop).reset_index(drop=True)
+
+            # Fill NaN values in remaining columns with the mean of each column
+            nan_columns = nan_counts[nan_counts > 0].index.tolist()
+            nan_columns = [col for col in nan_columns if col not in columns_to_drop]
+            for col in nan_columns:
+                if df[col].dtype == np.number:  # Check if the column has a numeric data type
+                    col_mean = df[col].mean()
+                    df[col].fillna(col_mean, inplace=True)
+                else:
+                    col_most_frequent = df[col].mode().iloc[0]  # Fill non-numeric columns with the mode
+                    df[col].fillna(col_most_frequent, inplace=True)
+
+            return df
+        except Exception as e:
+            logging.error(f"Error in handle_null_values: {e}")
+            return df
 
     def process_game_data(self, df):
         processed_df = self.flatten_and_merge_data(df)
