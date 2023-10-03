@@ -21,6 +21,7 @@ config = ConfigManager()
 database_operations = DatabaseOperations()
 data_processing = DataProcessing()
 analyzer = NFLDataAnalyzer()
+nfl_model = NFLModel()
 
 # Fetch configurations using ConfigManager
 data_dir = config.get_config('paths', 'data_dir')
@@ -113,13 +114,13 @@ def generate_analysis():
 @app.route('/generate_model', methods=['POST'])
 def generate_model():
     try:
-        # Create an instance of the NFLModel class
-        nfl_model = NFLModel()
-
-        # Call the main method to generate the model
+        # Call the main method of the NFLModel instance to generate the model
         nfl_model.main()
 
-        # If successful, return a success message
+        # If successful, run the generate_power_ranks function
+        generate_power_ranks_internal()
+
+        # Return a success message
         return jsonify(status="success"), 200
     except Exception as e:
         # If there is an error, return an error message
@@ -129,17 +130,22 @@ def generate_model():
 @app.route('/generate_power_ranks', methods=['POST'])
 def generate_power_ranks():
     try:
-        # Create an instance of the NFLModel class
-        nfl_stats = StatsCalculator()
-
-        # Call the main method to generate the model
-        nfl_stats.main()
+        # Call the internal function to generate power ranks
+        generate_power_ranks_internal()
 
         # If successful, return a success message
         return jsonify(status="success"), 200
     except Exception as e:
         # If there is an error, return an error message
         return jsonify(error=str(e)), 500
+
+
+def generate_power_ranks_internal():
+    # Create an instance of the NFLModel class
+    nfl_stats = StatsCalculator()
+
+    # Call the main method to generate the model
+    nfl_stats.main()
 
 
 @app.route('/interactive_heatmap')
@@ -169,8 +175,7 @@ def view_analysis():
 
 @app.route('/view_power_ranks')
 def view_power_ranks():
-    df = pd.read_csv(os.path.join(app.root_path, 'static', 'power_ranks.csv'))
-    return render_template('power_ranks.html', table=df.to_html(classes='table table-striped'), title='Custom Power Rankings')
+    return render_template('team_power_rank.html')
 
 
 if __name__ == "__main__":

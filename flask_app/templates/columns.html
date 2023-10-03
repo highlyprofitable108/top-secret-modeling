@@ -189,46 +189,51 @@
   
           // Function to handle form submission
           function handleFormSubmission(event) {
-            event.preventDefault(); // Prevent default form submission
+              event.preventDefault(); // Prevent default form submission
 
-            // Show the loading spinner
-            document.getElementById('loading-spinner').style.display = 'block';
+              // Show the loading spinner
+              document.getElementById('loading-spinner').style.display = 'block';
 
-            // First, send form data to /process_columns
-            fetch('/process_columns', {
-                method: 'POST',
-                body: new FormData(form)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // If /process_columns is successful, send a request to /generate_analysis
-                    return fetch('/generate_analysis', {
-                        method: 'POST'
-                    });
-                } else {
-                    throw new Error('Error processing columns.');
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    // If /generate_analysis is successful, redirect to /view_analysis
-                    window.location.href = '/view_analysis'; 
-                } else {
-                    throw new Error(data.error || 'Error generating analysis.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-                document.getElementById('loading-spinner').style.display = 'none';
-            });
+              // First, send form data to /process_columns
+              fetch('/process_columns', {
+                  method: 'POST',
+                  body: new FormData(form)
+              })
+              .then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      // If /process_columns is successful, send a request to /generate_analysis
+                      return fetch('/generate_analysis', {
+                          method: 'POST'
+                      });
+                  } else {
+                      throw new Error('Error processing columns.');
+                  }
+              })
+              .then(response => response.json())
+              .then(data => {
+                  if (data.status === "success") {
+                      // If /generate_analysis is successful, send a background request to /generate_model
+                      fetch('/generate_model', {
+                          method: 'POST'
+                      });
+
+                      // Redirect to /view_analysis
+                      window.location.href = '/view_analysis'; 
+                  } else {
+                      throw new Error(data.error || 'Error generating analysis.');
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred. Please try again.');
+                  document.getElementById('loading-spinner').style.display = 'none';
+              });
           }
-  
+
           // Attach the handleFormSubmission function to the form's submit event
           form.addEventListener('submit', handleFormSubmission);
-  
+
           // Add event listener to clear all selections when the "Clear Selection" button is clicked
           document.getElementById('clearSelection').addEventListener('click', function() {
               document.querySelectorAll('.form-check-input').forEach(function(checkbox) {

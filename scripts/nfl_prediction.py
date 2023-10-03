@@ -63,7 +63,7 @@ def filter_and_scale_data(merged_data, feature_columns):
     return merged_data
 
 
-def monte_carlo_simulation(df, num_simulations=1000):
+def monte_carlo_simulation(df, num_simulations=2500):
     print("Starting Monte Carlo Simulation...")
     df = data_processing.handle_prediction_values(df)
 
@@ -109,9 +109,9 @@ def analyze_simulation_results(simulation_results):
     # Sort the simulation results
     sorted_results = sorted(simulation_results)
 
-    # Filter out the extreme 5% of results on either end (keeping central 90%)
-    lower_bound = int(0.050 * len(sorted_results))
-    upper_bound = int(0.950 * len(sorted_results))
+    # Filter out the extreme 1% of results on either end (keeping central 90%)
+    lower_bound = int(0.1 * len(sorted_results))
+    upper_bound = int(0.9 * len(sorted_results))
     filtered_results = sorted_results[lower_bound:upper_bound]
 
     # Calculate the range of outcomes based on the filtered results
@@ -189,7 +189,6 @@ def predict_scoring_differential():
 
     # Create matchup
     merged_data = merge_data(home_team_data, away_team_data, home_team_data_stddev, away_team_data_stddev)
-    # Print out the full columns of the merged_data DataFrame
 
     # Run Monte Carlo simulations
     print("\nRunning Simulations...")

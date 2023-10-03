@@ -2,15 +2,16 @@ from datetime import datetime
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
 from classes.data_processing import DataProcessing
+import scripts.constants
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from importlib import reload
 import joblib
 import os
 import json
 import pandas as pd
-from .constants import COLUMNS_TO_KEEP
 import logging
 
 # Configure logging
@@ -47,19 +48,24 @@ class NFLModel:
             # Fetch data from MongoDB using DatabaseOperations class
             collection_name = "games"
             df = db_operations.fetch_data_from_mongodb(collection_name)
-            
+
             # Flatten and merge data using DataProcessing class
             df = data_processing.flatten_and_merge_data(df)
-            
+
             # Compute scoring differential using DataProcessing class
             df = data_processing.calculate_scoring_differential(df)
-            
-            # Keep only the columns specified in COLUMNS_TO_KEEP
-            df = df[COLUMNS_TO_KEEP]
-            df = self.data_processing.handle_null_values(df)
-            
-            # TODO: Remove values not used in calculation from constants.py
 
+            # Reload constants
+            reload(scripts.constants)
+
+            # Filter columns with stripping whitespaces
+            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)]
+
+            # Keep only the columns specified in COLUMNS_TO_KEEP
+            df = df[columns_to_filter]
+            df = self.data_processing.handle_null_values(df)
+
+            # TODO: Remove values not used in calculation from constants.py
 
             # Convert time strings to minutes (apply this to the relevant columns)
             if 'statistics_home.summary.possession_time' in df.columns:
