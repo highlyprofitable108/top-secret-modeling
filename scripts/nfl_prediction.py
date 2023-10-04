@@ -1,7 +1,7 @@
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
-from .constants import COLUMNS_TO_KEEP
+import scripts.constants
 import os
 import joblib
 from pymongo import MongoClient
@@ -12,10 +12,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from importlib import reload
 from scipy.stats import mode, gaussian_kde
 
+
 class NFLPredictor:
-    def __init__(self):
+    def __init__(self, home_team, away_team):
         # Configuration and Database Connection
         self.config = ConfigManager()
         self.data_processing = DataProcessing()
@@ -28,9 +30,8 @@ class NFLPredictor:
         self.DATABASE_NAME = self.config.get_config('database', 'database_name')
         self.client = MongoClient(self.MONGO_URI)
         self.db = self.client[self.DATABASE_NAME]
-
-        # Define the feature columns by removing the target variable from COLUMNS_TO_KEEP
-        self.feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
+        self.home_team = home_team
+        self.away_team = away_team
 
         # Loading the pre-trained model and the data scaler
         self.LOADED_MODEL, self.LOADED_SCALER = self.load_model_and_scaler()
@@ -44,14 +45,15 @@ class NFLPredictor:
             print(f"Error loading files: {e}")
             # Handle the error appropriately or return None values
             return None, None
-        
+
     def get_team_data(self, alias, df):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
         return df[df['alias'] == alias]
 
     def rename_columns(self, data, prefix):
         """Renames columns with a specified prefix."""
-        columns_to_rename = [col.replace('statistics_home.', '') for col in COLUMNS_TO_KEEP if col.startswith('statistics_home.')]
+        reload(scripts.constants)
+        columns_to_rename = [col.replace('statistics_home.', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('statistics_home.')]
         rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
         return data.rename(columns=rename_dict)
 
@@ -61,14 +63,18 @@ class NFLPredictor:
 
     def filter_and_scale_data(self, merged_data):
         """Filters the merged data using the feature columns and scales the numeric features."""
-        merged_data = merged_data[self.feature_columns]
-        merged_data[self.feature_columns] = self.LOADED_SCALER.transform(merged_data[self.feature_columns])
+        # Reload constants
+        reload(scripts.constants)
+
+        # Filter columns with stripping whitespaces and exclude 'scoring_differential'
+        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, merged_data.columns) and col.strip() != 'scoring_differential']
+
+        merged_data = merged_data[columns_to_filter]
+        merged_data[columns_to_filter] = self.LOADED_SCALER.transform(merged_data[columns_to_filter])
         return merged_data
-    
+
     def monte_carlo_simulation(self, df, num_simulations=2500):
         print("Starting Monte Carlo Simulation...")
-        df = self.data_processing.handle_prediction_values(df)
-
         simulation_results = []
 
         start_time = time.time()
@@ -85,11 +91,15 @@ class NFLPredictor:
                 # TODO: Get updated list excluding NULLs
 
                 # Filter columns and scale numeric features
-                sampled_df = sampled_df[self.feature_columns]
-                sampled_df = self.data_processing.handle_null_values(sampled_df)
-                sampled_df[self.feature_columns] = self.LOADED_SCALER.transform(sampled_df[self.feature_columns])
+                reload(scripts.constants)
 
-                prediction = self.LOADED_MODEL.predict(sampled_df)
+                columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, sampled_df.columns) and col.strip() != 'scoring_differential']
+
+                sampled_df = sampled_df[columns_to_filter]
+                modified_df = sampled_df.dropna(axis=1, how='any')
+                scaled_df = self.LOADED_SCALER.transform(modified_df)
+
+                prediction = self.LOADED_MODEL.predict(scaled_df)
                 simulation_results.append(prediction[0])
 
                 pbar.update(1)  # Increment tqdm progress bar
@@ -149,6 +159,7 @@ class NFLPredictor:
 
     def main(self):
         """Predicts the scoring differential using Monte Carlo simulation and visualizes the results."""
+        """
         # Fetch the teams collection to create a mapping of team_alias to team_id
         teams_df = self.database_operations.fetch_data_from_mongodb('teams')
         team_alias_to_id = dict(zip(teams_df['alias'], teams_df['id']))
@@ -168,6 +179,10 @@ class NFLPredictor:
         while away_team_alias not in team_alias_to_id:
             print("Invalid opponent team alias. Please enter a valid team alias from the list above.")
             away_team_alias = input("Enter away team alias: ")
+        """
+
+        home_team_alias = self.home_team
+        away_team_alias = self.away_team
 
         # Fetch data only for the selected teams from the team_aggregated_metrics collection
         df = self.database_operations.fetch_data_from_mongodb('team_aggregated_metrics')

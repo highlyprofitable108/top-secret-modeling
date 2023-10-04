@@ -109,7 +109,7 @@ class DataProcessing:
             nan_columns = nan_counts[nan_counts > 0].index.tolist()
             nan_columns = [col for col in nan_columns if col not in columns_to_drop]
             for col in nan_columns:
-                if df[col].dtype == np.number:  # Check if the column has a numeric data type
+                if df[col].dtype == 'float64' or df[col].dtype == 'int64':  # Check if the column has a numeric data type
                     col_mean = df[col].mean()
                     df[col].fillna(col_mean, inplace=True)
                 else:
@@ -120,9 +120,9 @@ class DataProcessing:
         except Exception as e:
             logging.error(f"Error in handle_null_values: {e}")
             return df
-        
+
     def handle_prediction_values(self, df):
-        """Handles null values in the dataframe by dropping columns with high NaN count and filling others with mean."""
+        """Handles prediction values in the dataframe by dropping columns with high NaN count and filling others with mean."""
         try:
             nan_counts = df.isnull().sum()
             columns_to_drop = nan_counts[nan_counts > 1].index.tolist()
@@ -134,7 +134,7 @@ class DataProcessing:
             nan_columns = nan_counts[nan_counts > 0].index.tolist()
             nan_columns = [col for col in nan_columns if col not in columns_to_drop]
             for col in nan_columns:
-                if df[col].dtype == np.number:  # Check if the column has a numeric data type
+                if np.issubdtype(df[col].dtype, np.number):  # Check if the column has a numeric data type
                     col_mean = df[col].mean()
                     df[col].fillna(col_mean, inplace=True)
                 else:
@@ -143,7 +143,7 @@ class DataProcessing:
 
             return df
         except Exception as e:
-            logging.error(f"Error in handle_null_values: {e}")
+            logging.error(f"Error in handle_prediction_values: {e}")
             return df
 
     def process_game_data(self, df):

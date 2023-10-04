@@ -2,6 +2,7 @@ from scripts import nfl_stats_select, constants
 from scripts.nfl_eda import NFLDataAnalyzer
 from scripts.nfl_model import NFLModel
 from scripts.nfl_populate_stats import StatsCalculator
+from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
@@ -140,6 +141,10 @@ def generate_power_ranks():
         # Call the internal function to generate power ranks
         generate_power_ranks_internal(date)
 
+        if home_team is not None and away_team is not None:
+            predictor = NFLPredictor(home_team, away_team)
+            predictor.main()
+
         # If successful, return a success message
         return jsonify(status="success"), 200
     except Exception as e:
@@ -147,7 +152,7 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
-def generate_power_ranks_internal(date):
+def generate_power_ranks_internal(date=None):
     # Create an instance of the NFLModel class
     nfl_stats = StatsCalculator(date=date)
 
