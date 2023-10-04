@@ -130,8 +130,15 @@ def generate_model():
 @app.route('/generate_power_ranks', methods=['POST'])
 def generate_power_ranks():
     try:
+        # Retrieve parameters from the POST request if available
+        home_team = request.form.get('homeTeam', None)
+        away_team = request.form.get('awayTeam', None)
+
+        # Date function currentl stinks 
+        date = request.form.get('date', datetime.today().strftime('%Y-%m-%d'))  # Set to current date if not available
+
         # Call the internal function to generate power ranks
-        generate_power_ranks_internal()
+        generate_power_ranks_internal(date)
 
         # If successful, return a success message
         return jsonify(status="success"), 200
@@ -140,9 +147,9 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
-def generate_power_ranks_internal():
+def generate_power_ranks_internal(date):
     # Create an instance of the NFLModel class
-    nfl_stats = StatsCalculator()
+    nfl_stats = StatsCalculator(date=date)
 
     # Call the main method to generate the model
     nfl_stats.main()
@@ -176,6 +183,11 @@ def view_analysis():
 @app.route('/view_power_ranks')
 def view_power_ranks():
     return render_template('team_power_rank.html')
+
+
+@app.route('/simulator_input')
+def simulator_input():
+    return render_template('simulator_input.html')
 
 
 if __name__ == "__main__":

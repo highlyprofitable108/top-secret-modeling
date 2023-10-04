@@ -14,7 +14,7 @@ from .constants import COLUMNS_TO_KEEP
 
 
 class StatsCalculator:
-    def __init__(self):
+    def __init__(self, date=None):
         # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
@@ -30,10 +30,13 @@ class StatsCalculator:
         self.LOADED_MODEL = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
 
         # Get the current date
-        self.today = datetime.today().date()
+        self.date = date if date else datetime.today().strftime('%Y-%m-%d')
+
+        # Convert the string date to a datetime object
+        self.date_obj = datetime.strptime(self.date, '%Y-%m-%d')
 
         # Calculate the date for two years ago
-        self.two_years_ago = (self.today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
+        self.two_years_ago = (self.date_obj - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
     def load_and_process_data(self, database_operations, data_processing):
         """
@@ -113,15 +116,21 @@ class StatsCalculator:
             processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
             processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
 
-            # Convert scheduled column to datetime and calculate days since the game was played
+            # Convert scheduled column to datetime
             processed_df['game_date'] = pd.to_datetime(processed_df['scheduled'])
-            today = datetime.today()
+
+            # Use the date_obj directly since it's already a datetime object
+            sim_date = self.date_obj
+
             processed_df['game_date'] = processed_df['game_date'].dt.tz_localize(None)
-            processed_df['days_since_game'] = (today - processed_df['game_date']).dt.days
+            processed_df['days_since_game'] = (sim_date - processed_df['game_date']).dt.days
 
             # Drop all games played more than 104 weeks (728 days) ago
             max_days_since_game = 104 * 7
-            df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
+            two_year_df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
+
+            # Drop all games that haven't been played yet
+            df = two_year_df[two_year_df['days_since_game'] >= 0]
 
             # Apply exponential decay function to calculate weights
             df.loc[:, 'weight'] = df['days_since_game'].apply(decay_weight)
@@ -133,7 +142,6 @@ class StatsCalculator:
             # Separate home and away data
             df_home = df[['summary_home.id', 'summary_home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
             df_away = df[['summary_away.id', 'summary_away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
-
             return df_home, df_away
         except Exception as e:
             print(f"Error in transform_data function: {e}")

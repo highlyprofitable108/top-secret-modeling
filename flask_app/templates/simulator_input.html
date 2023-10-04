@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+      <!-- Tailwind CSS -->
+      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+      <!-- Google Fonts -->
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+      <style>
+          body {
+              font-family: 'Roboto', sans-serif;
+              background-color: #f8f9fa;
+          }
+          .team-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .team-container h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .teams {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+      </style>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
+      <title>Top Secret Modeling</title>
+  </head>
+  <body>
+
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a class="text-white text-xl font-bold" href="/">NFL Game Simulator</a>
+            <div class="flex space-x-4">
+                <a class="text-white" href="/">Home</a>
+                <!-- Additional links can be added here with the same classes as the Home link -->
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+        <h3 class="text-2xl font-bold mb-4 text-gray-800">NFL Game Simulator</h3>
+        <form action="/generate_power_ranks" method="post">
+            <div class="mb-4">
+                <label for="date" class="block text-gray-700">Select a date:</label>
+                <input id="date" min="2021-01-01" name="date" type="date" class="form-input mt-1 block w-full"/>
+            </div>
+            <div class="mb-4">
+            <label for="homeTeam" class="block text-gray-700">Select a home team:</label>
+            <select id="homeTeam" name="homeTeam" class="form-select mt-1 block w-full">
+                <option value="ARI">ARI</option>
+                <option value="ATL">ATL</option>
+                <option value="BAL">BAL</option>
+                <option value="BUF">BUF</option>
+                <option value="CAR">CAR</option>
+                <option value="CHI">CHI</option>
+                <option value="CIN">CIN</option>
+                <option value="CLE">CLE</option>
+                <option value="DAL">DAL</option>
+                <option value="DEN">DEN</option>
+                <option value="DET">DET</option>
+                <option value="GB">GB</option>
+                <option value="HOU">HOU</option>
+                <option value="IND">IND</option>
+                <option value="JAC">JAC</option>
+                <option value="KC">KC</option>
+                <option value="LA">LAR</option>
+                <option value="LAC">LAC</option>
+                <option value="LV">LV</option>
+                <option value="MIA">MIA</option>
+                <option value="MIN">MIN</option>
+                <option value="NE">NE</option>
+                <option value="NO">NO</option>
+                <option value="NYG">NYG</option>
+                <option value="NYJ">NYJ</option>
+                <option value="OAK">OAK</option>
+                <option value="PHI">PHI</option>
+                <option value="PIT">PIT</option>
+                <option value="SEA">SEA</option>
+                <option value="SF">SF</option>
+                <option value="TB">TB</option>
+                <option value="TEN">TEN</option>
+                <option value="WAS">WAS</option>
+            </select>
+            </div>
+        
+            <div class="mb-4">
+                <label for="awayTeam" class="block text-gray-700">Select an away team:</label>
+                <select id="awayTeam" name="awayTeam" class="form-select mt-1 block w-full">
+                <option value="ARI">ARI</option>
+                <option value="ATL">ATL</option>
+                <option value="BAL">BAL</option>
+                <option value="BUF">BUF</option>
+                <option value="CAR">CAR</option>
+                <option value="CHI">CHI</option>
+                <option value="CIN">CIN</option>
+                <option value="CLE">CLE</option>
+                <option value="DAL">DAL</option>
+                <option value="DEN">DEN</option>
+                <option value="DET">DET</option>
+                <option value="GB">GB</option>
+                <option value="HOU">HOU</option>
+                <option value="IND">IND</option>
+                <option value="JAC">JAC</option>
+                <option value="KC">KC</option>
+                <option value="LA">LAR</option>
+                <option value="LAC">LAC</option>
+                <option value="LV">LV</option>
+                <option value="MIA">MIA</option>
+                <option value="MIN">MIN</option>
+                <option value="NE">NE</option>
+                <option value="NO">NO</option>
+                <option value="NYG">NYG</option>
+                <option value="NYJ">NYJ</option>
+                <option value="OAK">OAK</option>
+                <option value="PHI">PHI</option>
+                <option value="PIT">PIT</option>
+                <option value="SEA">SEA</option>
+                <option value="SF">SF</option>
+                <option value="TB">TB</option>
+                <option value="TEN">TEN</option>
+                <option value="WAS">WAS</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <input type="submit" value="Simulate Game" class="bg-blue-600 text-white py-2 px-4 rounded"/>
+            </div>
+        </form>
+
+        <div class="team-container">
+            <h2>Available Team Aliases:</h2>
+            <div class="teams">
+                <div>ARI</div> <div>ATL</div> <div>BAL</div> <div>BUF</div> <div>CAR</div> <div>CHI</div>
+                <div>CIN</div> <div>CLE</div> <div>DAL</div> <div>DEN</div> <div>DET</div> <div>GB</div>
+                <div>HOU</div> <div>IND</div> <div>JAC</div> <div>KC</div> <div>LA</div> <div>LAC</div>
+                <div>MIA</div> <div>MIN</div> <div>NE</div> <div>NO</div> <div>NYG</div> <div>NYJ</div>
+                <div>OAK</div> <div>PHI</div> <div>PIT</div> <div>SEA</div> <div>SF</div> <div>TB</div>
+                <div>TEN</div> <div>WAS</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  </body>
+</html>
