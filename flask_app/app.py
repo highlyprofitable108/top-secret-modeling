@@ -119,7 +119,7 @@ def generate_model():
         nfl_model.main()
 
         # If successful, run the generate_power_ranks function
-        generate_power_ranks_internal()
+        generate_power_ranks()
 
         # Return a success message
         return jsonify(status="success"), 200
@@ -135,7 +135,7 @@ def generate_power_ranks():
         home_team = request.form.get('homeTeam', None)
         away_team = request.form.get('awayTeam', None)
 
-        # Date function currentl stinks 
+        # Date function currentl stinks
         date = request.form.get('date', datetime.today().strftime('%Y-%m-%d'))  # Set to current date if not available
 
         # Call the internal function to generate power ranks
@@ -144,6 +144,7 @@ def generate_power_ranks():
         if home_team is not None and away_team is not None:
             predictor = NFLPredictor(home_team, away_team)
             predictor.main()
+            return render_template('simulator_results.html')
 
         # If successful, return a success message
         return jsonify(status="success"), 200
@@ -193,6 +194,16 @@ def view_power_ranks():
 @app.route('/simulator_input')
 def simulator_input():
     return render_template('simulator_input.html')
+
+
+@app.route('/simulator_results')
+def simulator_results():
+    return render_template('simulator_results.html')
+
+
+@app.route('/view_power_ranks_sim')
+def view_power_ranks_sim():
+    return render_template('team_power_rank_sim.html')
 
 
 if __name__ == "__main__":

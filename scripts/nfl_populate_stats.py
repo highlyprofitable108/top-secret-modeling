@@ -207,6 +207,8 @@ class StatsCalculator:
         """
         try:
             # Normalize the power_rank values within each week
+            df = df[df['name'].isin(['NFC', 'AFC']) == False]
+
             def normalize_within_week(group):
                 min_rank = group['power_rank'].min()
                 max_rank = group['power_rank'].max()
@@ -302,14 +304,27 @@ class StatsCalculator:
         df = pd.DataFrame(list(collection.find()))
         return df
 
-    def generate_interactive_html(self, df):
+    def generate_interactive_html(self, df, date=None):
         """Generate an interactive HTML visualization based on the DataFrame."""
         # Sort the dataframe by 'normalized_power_rank' in descending order
         df_sorted = df.sort_values(by='normalized_power_rank', ascending=False)
 
+        # Get today's date
+        today_date = datetime.today().strftime('%Y-%m-%d')
+
+        # If date is not None and does not equal today's date, save the file as 'team_power_rank_sim.html'
+        if date is None or date == today_date:
+            filename = 'team_power_rank.html'
+
+            # Generate a bar chart of normalized_power_rank by team name using the sorted dataframe
+            fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team')
+            fig.write_html(os.path.join(self.template_dir, filename))
+
+        filename = 'team_power_rank_sim.html'
+
         # Generate a bar chart of normalized_power_rank by team name using the sorted dataframe
-        fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team')
-        fig.write_html(os.path.join(self.template_dir, 'team_power_rank.html'))
+        fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team on Sim Date')
+        fig.write_html(os.path.join(self.template_dir, filename))
 
     def main(self):    # Load and process data
         processed_games_df, processed_teams_df = self.load_and_process_data(self.database_operations, self.data_processing)
@@ -353,7 +368,7 @@ class StatsCalculator:
 
         # After inserting aggregated data into MongoDB
         df = self.fetch_team_aggregated_metrics()
-        self.generate_interactive_html(aggregated_df)
+        self.generate_interactive_html(aggregated_df, self.date)
 
 
 if __name__ == "__main__":

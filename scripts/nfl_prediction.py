@@ -76,7 +76,6 @@ class NFLPredictor:
     def monte_carlo_simulation(self, df, num_simulations=2500):
         print("Starting Monte Carlo Simulation...")
         simulation_results = []
-
         start_time = time.time()
         with tqdm(total=num_simulations, ncols=100) as pbar:  # Initialize tqdm with total number of simulations
             for _ in range(num_simulations):
@@ -97,6 +96,7 @@ class NFLPredictor:
 
                 sampled_df = sampled_df[columns_to_filter]
                 modified_df = sampled_df.dropna(axis=1, how='any')
+                print(modified_df)
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
 
                 prediction = self.LOADED_MODEL.predict(scaled_df)

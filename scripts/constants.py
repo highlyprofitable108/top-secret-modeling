@@ -15,6 +15,4 @@ COLUMNS_TO_KEEP = [
     "statistics_away.punt_returns.totals.faircatches",
     "statistics_home.punt_returns.totals.number",
     "statistics_away.punt_returns.totals.number",
-    "statistics_home.punt_returns.totals.longest_touchdown",
-    "statistics_away.punt_returns.totals.longest_touchdown",
 ]
