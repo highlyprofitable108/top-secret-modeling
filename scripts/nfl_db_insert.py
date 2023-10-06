@@ -1,8 +1,10 @@
 from classes.config_manager import ConfigManager
 import pymongo
 import os
+import csv
 import json
 import logging
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,6 +21,7 @@ class DBInserter:
         self.mongo_uri = config.get('database', {}).get('mongo_uri')
         self.db_name = config.get('database', {}).get('database_name')
         self.json_dir = config.get('paths', {}).get('json_dir')
+        self.odds_dir = config.get('paths', {}).get('odds_dir')
 
         if not all([self.mongo_uri, self.db_name, self.json_dir]):
             logging.error("Missing necessary configurations")
@@ -100,6 +103,106 @@ class DBInserter:
             summary_collection = self.db['summary']
             summary_collection.insert_one(data['summary'])
 
+    def add_odds_data(self, row):
+        """Processes a row from the CSV and inserts it into the 'games' collection."""
+        # Extract data from the row
+        date = row[1]
+        location = row[3]
+        team_e = row[4]
+        spread = float(row[5])
+        total = float(row[8].split(' ')[1])
+
+        # Determine home and away teams based on the location
+        if location in ['@', 'N']:
+            home_team = team_e
+            away_team = row[7]
+        else:
+            home_team = row[7]
+            away_team = team_e
+            spread *= -1  # invert the spread
+
+        return date, home_team, away_team, spread, total
+
+    def update_odds_in_mongodb(self, date, home_team, away_team, spread, total):
+        """Updates the 'games' collection in MongoDB with odds data."""
+        games_collection = self.db['games']
+
+        # Convert the date from the CSV to match the format in MongoDB
+        try:
+            date_obj = datetime.strptime(date, '%b %d, %Y')  # Adjusted for the format 'Sep 8, 2019'
+            date_str = date_obj.strftime('%Y-%m-%d')  # Convert to "YYYY-MM-DD" format
+        except ValueError:
+            logging.error(f"Invalid date format: {date}")
+            return
+
+        # Extract main team names
+        home_team_main = home_team.split(' (')[0].split(' ')[-1] if ' (' in home_team else home_team.split(' ')[-1]
+        away_team_main = away_team.split(' (')[0].split(' ')[-1] if ' (' in away_team else away_team.split(' ')[-1]
+
+        # Query the 'games' collection to find a match
+        one_day = timedelta(days=1)
+        prev_day = (date_obj - one_day).strftime('%Y-%m-%d')
+        next_day = (date_obj + one_day).strftime('%Y-%m-%d')
+        # Define the query
+        query = {
+            '$or': [
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{date_str}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{date_str}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{next_day}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{prev_day}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{next_day}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+                {'$and': [
+                    {'scheduled': {'$regex': f'^{prev_day}'}},  # Match only the date part
+                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
+                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
+                ]},
+            ]
+        }
+
+        game = games_collection.find_one(query)
+
+        if game:
+            # Update the matched document with the spread and total values
+            games_collection.update_one(
+                {'_id': game['_id']},
+                {'$set': {
+                    'summary.odds.spread': spread,
+                    'summary.odds.total': total
+                }}
+            )
+        else:
+            logging.warning(f"No match found for date: {date_str}, home_team: {home_team_main}, away_team: {away_team_main}")
+
+    def load_data_from_csv(self):
+        """Loads data from a CSV file."""
+        if os.path.exists(self.odds_dir):
+            with open(self.odds_dir, 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # skip header row
+                for row in reader:
+                    date, home_team, away_team, spread, total = self.add_odds_data(row)
+                    self.update_odds_in_mongodb(date, home_team, away_team, spread, total)
+
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""
         if os.path.exists(self.json_dir):
@@ -112,6 +215,8 @@ class DBInserter:
                 logging.error(f"Error inserting data from directory: {e}")
         else:
             logging.error(f"Invalid directory path: {self.json_dir}")
+
+        self.load_data_from_csv()
 
 
 if __name__ == "__main__":
