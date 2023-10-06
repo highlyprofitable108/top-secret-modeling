@@ -54,4 +54,4 @@ def fetch_nfl_data(year: int, season_type: str) -> dict:
 
 if __name__ == "__main__":
     # Example usage:
-    fetch_nfl_data(2023, "REG")
+    fetch_nfl_data(2020, "POST")

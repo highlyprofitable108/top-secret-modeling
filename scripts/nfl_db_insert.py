@@ -109,7 +109,10 @@ class DBInserter:
         date = row[1]
         location = row[3]
         team_e = row[4]
-        spread = float(row[5])
+        try:
+            spread = float(row[5])
+        except ValueError:
+            spread = 0.0  # set spread to 0 if it can't be converted to float
         total = float(row[8].split(' ')[1])
 
         # Determine home and away teams based on the location
@@ -138,6 +141,11 @@ class DBInserter:
         # Extract main team names
         home_team_main = home_team.split(' (')[0].split(' ')[-1] if ' (' in home_team else home_team.split(' ')[-1]
         away_team_main = away_team.split(' (')[0].split(' ')[-1] if ' (' in away_team else away_team.split(' ')[-1]
+
+        if home_team_main == "Team":
+            home_team_main = "Football Team"
+        if away_team_main == "Team":
+            away_team_main = "Football Team"
 
         # Query the 'games' collection to find a match
         one_day = timedelta(days=1)
@@ -182,12 +190,34 @@ class DBInserter:
         game = games_collection.find_one(query)
 
         if game:
-            # Update the matched document with the spread and total values
+            # Extract summary data from the game document
+            home_points = game['summary']['home']['points']
+            away_points = game['summary']['away']['points']
+            
+            # Calculate covered value
+            if (home_points + spread) - away_points > 0:
+                covered = "Yes"
+            elif (home_points + spread) - away_points < 0:
+                covered = "No"
+            else:
+                covered = "Push"
+
+            # Calculate total value
+            if home_points + away_points > total:
+                total_value = "Over"
+            elif home_points + away_points < total:
+                total_value = "Under"
+            else:
+                total_value = "Push"
+
+            # Update the matched document with the spread, total, covered, and total_value values
             games_collection.update_one(
                 {'_id': game['_id']},
                 {'$set': {
                     'summary.odds.spread': spread,
-                    'summary.odds.total': total
+                    'summary.odds.total': total,
+                    'summary.odds.covered': covered,
+                    'summary.odds.total_value': total_value
                 }}
             )
         else:
