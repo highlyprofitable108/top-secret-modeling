@@ -201,6 +201,11 @@ def simulator_results():
     return render_template('simulator_results.html')
 
 
+@app.route('/simulation_distribution')
+def simulation_distribution():
+    return render_template('simulation_distribution.html')
+
+
 @app.route('/view_power_ranks_sim')
 def view_power_ranks_sim():
     return render_template('team_power_rank_sim.html')

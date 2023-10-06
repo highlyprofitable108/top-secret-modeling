@@ -2,9 +2,12 @@ from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 import scripts.constants
+import io
 import os
+import sys
 import joblib
 from pymongo import MongoClient
+import mpld3
 import time
 import random
 import seaborn as sns
@@ -26,6 +29,7 @@ class NFLPredictor:
         # Constants
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
+        self.template_dir = self.config.get_config('paths', 'template_dir')
         self.MONGO_URI = self.config.get_config('database', 'mongo_uri')
         self.DATABASE_NAME = self.config.get_config('database', 'database_name')
         self.client = MongoClient(self.MONGO_URI)
@@ -96,7 +100,6 @@ class NFLPredictor:
 
                 sampled_df = sampled_df[columns_to_filter]
                 modified_df = sampled_df.dropna(axis=1, how='any')
-                print(modified_df)
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
 
                 prediction = self.LOADED_MODEL.predict(scaled_df)
@@ -133,7 +136,7 @@ class NFLPredictor:
 
         return range_of_outcomes, standard_deviation
 
-    def visualize_simulation_results(self, simulation_results, most_likely_outcome):
+    def visualize_simulation_results(self, simulation_results, most_likely_outcome, output):
         """Visualizes the simulation results using a histogram and calculates the rounded most likely outcome."""
 
         # Plot the histogram of the simulation results using seaborn
@@ -144,7 +147,15 @@ class NFLPredictor:
         plt.xlabel("Scoring Differential")
         plt.ylabel("Density")
         plt.grid()
-        # plt.show()
+
+        # Convert the Matplotlib figure to HTML and save it
+        feature_importance_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+        html_string = mpld3.fig_to_html(plt.gcf())
+
+        # Include the captured statements above the graph
+        full_html = f"<div><pre>{output}</pre></div>" + html_string
+        with open(feature_importance_path, "w") as f:
+            f.write(full_html)
 
         # Calculate the rounded most likely outcome
         rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2) * (-1)
@@ -209,15 +220,35 @@ class NFLPredictor:
         print("Analyzing Simulation Results...")
         range_of_outcomes, standard_deviation = self.analyze_simulation_results(simulation_results)
 
-        # Visualize simulation results
-        formatted_most_likely_outcome = self.visualize_simulation_results(simulation_results, most_likely_outcome)
+        # Calculate the rounded most likely outcome
+        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2) * (-1)
+
+        # Format the rounded most likely outcome with a leading + sign for positive values
+        if rounded_most_likely_outcome > 0:
+            formatted_most_likely_outcome = f"+{rounded_most_likely_outcome:.2f}"
+        else:
+            formatted_most_likely_outcome = f"{rounded_most_likely_outcome:.2f}"
+
+        # Redirect standard output to capture the print statements
+        old_stdout = sys.stdout
+        new_stdout = io.StringIO()
+        sys.stdout = new_stdout
 
         # User-friendly output
         print("\nPrediction Results:")
         print(f"Based on our model, the expected scoring differential for {home_team_alias} against {away_team_alias} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
-        print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")
+        print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")         
         print(f"The standard deviation of the scoring differentials is approximately {standard_deviation:.2f} points.\n")
         print(f"The projected spread on this game should be {home_team_alias} {formatted_most_likely_outcome}.\n")
+
+        # Capture the printed statements
+        output = new_stdout.getvalue()
+
+        # Reset standard output
+        sys.stdout = old_stdout
+
+        # Visualize simulation results
+        self.visualize_simulation_results(simulation_results, most_likely_outcome, output)
 
 
 if __name__ == "__main__":

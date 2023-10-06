@@ -28,6 +28,19 @@
             grid-template-columns: repeat(6, 1fr);
             gap: 10px;
         }
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid blue;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
       </style>
       <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
       <title>Top Secret Modeling</title>
@@ -128,9 +141,16 @@
                 <option value="WAS">WAS</option>
                 </select>
             </div>
+            
             <div class="mb-4">
-                <input type="submit" value="Simulate Game" class="bg-blue-600 text-white py-2 px-4 rounded"/>
+                <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded transform z-50" onclick="showLoadingSpinner();">Simulate Game</button>
             </div>
+
+            <div id="loading-spinner" style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; margin: 0 auto;">
+                <div class="loader" style="margin: 0 auto 10px auto;"></div>
+                <p style="color: white; font-size: 16px;">Running sims. This process can take some time. Please do not close or refresh the page.</p>
+            </div>            
+
         </form>
 
         <div class="team-container">
@@ -149,6 +169,12 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function showLoadingSpinner() {
+            document.getElementById('loading-spinner').style.display = 'block';
+        }
+    </script>
 
   </body>
 </html>
