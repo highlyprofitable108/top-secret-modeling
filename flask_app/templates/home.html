@@ -44,13 +44,14 @@
       <h2 class="text-4xl font-bold mb-4">Welcome to the NFL Data Analysis Platform</h2>
       <p class="text-xl mb-8">Get insights, generate analysis, and explore NFL data at your fingertips.</p>
       <div class="hero-buttons flex justify-center space-x-4">
-        <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Select Columns</a>
-        <form action="{{ url_for('generate_analysis') }}" method="post" class="inline-form">
-          <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Re-generate Analysis</button>
-        </form>
-        <a href="{{ url_for('view_analysis') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">View Data</a>
+          <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Select Columns</a>
+          <form action="{{ url_for('generate_analysis') }}" method="post" class="inline-form">
+              <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Re-generate Analysis</button>
+          </form>
+          <a href="{{ url_for('view_analysis') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">View Data</a>
+          <a href="{{ url_for('simulator_input') }}" class="bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600">Simulator</a>
       </div>
-    </section>
+    </section>  
 
     <main class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
       <div class="mb-8">

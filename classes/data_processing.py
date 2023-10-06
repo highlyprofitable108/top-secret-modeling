@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import logging
+from importlib import reload
+import scripts.constants
 
 
 class DataProcessing:
@@ -105,11 +107,14 @@ class DataProcessing:
                 logging.warning(f"Dropping columns with more than 100 NaN values: {columns_to_drop}")
                 df = df.drop(columns=columns_to_drop).reset_index(drop=True)
 
+                # Update constants.py to remove dropped columns
+                self.update_constants_file(columns_to_drop)
+
             # Fill NaN values in remaining columns with the mean of each column
             nan_columns = nan_counts[nan_counts > 0].index.tolist()
             nan_columns = [col for col in nan_columns if col not in columns_to_drop]
             for col in nan_columns:
-                if df[col].dtype == np.number:  # Check if the column has a numeric data type
+                if df[col].dtype == 'float64' or df[col].dtype == 'int64':  # Check if the column has a numeric data type
                     col_mean = df[col].mean()
                     df[col].fillna(col_mean, inplace=True)
                 else:
@@ -119,6 +124,48 @@ class DataProcessing:
             return df
         except Exception as e:
             logging.error(f"Error in handle_null_values: {e}")
+            return df
+
+    def update_constants_file(self, columns_to_remove):
+        """Update the constants.py file to remove specified columns."""
+        reload(scripts.constants)
+
+        with open('./scripts/constants.py', 'r') as file:
+            lines = file.readlines()
+
+        # Remove lines containing columns to remove
+        new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
+
+        with open('./scripts/constants.py', 'w') as file:
+            file.writelines(new_lines)
+
+        reload(scripts.constants)
+
+    def handle_prediction_values(self, df):
+        """Handles prediction values in the dataframe by dropping columns with high NaN count and filling others with mean."""
+        reload(scripts.constants)
+
+        try:
+            nan_counts = df.isnull().sum()
+            columns_to_drop = nan_counts[nan_counts > 1].index.tolist()
+            if columns_to_drop:
+                logging.warning(f"Dropping columns with more NaN values: {columns_to_drop}")
+                df = df.drop(columns=columns_to_drop).reset_index(drop=True)
+
+            # Fill NaN values in remaining columns with the mean of each column
+            nan_columns = nan_counts[nan_counts > 0].index.tolist()
+            nan_columns = [col for col in nan_columns if col not in columns_to_drop]
+            for col in nan_columns:
+                if np.issubdtype(df[col].dtype, np.number):  # Check if the column has a numeric data type
+                    col_mean = df[col].mean()
+                    df[col].fillna(col_mean, inplace=True)
+                else:
+                    col_most_frequent = df[col].mode().iloc[0]  # Fill non-numeric columns with the mode
+                    df[col].fillna(col_most_frequent, inplace=True)
+
+            return df
+        except Exception as e:
+            logging.error(f"Error in handle_prediction_values: {e}")
             return df
 
     def process_game_data(self, df):

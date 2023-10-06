@@ -37,6 +37,8 @@ def generate_constants_file(selected_columns):
         file.write('    "scoring_differential",\n')  # Ensure scoring_differential is always included
         for col in selected_columns:
             if 'summary' not in col and 'efficiency' not in col:
+                # TODO: REPLACE SPACES IN COL HERE TO FIX CATEGORIES
+
                 # Find the last occurrence of '.' and replace it with '.totals.'
                 last_dot_index = col.rfind('.')
                 if last_dot_index != -1:  # Check if '.' is found in the string

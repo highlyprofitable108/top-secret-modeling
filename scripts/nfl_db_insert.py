@@ -47,8 +47,12 @@ class DBInserter:
                     self.insert_statistics_data(data)
                     self.insert_players_data(data)
                     self.insert_summary_data(data)
+            except json.JSONDecodeError:
+                logging.error(f"Error decoding JSON from file: {file_path}")
+            except KeyError as e:
+                logging.error(f"KeyError '{e}' when processing file: {file_path}")
             except Exception as e:
-                logging.error(f"Error inserting data from JSON: {e}")
+                logging.error(f"Error inserting data from JSON: {e} in file: {file_path}")
         else:
             logging.error(f"Invalid file path: {file_path}")
 

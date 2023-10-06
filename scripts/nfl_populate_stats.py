@@ -1,8 +1,12 @@
 from datetime import datetime
+from pymongo import MongoClient
+import scripts.constants
+import plotly.express as px
 import pandas as pd
 import numpy as np
 import os
 import joblib
+from importlib import reload
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
@@ -10,7 +14,7 @@ from .constants import COLUMNS_TO_KEEP
 
 
 class StatsCalculator:
-    def __init__(self):
+    def __init__(self, date=None):
         # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
@@ -20,15 +24,19 @@ class StatsCalculator:
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
         self.static_dir = self.config.get_config('paths', 'static_dir')
+        self.template_dir = self.config.get_config('paths', 'template_dir')
         self.database_name = self.config.get_config('database', 'database_name')
         self.feature_columns = [col for col in COLUMNS_TO_KEEP if col != 'scoring_differential']
         self.LOADED_MODEL = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
 
         # Get the current date
-        self.today = datetime.today().date()
+        self.date = date if date else datetime.today().strftime('%Y-%m-%d')
+
+        # Convert the string date to a datetime object
+        self.date_obj = datetime.strptime(self.date, '%Y-%m-%d')
 
         # Calculate the date for two years ago
-        self.two_years_ago = (self.today - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
+        self.two_years_ago = (self.date_obj - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
     def load_and_process_data(self, database_operations, data_processing):
         """
@@ -84,18 +92,22 @@ class StatsCalculator:
         try:
             # Exponential decay function
             def decay_weight(days):
-                if days <= 42:  # Last 6 weeks
+                weeks_since_game = days // 7  # Convert days to weeks
+
+                if weeks_since_game == 0:  # Within the first week
+                    return 1.0
+                elif weeks_since_game == 1:  # After 1 week
                     lambda_val = 0.005
-                elif days <= 126:  # Last 18 weeks
+                elif weeks_since_game <= 6:  # Up to 6 weeks
                     lambda_val = 0.01
-                elif days <= 280:  # Last 40 weeks
+                elif weeks_since_game <= 18:  # Up to 18 weeks
                     lambda_val = 0.02
-                elif days <= 392:  # Last 56 weeks
+                elif weeks_since_game <= 40:  # Up to 40 weeks
                     lambda_val = 0.03
-                else:  # Beyond 56 weeks, up to 104 weeks
+                else:  # Beyond 40 weeks
                     lambda_val = 0.04
 
-                return np.exp(-lambda_val * days)
+                return np.exp(-lambda_val * 7 * weeks_since_game)  # Decay based on total weeks
 
             # Remove duplicates from teams data
             processed_teams_df = processed_teams_df.drop_duplicates(subset='id')
@@ -104,15 +116,21 @@ class StatsCalculator:
             processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
             processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
 
-            # Convert scheduled column to datetime and calculate days since the game was played
+            # Convert scheduled column to datetime
             processed_df['game_date'] = pd.to_datetime(processed_df['scheduled'])
-            today = datetime.today()
+
+            # Use the date_obj directly since it's already a datetime object
+            sim_date = self.date_obj
+
             processed_df['game_date'] = processed_df['game_date'].dt.tz_localize(None)
-            processed_df['days_since_game'] = (today - processed_df['game_date']).dt.days
+            processed_df['days_since_game'] = (sim_date - processed_df['game_date']).dt.days
 
             # Drop all games played more than 104 weeks (728 days) ago
             max_days_since_game = 104 * 7
-            df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
+            two_year_df = processed_df[processed_df['days_since_game'] <= max_days_since_game]
+
+            # Drop all games that haven't been played yet
+            df = two_year_df[two_year_df['days_since_game'] >= 0]
 
             # Apply exponential decay function to calculate weights
             df.loc[:, 'weight'] = df['days_since_game'].apply(decay_weight)
@@ -124,7 +142,6 @@ class StatsCalculator:
             # Separate home and away data
             df_home = df[['summary_home.id', 'summary_home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
             df_away = df[['summary_away.id', 'summary_away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
-
             return df_home, df_away
         except Exception as e:
             print(f"Error in transform_data function: {e}")
@@ -190,6 +207,8 @@ class StatsCalculator:
         """
         try:
             # Normalize the power_rank values within each week
+            df = df[df['name'].isin(['NFC', 'AFC']) == False]
+
             def normalize_within_week(group):
                 min_rank = group['power_rank'].min()
                 max_rank = group['power_rank'].max()
@@ -268,7 +287,7 @@ class StatsCalculator:
             # Insert the aggregated data into the collection
             aggregated_df.reset_index(inplace=True, drop=True)
             database_operations.insert_data_into_mongodb('team_aggregated_metrics', aggregated_df.to_dict('records'))
-            
+
             # Saving the report to a CSV file
             aggregated_df = aggregated_df.sort_values(by='normalized_power_rank', ascending=False)
             power_ranks_report_path = os.path.join(self.static_dir, 'power_ranks.csv')
@@ -277,24 +296,60 @@ class StatsCalculator:
         except Exception as e:
             print(f"Error inserting aggregated data into MongoDB: {e}")
 
+    def fetch_team_aggregated_metrics(self):
+        """Fetch team_aggregated_metrics from MongoDB and return as a DataFrame."""
+        client = MongoClient()
+        db = client[self.database_name]
+        collection = db['team_aggregated_metrics']
+        df = pd.DataFrame(list(collection.find()))
+        return df
+
+    def generate_interactive_html(self, df, date=None):
+        """Generate an interactive HTML visualization based on the DataFrame."""
+        # Sort the dataframe by 'normalized_power_rank' in descending order
+        df_sorted = df.sort_values(by='normalized_power_rank', ascending=False)
+
+        # Get today's date
+        today_date = datetime.today().strftime('%Y-%m-%d')
+
+        # If date is not None and does not equal today's date, save the file as 'team_power_rank_sim.html'
+        if date is None or date == today_date:
+            filename = 'team_power_rank.html'
+
+            # Generate a bar chart of normalized_power_rank by team name using the sorted dataframe
+            fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team')
+            fig.write_html(os.path.join(self.template_dir, filename))
+
+        filename = 'team_power_rank_sim.html'
+
+        # Generate a bar chart of normalized_power_rank by team name using the sorted dataframe
+        fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team on Sim Date')
+        fig.write_html(os.path.join(self.template_dir, filename))
+
     def main(self):    # Load and process data
         processed_games_df, processed_teams_df = self.load_and_process_data(self.database_operations, self.data_processing)
 
+        # Reload constants
+        reload(scripts.constants)
+
+        # Filter columns with stripping whitespaces and exclude 'scoring_differential'
+        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, processed_games_df.columns) and col.strip() != 'scoring_differential']
+
         if processed_games_df is not None and processed_teams_df is not None:
             # Transform data
-            df_home, df_away = self.transform_data(processed_games_df, processed_teams_df, self.data_processing, self.feature_columns)
+            df_home, df_away = self.transform_data(processed_games_df, processed_teams_df, self.data_processing, columns_to_filter)
 
             if df_home is not None and df_away is not None:
                 # Calculate power rank
-                metrics_home = [metric for metric in self.feature_columns if metric.startswith('statistics_home')]
-                metrics_away = [metric for metric in self.feature_columns if metric.startswith('statistics_away')]
+                metrics_home = [metric for metric in columns_to_filter if metric.startswith('statistics_home')]
+                metrics_away = [metric for metric in columns_to_filter if metric.startswith('statistics_away')]
                 feature_importances = self.LOADED_MODEL.feature_importances_
-                weights = dict(zip(self.feature_columns, feature_importances))
+                weights = dict(zip(columns_to_filter, feature_importances))
                 df = self.calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
 
                 if df is not None:
                     # Aggregate and normalize data
-                    cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in self.feature_columns]
+                    cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in columns_to_filter]
                     aggregated_df = self.aggregate_and_normalize_data(df, cleaned_metrics, self.database_operations, processed_teams_df)
 
                     if aggregated_df is not None:
@@ -310,6 +365,10 @@ class StatsCalculator:
                 print("Error in data transformation. Exiting script.")
         else:
             print("Error in data loading and processing. Exiting script.")
+
+        # After inserting aggregated data into MongoDB
+        df = self.fetch_team_aggregated_metrics()
+        self.generate_interactive_html(aggregated_df, self.date)
 
 
 if __name__ == "__main__":
