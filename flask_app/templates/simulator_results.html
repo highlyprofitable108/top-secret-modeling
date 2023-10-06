@@ -17,118 +17,48 @@
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         
-        <style>
-            body {
-                font-family: 'Roboto', sans-serif;
-                background-color: #f8f9fa;
-            }
-            .tooltip {
-                position: relative;
-                display: inline-block;
-                cursor: pointer;
-            }
-            .tooltip .tooltiptext {
-                visibility: hidden;
-                width: 120px;
-                background-color: #555;
-                color: #fff;
-                text-align: center;
-                border-radius: 5px;
-                padding: 5px;
-                position: absolute;
-                z-index: 1;
-                left: 50%;
-                margin-left: -60px;
-                opacity: 0;
-                transition: opacity 0.3s;
-            }
-            .tooltip:hover .tooltiptext {
-                visibility: visible;
-                opacity: 1;
-            }
-            .csv-content {
-                max-height: 300px;
-                overflow-y: scroll;
-                border: 1px solid #ccc;
-                padding: 10px;
-                margin-bottom: 20px;
-            }
-            .tab-button {
-                padding: 10px 20px;
-                border: none;
-                background-color: #f8f9fa;
-                cursor: pointer;
-                transition: background-color 0.3s;
-            }
-
-            .tab-button:hover {
-                background-color: #e2e6ea;
-            }
-
-            .tab-button.active {
-                background-color: #d1d5db;
-            }
-
-            .download-btn {
-                display: inline-block;
-                padding: 10px 20px;
-                background-color: #4CAF50;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                transition: background-color 0.3s;
-            }
-
-            .download-btn:hover {
-                background-color: #45a049;
-            }
-
-            .scrollable-table {
-                overflow-x: auto;
-            }
-
-            .csv-content thead th {
-                position: sticky;
-                top: 0;
-                background-color: white;
-                z-index: 10;
-            }
-
-        </style>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 
     </head>
     <body>
+        {% include 'header.html' %}
 
-        <nav class="bg-gray-800 p-4">
-            <div class="container mx-auto flex justify-between items-center">
-                <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
-                <div class="flex space-x-4">
-                    <a class="text-white" href="/">Home</a>
-                    <a class="text-white" href="/columns">Columns</a>
-                    <a class="text-white" href="/simulator_input">Sim Creator</a>
-                </div>
-            </div>
-        </nav>
-
-        <!-- OVERVIEW FOR DUMMIES SECTION 
+        <!-- OVERVIEW FOR DUMMIES SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">Overview for Dummies:</h3>
-            <p class="text-gray-700 mb-4">Building a model is like cooking a delicious dish. Just as you'd pick the best ingredients for your recipe, in data analysis, you choose the best pieces of information (called features) to predict something. In our case, we're trying to predict the "scoring differential" – that's the difference in scores between two teams in a game.</p>
-            <p class="text-gray-700 mb-4">That's where these reports come in! They help you understand which features are essential and which ones might not be. But remember, just like in cooking, understanding your ingredients (or in this case, football) is crucial. Knowing the game can help you make better decisions.</p>
-            <p class="text-gray-700 mb-4">Later on, we'll use the "scoring differential" and the features we select to run simulations. These simulations will help us see how different scenarios might play out in real games.</p>
-            <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
+            <p class="text-gray-700 mb-4">Imagine you have a magic crystal ball that can tell you which football teams are the best on any day you choose. That's what our "Sim Results" does! It's like a time machine that lets you see which teams were shining stars on a specific day.</p>
+            <p class="text-gray-700 mb-4">But wait, there's more! Have you ever played a game where you guess how many candies are in a jar? Our simulator does something similar but for football scores. It makes lots of smart guesses about how a game might end. Then, it shows you the most common guess. It's like having a super-smart friend helping you guess the candies!</p>
+            <p class="text-gray-700 mb-4">In short, these reports are your magic tools to understand football better. They show you which teams are the best and what scores we might expect in future games. So, even if football sounds complicated, with our reports, it's as fun and easy as playing with toys or guessing candies!</p>
+            <p class="text-gray-700"><b>Here's a quick tip:</b> When you look at the "Power Ranks for Sim Date", think of it as a leaderboard of the best teams for the day you picked. And when you see the "Sim Results Distribution", imagine it's showing you the most likely scores for a game. The higher the bar, the more likely that score is!</p>
         </div>
-        -->
 
+        <!-- Sim Results -->
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Sim Results</h2>
             
-            <div class="space-y-4">
-                <a href="/view_power_ranks_sim" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Power Ranks for Sim Date</a>
-                <a href="/simulation_distribution" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Sim Results Distribution</a>
+            <!-- Tab Buttons -->
+            <div class="flex space-x-4 mb-4">
+                <button onclick="showTab('powerRanksContent')" class="tab-button w-1/2 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Power Ranks for Sim Date</button>
+                <button onclick="showTab('simResultsContent')" class="tab-button w-1/2 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Sim Results Distribution</button>
             </div>
 
+            <!-- Tab Contents -->
+            <div id="powerRanksContent" class="tab-content hidden mt-4">
+                {% include 'team_power_rank_sim.html' %}
+
+                <div id="powerRanksTable"></div>
+                <a href="/view_power_ranks_sim" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+
+            </div>
+
+            <div id="simResultsContent" class="tab-content hidden mt-4">
+                {% include 'simulation_distribution.html' %}
+
+                <div id="simResultsTable"></div>
+                <a href="/simulation_distribution" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
         </div>
+
         
         <!-- EXPLANATION SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
@@ -148,78 +78,11 @@
             
         </div>
 
-        <script>
-            function showTab(tabName) {
-                // Hide all tab contents
-                let tabContents = document.querySelectorAll('.tab-content');
-                tabContents.forEach(tab => {
-                    tab.classList.add('hidden');
-                });
+        <script src="{{ url_for('static', filename='simulator_results.js') }}"></script>
 
-                // Deactivate all tab buttons
-                let tabButtons = document.querySelectorAll('.tab-button');
-                tabButtons.forEach(button => {
-                    button.classList.remove('active');
-                });
+    
+        {% include 'footer.html' %}
 
-                // Show the selected tab content and activate the button
-                document.getElementById(tabName).classList.remove('hidden');
-                document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
-            }
-
-            function parseCSV(csv) {
-                const lines = csv.split("\n");
-                let result = [];
-                const headers = lines[0].split(",");
-                for (let i = 1; i < lines.length; i++) {
-                    const obj = {};
-                    const currentline = lines[i].split(",");
-                    for (let j = 0; j < headers.length; j++) {
-                        obj[headers[j]] = currentline[j];
-                    }
-                    result.push(obj);
-                }
-                return result;
-            }
-
-            function displayCSV(data, elementId) {
-                const table = document.createElement('table');
-                table.classList.add('csv-content');
-                const thead = document.createElement('thead');
-                const tbody = document.createElement('tbody');
-                table.appendChild(thead);
-                table.appendChild(tbody);
-
-                // Headers
-                const headers = Object.keys(data[0]);
-                const tr = document.createElement('tr');
-                headers.forEach(header => {
-                    const th = document.createElement('th');
-                    th.textContent = header;
-                    tr.appendChild(th);
-                });
-                thead.appendChild(tr);
-
-                // Data
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    headers.forEach(header => {
-                        const td = document.createElement('td');
-                        td.textContent = row[header];
-                        tr.appendChild(td);
-                    });
-                    tbody.appendChild(tr);
-                });
-
-                document.getElementById(elementId).appendChild(table);
-            }
-
-        </script>
-                
     </body>
-
-    <footer class="bg-gray-800 text-white py-4 text-center">
-        <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
-    </footer>
 
 </html>

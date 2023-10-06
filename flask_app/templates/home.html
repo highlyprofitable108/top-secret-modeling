@@ -6,51 +6,27 @@
     <!-- Tailwind CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
-    <title>NFL Data Analysis</title>
-    <style>
-      .loader {
-        border: 16px solid #f3f3f3;
-        border-radius: 50%;
-        border-top: 16px solid #3498db;
-        width: 120px;
-        height: 120px;
-        -webkit-animation: spin 2s linear infinite;
-        animation: spin 2s linear infinite;
-      }
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Top Secret Modeling</title>   
 
-      @-webkit-keyframes spin {
-        0% { -webkit-transform: rotate(0deg); }
-        100% { -webkit-transform: rotate(360deg); }
-      }
-
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
   </head>
-  <body>
-    <nav class="bg-gray-800 p-4">
-      <div class="container mx-auto flex justify-between items-center">
-        <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
-        <div class="flex space-x-4">
-          <a class="text-white" href="/">Home</a>
-          <!-- Additional links can be added here with the same classes as the Home link -->
-        </div>
-      </div>
-    </nav>
+  <body>  
+    {% include 'header.html' %}
 
     <section class="hero bg-gray-800 text-white py-16 container mx-auto text-center">
-      <h2 class="text-4xl font-bold mb-4">Welcome to the NFL Data Analysis Platform</h2>
-      <p class="text-xl mb-8">Get insights, generate analysis, and explore NFL data at your fingertips.</p>
-      <div class="hero-buttons flex justify-center space-x-4">
-          <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Select Columns</a>
-          <form action="{{ url_for('generate_analysis') }}" method="post" class="inline-form">
-              <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">Re-generate Analysis</button>
-          </form>
-          <a href="{{ url_for('view_analysis') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200">View Data</a>
-          <a href="{{ url_for('simulator_input') }}" class="bg-red-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-red-600">Simulator</a>
-      </div>
+      <h2 class="text-4xl font-bold mb-4">Welcome to Top Secret Modeling</h2>
+      <p class="text-xl mb-8">Get insights, generate analysis, and explore football data at your fingertips</p>
+      <div class="hero-buttons flex flex-col items-center space-y-4">
+        <!-- First row with two same-sized buttons -->
+        <div class="flex justify-center space-x-4">
+            <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px text-center">Select Stats for Model</a>
+            <form action="{{ url_for('generate_analysis') }}" method="post" class="inline-form">
+                <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px">Re-generate for Active Stats</button>
+            </form>
+        </div>
+        <!-- Second row with the red simulator button centered -->
+        <a href="{{ url_for('simulator_input') }}" class="bg-red-500 text-white py-3 px-5 rounded-full font-semibold hover:bg-red-600 w-200px">Simulator</a>
+      </div>       
     </section>  
 
     <main class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
@@ -103,50 +79,11 @@
               <i class="bi bi-people-fill"></i>
             </div>
             <h4 class="text-xl font-bold mb-2">Community and Engagement</h4>
-            <p>Create profiles, save stats, and engage with a community of enthusiasts.</p>
+            <p>COMING SOON!</p>
           </div>
         </div>
       </section>
     </main>
-
-    <footer class="bg-gray-800 text-white py-4 text-center">
-      <p class="font-semibold">&copy; 2023 Top Secret Modeling</p>
-    </footer>
-
-    <script>
-      document.querySelector('form[action="{{ url_for('generate_analysis') }}"]').addEventListener('submit', function(event) {
-        // Show the loading spinner
-        document.getElementById('loading-spinner').style.display = 'flex';
-
-        // Make a POST request to the /generate_analysis route
-        fetch('{{ url_for("generate_analysis") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Redirect to the /view_analysis page
-                window.location.href = '{{ url_for("view_analysis") }}';
-            } else {
-                // Handle error (you can add more error handling here)
-                alert('Error generating analysis');
-                document.getElementById('loading-spinner').style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again later.');
-            document.getElementById('loading-spinner').style.display = 'none';
-        });
-
-        // Prevent the form from submitting the traditional way
-        event.preventDefault();
-      });
-
-    </script>
 
     <div id="loading-spinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px;">
       <svg class="animate-spin h-5 w-5 mr-3 ..." viewBox="0 0 24 24" style="margin: 0 auto 10px auto;">
@@ -156,53 +93,9 @@
       <p style="color: white; font-size: 16px;">This process can take some time. Please do not close or refresh the page.</p>
     </div>
 
+    <script src="{{ url_for('static', filename='home.js') }}"></script>
+
+    {% include 'footer.html' %}
+    
   </body>
 </html>
-
-<!--
-  document.getElementById('generate-analysis-btn').addEventListener('click', function() {
-          // Show the loading spinner
-          document.getElementById('loading-spinner').style.display = 'block';
-          // Make a POST request to the /generate_analysis route
-          fetch('/generate_analysis', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ collection_name: 'games' })
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.status === 'success') {
-              // Redirect to the /view_analysis page
-              window.location.href = '/view_analysis';
-            } else {
-              // Handle error (you can add more error handling here)
-              alert('Error generating analysis');
-            }
-          });
-        });
-
-        document.getElementById('generate-power-ranks-btn').addEventListener('click', async function() {
-        try {
-          document.getElementById('loading-spinner').style.display = 'block';
-
-          // Call /generate_model route
-          let response = await fetch('/generate_model', { method: 'POST' });
-          let data = await response.json();
-          if (data.status !== 'success') throw new Error(data.error);
-
-          // Call /generate_power_ranks route
-          response = await fetch('/generate_power_ranks', { method: 'POST' });
-          data = await response.json();
-          if (data.status !== 'success') throw new Error(data.error);
-
-          // Redirect to power ranks HTML page
-          window.location.href = '/view_power_ranks';
-        } catch (error) {
-          console.error('Error:', error);
-          alert('An error occurred while generating power ranks. Please try again later.');
-          document.getElementById('loading-spinner').style.display = 'none';
-        }
-      });
--->

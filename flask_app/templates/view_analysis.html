@@ -17,97 +17,11 @@
         <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
         
-        <style>
-            body {
-                font-family: 'Roboto', sans-serif;
-                background-color: #f8f9fa;
-            }
-            .tooltip {
-                position: relative;
-                display: inline-block;
-                cursor: pointer;
-            }
-            .tooltip .tooltiptext {
-                visibility: hidden;
-                width: 120px;
-                background-color: #555;
-                color: #fff;
-                text-align: center;
-                border-radius: 5px;
-                padding: 5px;
-                position: absolute;
-                z-index: 1;
-                left: 50%;
-                margin-left: -60px;
-                opacity: 0;
-                transition: opacity 0.3s;
-            }
-            .tooltip:hover .tooltiptext {
-                visibility: visible;
-                opacity: 1;
-            }
-            .csv-content {
-                max-height: 300px;
-                overflow-y: scroll;
-                border: 1px solid #ccc;
-                padding: 10px;
-                margin-bottom: 20px;
-            }
-            .tab-button {
-                padding: 10px 20px;
-                border: none;
-                background-color: #f8f9fa;
-                cursor: pointer;
-                transition: background-color 0.3s;
-            }
-
-            .tab-button:hover {
-                background-color: #e2e6ea;
-            }
-
-            .tab-button.active {
-                background-color: #d1d5db;
-            }
-
-            .download-btn {
-                display: inline-block;
-                padding: 10px 20px;
-                background-color: #4CAF50;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                transition: background-color 0.3s;
-            }
-
-            .download-btn:hover {
-                background-color: #45a049;
-            }
-
-            .scrollable-table {
-                overflow-x: auto;
-            }
-
-            .csv-content thead th {
-                position: sticky;
-                top: 0;
-                background-color: white;
-                z-index: 10;
-            }
-
-        </style>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 
     </head>
     <body>
-
-        <nav class="bg-gray-800 p-4">
-            <div class="container mx-auto flex justify-between items-center">
-                <a class="text-white text-xl font-bold" href="/">Top Secret Modeling</a>
-                <div class="flex space-x-4">
-                    <a class="text-white" href="/">Home</a>
-                    <a class="text-white" href="/columns">Columns</a>
-                </div>
-            </div>
-        </nav>
+        {% include 'header.html' %}
 
         <!-- OVERVIEW FOR DUMMIES SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
@@ -118,18 +32,51 @@
             <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
         </div>
 
+        <!-- Analysis Results -->
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Analysis Results</h2>
             
-            <div class="space-y-4">
-                <a href="/view_power_ranks" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Custom Power Ranks</a>
-                <a href="/interactive_heatmap" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Interactive Heatmap</a>
-                <a href="/feature_importance" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Feature Importance</a>
-                <a href="/data_quality_report" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Data Quality Report</a>
-                <a href="/descriptive_statistics" target="_blank" class="block w-full text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Descriptive Statistics</a>
+            <!-- Tab Buttons -->
+            <div class="flex space-x-4 mb-4">
+                <button onclick="showTab('customPowerRanksContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Custom Power Ranks</button>
+                <button onclick="showTab('interactiveHeatmapContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Interactive Heatmap</button>
+                <button onclick="showTab('featureImportanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
+                <button onclick="showTab('dataQualityReportContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Data Quality Report</button>
+                <button onclick="showTab('descriptiveStatisticsContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Descriptive Statistics</button>
             </div>
 
+            <!-- Tab Contents -->
+            <div id="customPowerRanksContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                {% include 'team_power_rank.html' %}
+
+                <a href="/view_power_ranks" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
+
+            <div id="interactiveHeatmapContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card heatmap-card">
+                {% include 'interactive_heatmap.html' %}
+
+                <a href="/interactive_heatmap" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
+
+            <div id="featureImportanceContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                {% include 'feature_importance.html' %}
+
+                <a href="/feature_importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
+
+            <div id="dataQualityReportContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                {% include 'data_quality_report.html' %}
+
+                <a href="/data_quality_report" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
+
+            <div id="descriptiveStatisticsContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                {% include 'descriptive_statistics.html' %}
+
+                <a href="/descriptive_statistics" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+            </div>
         </div>
+
 
         <!-- EXPLANATION SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
@@ -171,78 +118,10 @@
             </div>
         </div>
         
-        <script>
-            function showTab(tabName) {
-                // Hide all tab contents
-                let tabContents = document.querySelectorAll('.tab-content');
-                tabContents.forEach(tab => {
-                    tab.classList.add('hidden');
-                });
+        <script src="{{ url_for('static', filename='view_analysis.js') }}"></script>
+    
+        {% include 'footer.html' %}
 
-                // Deactivate all tab buttons
-                let tabButtons = document.querySelectorAll('.tab-button');
-                tabButtons.forEach(button => {
-                    button.classList.remove('active');
-                });
-
-                // Show the selected tab content and activate the button
-                document.getElementById(tabName).classList.remove('hidden');
-                document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
-            }
-
-            function parseCSV(csv) {
-                const lines = csv.split("\n");
-                let result = [];
-                const headers = lines[0].split(",");
-                for (let i = 1; i < lines.length; i++) {
-                    const obj = {};
-                    const currentline = lines[i].split(",");
-                    for (let j = 0; j < headers.length; j++) {
-                        obj[headers[j]] = currentline[j];
-                    }
-                    result.push(obj);
-                }
-                return result;
-            }
-
-            function displayCSV(data, elementId) {
-                const table = document.createElement('table');
-                table.classList.add('csv-content');
-                const thead = document.createElement('thead');
-                const tbody = document.createElement('tbody');
-                table.appendChild(thead);
-                table.appendChild(tbody);
-
-                // Headers
-                const headers = Object.keys(data[0]);
-                const tr = document.createElement('tr');
-                headers.forEach(header => {
-                    const th = document.createElement('th');
-                    th.textContent = header;
-                    tr.appendChild(th);
-                });
-                thead.appendChild(tr);
-
-                // Data
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    headers.forEach(header => {
-                        const td = document.createElement('td');
-                        td.textContent = row[header];
-                        tr.appendChild(td);
-                    });
-                    tbody.appendChild(tr);
-                });
-
-                document.getElementById(elementId).appendChild(table);
-            }
-
-        </script>
-                
     </body>
-
-    <footer class="bg-gray-800 text-white py-4 text-center">
-        <p class="font-semibold">&copy; 2023 NFL Data Analysis</p>
-    </footer>
 
 </html>
