@@ -60,6 +60,10 @@ class ConfigManager:
         """Gets the JSON directory path from the configuration data."""
         return self.get_config('paths', 'json_dir')
 
+    def odds_dir(self) -> str:
+        """Gets the JSON directory path from the configuration data."""
+        return self.get_config('paths', 'odds_dir')
+
     def get_data_dir(self) -> str:
         """Gets the data directory path from the configuration data."""
         return self.get_config('paths', 'data_dir')

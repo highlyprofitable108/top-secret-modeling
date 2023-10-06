@@ -13,6 +13,7 @@ paths:
   data_dir: "./data"
   static_dir: "./flask_app/static"
   template_dir: "./flask_app/templates"
+  odds_dir: "./data/csvs/odds.csv"
 
 database:
   mongo_uri: "mongodb://localhost:27017/"
