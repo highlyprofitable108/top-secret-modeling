@@ -378,6 +378,9 @@ class StatsCalculator:
 
 
 if __name__ == "__main__":
+    # Create an instance of the NFLModel class
+    nfl_stats = StatsCalculator()
+    nfl_stats.clear_temp_tables()
     # If no date is provided by the user, use the current date
     user_date = datetime.today().strftime('%Y-%m-%d')
 
@@ -389,7 +392,7 @@ if __name__ == "__main__":
         user_date_obj -= timedelta(days=1)
 
     # Generate a list of Tuesdays from 09/01/2019 to the most recent Tuesday
-    start_date = '2019-09-01'
+    start_date = '2019-09-05'
     tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE')
 
     # Exclude dates from March through August
