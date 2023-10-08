@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 import scripts.constants
 import plotly.express as px
@@ -38,7 +38,7 @@ class StatsCalculator:
         # Calculate the date for two years ago
         self.two_years_ago = (self.date_obj - pd.Timedelta(days=730)).strftime('%Y-%m-%d')
 
-    def load_and_process_data(self, database_operations, data_processing):
+    def load_and_process_data(self):
         """
         This function handles the loading and initial processing of data.
         :param database_operations: An instance of DatabaseOperations class
@@ -47,8 +47,8 @@ class StatsCalculator:
         """
         try:
             # Step 1: Fetch data from the database
-            games_df = database_operations.fetch_data_from_mongodb("games")
-            teams_df = database_operations.fetch_data_from_mongodb("teams")
+            games_df = self.database_operations.fetch_data_from_mongodb("games")
+            teams_df = self.database_operations.fetch_data_from_mongodb("teams")
             teams_df.loc[teams_df['name'] == 'Football Team', 'name'] = 'Commanders'
 
             if games_df.empty or teams_df.empty:
@@ -56,8 +56,8 @@ class StatsCalculator:
                 return None, None
 
             # Step 2: Perform initial data processing (like flattening the data)
-            processed_games_df = data_processing.flatten_and_merge_data(games_df)
-            processed_teams_df = data_processing.flatten_and_merge_data(teams_df)
+            processed_games_df = self.data_processing.flatten_and_merge_data(games_df)
+            processed_teams_df = self.data_processing.flatten_and_merge_data(teams_df)
 
             # Convert columns with list values to string
             for col in processed_games_df.columns:
@@ -65,7 +65,7 @@ class StatsCalculator:
                     processed_games_df[col] = processed_games_df[col].astype(str)
 
             # Step 3: Additional data processing steps (as per the original script)
-            processed_games_df = data_processing.calculate_scoring_differential(processed_games_df)
+            processed_games_df = self.data_processing.calculate_scoring_differential(processed_games_df)
 
             # Drop games if 'scoring_differential' key does not exist
             if 'scoring_differential' not in processed_games_df.columns:
@@ -80,7 +80,7 @@ class StatsCalculator:
             print(f"Error in load_and_process_data function: {e}")
             return None, None
 
-    def transform_data(self, processed_df, processed_teams_df, data_processing, feature_columns):
+    def transform_data(self, processed_df, processed_teams_df, feature_columns):
         """
         This function handles further data transformation.
         :param processed_df: A dataframe containing processed games data
@@ -113,8 +113,8 @@ class StatsCalculator:
             processed_teams_df = processed_teams_df.drop_duplicates(subset='id')
 
             # Convert time strings to minutes
-            processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
-            processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
+            processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(self.data_processing.time_to_minutes)
+            processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(self.data_processing.time_to_minutes)
 
             # Convert scheduled column to datetime
             processed_df['game_date'] = pd.to_datetime(processed_df['scheduled'])
@@ -196,7 +196,7 @@ class StatsCalculator:
             print(f"Error in calculate_power_rank function: {e}")
             return pd.DataFrame()  # Return an empty dataframe if an error occurs
 
-    def aggregate_and_normalize_data(self, df, cleaned_metrics, database_operations, processed_teams_df):
+    def aggregate_and_normalize_data(self, df, cleaned_metrics, processed_teams_df):
         """
         This function aggregates and normalizes the data based on various metrics and saves the results to a MongoDB collection.
         :param df: A dataframe containing the power rank and other details for each team
@@ -208,6 +208,9 @@ class StatsCalculator:
         try:
             # Normalize the power_rank values within each week
             df = df[df['name'].isin(['NFC', 'AFC']) == False]
+
+            # Add the update_date column and populate it with self.date
+            df['update_date'] = self.date
 
             def normalize_within_week(group):
                 min_rank = group['power_rank'].min()
@@ -221,16 +224,12 @@ class StatsCalculator:
             df = df.sort_values(by=['power_rank'])
 
             # Create a list for columns_for_power_rank_table with the cleaned metrics list
-            columns_for_power_rank_table = ['id', 'name', 'game_date', 'days_since_game', 'weight', 'power_rank'] + cleaned_metrics
+            columns_for_power_rank_table = ['update_date', 'id', 'name', 'game_date', 'days_since_game', 'weight', 'power_rank'] + cleaned_metrics
             power_rank_df = df[columns_for_power_rank_table]
-
-            # Drop the power_rank collection if it exists
-            if 'power_rank' in database_operations.db.list_collection_names():
-                database_operations.db.power_rank.drop()
 
             # Save to a new collection in the database
             power_rank_df.reset_index(inplace=True, drop=True)
-            database_operations.insert_data_into_mongodb('power_rank', power_rank_df.to_dict('records'))
+            self.database_operations.insert_data_into_mongodb('power_rank', power_rank_df.to_dict('records'))
 
             df['weighted_power_rank'] = df['power_rank'] * df['weight']
 
@@ -273,20 +272,16 @@ class StatsCalculator:
             print(f"Error in aggregate_and_normalize_data function: {e}")
             return None
 
-    def insert_aggregated_data_into_database(self, aggregated_df, database_operations):
+    def insert_aggregated_data_into_database(self, aggregated_df):
         """
         Inserts the aggregated and normalized data into a MongoDB collection.
         :param aggregated_df: A dataframe containing aggregated and normalized data
         :param database_operations: An instance of the DatabaseOperations class
         """
         try:
-            # Drop the collection if it exists
-            if 'team_aggregated_metrics' in database_operations.db.list_collection_names():
-                database_operations.db.team_aggregated_metrics.drop()
-
             # Insert the aggregated data into the collection
             aggregated_df.reset_index(inplace=True, drop=True)
-            database_operations.insert_data_into_mongodb('team_aggregated_metrics', aggregated_df.to_dict('records'))
+            self.database_operations.insert_data_into_mongodb('team_aggregated_metrics', aggregated_df.to_dict('records'))
 
             # Saving the report to a CSV file
             aggregated_df = aggregated_df.sort_values(by='normalized_power_rank', ascending=False)
@@ -326,8 +321,17 @@ class StatsCalculator:
         fig = px.bar(df_sorted, x='name', y='normalized_power_rank', title='Normalized Power Rank by Team on Sim Date')
         fig.write_html(os.path.join(self.template_dir, filename))
 
+    def clear_temp_tables(self):
+        # Drop the collection if it exists
+        if 'team_aggregated_metrics' in self.database_operations.db.list_collection_names():
+            self.database_operations.db.team_aggregated_metrics.drop()
+
+        # Drop the power_rank collection if it exists
+        if 'power_rank' in self.database_operations.db.list_collection_names():
+            self.database_operations.db.power_rank.drop()
+
     def main(self):    # Load and process data
-        processed_games_df, processed_teams_df = self.load_and_process_data(self.database_operations, self.data_processing)
+        processed_games_df, processed_teams_df = self.load_and_process_data()
 
         # Reload constants
         reload(scripts.constants)
@@ -337,7 +341,7 @@ class StatsCalculator:
 
         if processed_games_df is not None and processed_teams_df is not None:
             # Transform data
-            df_home, df_away = self.transform_data(processed_games_df, processed_teams_df, self.data_processing, columns_to_filter)
+            df_home, df_away = self.transform_data(processed_games_df, processed_teams_df, columns_to_filter)
 
             if df_home is not None and df_away is not None:
                 # Calculate power rank
@@ -350,15 +354,17 @@ class StatsCalculator:
                 if df is not None:
                     # Aggregate and normalize data
                     cleaned_metrics = [metric.replace('statistics_home.', '').replace('statistics_away.', '') for metric in columns_to_filter]
-                    aggregated_df = self.aggregate_and_normalize_data(df, cleaned_metrics, self.database_operations, processed_teams_df)
+                    aggregated_df = self.aggregate_and_normalize_data(df, cleaned_metrics, processed_teams_df)
 
+                    """
                     if aggregated_df is not None:
                         # Insert aggregated data into MongoDB
-                        self.insert_aggregated_data_into_database(aggregated_df, self.database_operations)
+                        self.insert_aggregated_data_into_database(aggregated_df)
 
                         # Further script implementation here, where you can use aggregated_df for analysis
                     else:
                         print("Error in aggregating and normalizing data. Exiting script.")
+                    """
                 else:
                     print("Error in calculating power rank. Exiting script.")
             else:
@@ -372,5 +378,27 @@ class StatsCalculator:
 
 
 if __name__ == "__main__":
-    nfl_stats = StatsCalculator()
-    nfl_stats.main()
+    # If no date is provided by the user, use the current date
+    user_date = datetime.today().strftime('%Y-%m-%d')
+
+    # Convert the user_date to a datetime object
+    user_date_obj = datetime.strptime(user_date, '%Y-%m-%d')
+
+    # Find the most recent Tuesday before or on the user_date
+    while user_date_obj.weekday() != 1:  # 1 represents Tuesday
+        user_date_obj -= timedelta(days=1)
+
+    # Generate a list of Tuesdays from 09/01/2019 to the most recent Tuesday
+    start_date = '2019-09-01'
+    tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE')
+
+    # Exclude dates from March through August
+    tuesdays_list = [date for date in tuesdays_list if date.month < 3 or date.month > 8]
+    tuesdays_list = [date.strftime('%Y-%m-%d') for date in tuesdays_list]
+
+    for tuesday in tuesdays_list:
+        # Create an instance of the NFLModel class
+        nfl_stats = StatsCalculator(tuesday)
+
+        # Call the main method to generate the model
+        nfl_stats.main()

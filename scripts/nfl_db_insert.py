@@ -50,6 +50,7 @@ class DBInserter:
                     self.insert_statistics_data(data)
                     self.insert_players_data(data)
                     self.insert_summary_data(data)
+
             except json.JSONDecodeError:
                 logging.error(f"Error decoding JSON from file: {file_path}")
             except KeyError as e:
