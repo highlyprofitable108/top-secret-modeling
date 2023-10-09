@@ -491,7 +491,7 @@ class StatsCalculator:
             self.insert_aggregated_data_into_database(aggregated_df)
             self.clear_temp_tables()
             df = self.fetch_team_aggregated_metrics()
-            self.generate_interactive_html(aggregated_df, self.date)
+            # self.generate_interactive_html(aggregated_df, self.date)
         except ValueError as e:
             print(e)
 
