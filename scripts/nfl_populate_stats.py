@@ -10,6 +10,8 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import joblib
+import matplotlib.pyplot as plt
+import mpld3
 
 # Local module imports
 from classes.config_manager import ConfigManager
@@ -332,6 +334,30 @@ class StatsCalculator:
         except Exception as e:
             print(f"Error inserting aggregated data into MongoDB: {e}")
 
+    def plot_power_rankings(self, ranks_df):
+        # Filter the required columns and sort by update_date and normalized_power_rank
+        ranks_df_sorted = ranks_df[['name', 'normalized_power_rank', 'update_date']].sort_values(by=['update_date', 'normalized_power_rank'], ascending=[True, False])
+
+        # Create a pivot table to restructure the data for plotting
+        pivot_df = ranks_df_sorted.pivot(index='update_date', columns='name', values='normalized_power_rank')
+
+        # Plot the data
+        fig, ax = plt.subplots(figsize=(15, 10))
+        pivot_df.plot(ax=ax)
+        ax.set_title('Normalized Power Rank Over Time')
+        ax.set_ylabel('Normalized Power Rank')
+        ax.set_xlabel('Update Date')
+        ax.invert_yaxis()  # Rank 1 should be at the top
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+        # Convert the plot to HTML
+        html_str = mpld3.fig_to_html(fig)
+
+        # Save the HTML to a file
+        filename = 'team_power_rank.html'
+        with open(os.path.join(self.template_dir, filename), 'w') as f:
+            f.write(html_str)
+
     def create_pre_game_data_collection(self):
         games_df = self.database_operations.fetch_data_from_mongodb("games")
         ranks_df = self.database_operations.fetch_data_from_mongodb("team_aggregated_metrics")
@@ -385,6 +411,7 @@ class StatsCalculator:
             # Print unique team IDs and update dates in ranks_df for debugging
             print("Unique team IDs in ranks_df:", ranks_df['id'].unique())
             print("Unique update dates in ranks_df:", ranks_df['update_date'].unique())
+            self.plot_power_rankings(ranks_df)
 
             pre_game_data_list.append(game_data)
 
@@ -530,6 +557,6 @@ if __name__ == "__main__":
     tuesdays_list = generate_tuesdays_list(date_obj)
     for tuesday in tuesdays_list:
         print(tuesday)
-        nfl_stats.set_date(tuesday)         
+        nfl_stats.set_date(tuesday)
         nfl_stats.generate_ranks()
     nfl_stats.create_pre_game_data_collection()
