@@ -171,6 +171,7 @@ def generate_power_ranks_internal(user_date=None):
     start_date = '2019-09-01'
     tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE').strftime('%Y-%m-%d').tolist()
 
+    # WEIGHT STATS PREMODELING
     # Clean DB
     nfl_stats = StatsCalculator()
     nfl_stats.clear_temp_tables()

@@ -375,5 +375,5 @@ class NFLDataAnalyzer:
             return None, None
 
 
-analyzer = NFLDataAnalyzer()
-analyzer.main()
+# analyzer = NFLDataAnalyzer()
+# analyzer.main()
