@@ -43,8 +43,8 @@ def generate_constants_file(selected_columns):
                 last_dot_index = col.rfind('.')
                 if last_dot_index != -1:  # Check if '.' is found in the string
                     col = col[:last_dot_index] + '.totals.' + col[last_dot_index + 1:]
-            file.write(f'    "statistics_home.{col}",\n')
-            file.write(f'    "statistics_away.{col}",\n')
+            file.write(f'    "ranks_home_{col}",\n')
+            file.write(f'    "ranks_away_{col}",\n')
         file.write("]\n")
 
 

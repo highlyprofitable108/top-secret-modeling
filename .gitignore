@@ -11,3 +11,4 @@ flask_app/templates/feature_importance.html
 flask_app/templates/interactive_heatmap.html
 data/blind_test_data.csv
 data/csvs/odds.csv
+models/*

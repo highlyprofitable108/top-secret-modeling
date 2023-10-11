@@ -8,7 +8,7 @@ from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import importlib
 import pandas as pd
@@ -104,7 +104,8 @@ def process_columns():
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
     try:
-        analyzer.main()
+        generate_power_ranks_internal()
+        # analyzer.main()
 
     except Exception as e:
         return jsonify(error=str(e)), 500
@@ -117,9 +118,6 @@ def generate_model():
     try:
         # Call the main method of the NFLModel instance to generate the model
         nfl_model.main()
-
-        # If successful, run the generate_power_ranks function
-        generate_power_ranks()
 
         # Return a success message
         return jsonify(status="success"), 200
@@ -135,16 +133,20 @@ def generate_power_ranks():
         home_team = request.form.get('homeTeam', None)
         away_team = request.form.get('awayTeam', None)
 
-        # Date function currentl stinks
+        # Date function currently stinks on UI
         date = request.form.get('date', datetime.today().strftime('%Y-%m-%d'))  # Set to current date if not available
 
-        # Call the internal function to generate power ranks
-        generate_power_ranks_internal(date)
+        # Find the most recent Tuesday
+        while date.weekday() != 1:  # 1 represents Tuesday
+            date -= timedelta(days=1)
 
         if home_team is not None and away_team is not None:
-            predictor = NFLPredictor(home_team, away_team)
+
+            """ Won't work until sim class is updated
+            predictor = NFLPredictor(home_team, away_team, date)
             predictor.main()
             return render_template('simulator_results.html')
+            """
 
         # If successful, return a success message
         return jsonify(status="success"), 200
@@ -153,12 +155,33 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
-def generate_power_ranks_internal(date=None):
-    # Create an instance of the NFLModel class
-    nfl_stats = StatsCalculator(date=date)
+def generate_power_ranks_internal(user_date=None):
+    # If no date is provided by the user, use the current date
+    if not user_date:
+        user_date = datetime.today().strftime('%Y-%m-%d')
 
-    # Call the main method to generate the model
-    nfl_stats.main()
+    # Convert the user_date to a datetime object
+    user_date_obj = datetime.strptime(user_date, '%Y-%m-%d')
+
+    # Find the most recent Tuesday before or on the user_date
+    while user_date_obj.weekday() != 1:  # 1 represents Tuesday
+        user_date_obj -= timedelta(days=1)
+
+    # Generate a list of Tuesdays from 09/01/2019 to the most recent Tuesday
+    start_date = '2019-09-01'
+    tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE').strftime('%Y-%m-%d').tolist()
+
+    # WEIGHT STATS PREMODELING
+    # Clean DB
+    nfl_stats = StatsCalculator()
+    nfl_stats.clear_temp_tables()
+
+    for tuesday in tuesdays_list:
+        # Create an instance of the NFLModel class
+        nfl_stats = StatsCalculator(tuesday)
+
+        # Call the main method to generate the model
+        nfl_stats.main()
 
 
 @app.route('/interactive_heatmap')
