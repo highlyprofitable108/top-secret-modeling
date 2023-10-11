@@ -28,12 +28,12 @@ nfl_model = NFLModel()
 data_dir = config.get_config('paths', 'data_dir')
 model_dir = config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'scoring_differential'))
+feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'odds_spread'))
 
 
 def get_active_constants():
-    active_constants = list(set(col.replace('statistics_home.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
-    active_constants = list(set(col.replace('statistics_away.', '') for col in active_constants))
+    active_constants = list(set(col.replace('ranks_home_', '') for col in constants.COLUMNS_TO_KEEP if 'odds_spread' not in col))
+    active_constants = list(set(col.replace('ranks_away_', '') for col in active_constants))
     active_constants.sort()
 
     importlib.reload(constants)
@@ -104,8 +104,8 @@ def process_columns():
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
     try:
-        generate_power_ranks_internal()
-        # analyzer.main()
+        # generate_power_ranks_internal()
+        analyzer.main()
 
     except Exception as e:
         return jsonify(error=str(e)), 500

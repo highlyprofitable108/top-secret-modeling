@@ -34,7 +34,7 @@ def generate_constants_file(selected_columns):
         file.write("# constants.py\n\n")
         file.write("# List of column names to keep\n")
         file.write("COLUMNS_TO_KEEP = [\n")
-        file.write('    "scoring_differential",\n')  # Ensure scoring_differential is always included
+        file.write('    "odds_spread",\n')
         for col in selected_columns:
             if 'summary' not in col and 'efficiency' not in col:
                 # TODO: REPLACE SPACES IN COL HERE TO FIX CATEGORIES

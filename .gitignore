@@ -12,3 +12,4 @@ flask_app/templates/interactive_heatmap.html
 data/blind_test_data.csv
 data/csvs/odds.csv
 models/*
+scripts/nfl_db_calculations.py

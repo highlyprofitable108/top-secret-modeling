@@ -84,6 +84,7 @@ class StatsCalculator:
                 if processed_games_df[col].apply(type).eq(list).any():
                     processed_games_df[col] = processed_games_df[col].astype(str)
 
+            # TODO: Paramaterize targert variable
             # Step 3: Additional data processing steps (as per the original script)
             processed_games_df = self.data_processing.calculate_scoring_differential(processed_games_df)
 
@@ -133,8 +134,8 @@ class StatsCalculator:
             processed_teams_df = processed_teams_df.drop_duplicates(subset='id')
 
             # Convert time strings to minutes
-            processed_df['statistics_home.summary.possession_time'] = processed_df['statistics_home.summary.possession_time'].apply(self.data_processing.time_to_minutes)
-            processed_df['statistics_away.summary.possession_time'] = processed_df['statistics_away.summary.possession_time'].apply(self.data_processing.time_to_minutes)
+            processed_df['rank_home_summary.possession_time'] = processed_df['rank_home_summary.possession_time'].apply(self.data_processing.time_to_minutes)
+            processed_df['rank_away_summary.possession_time'] = processed_df['rank_away_summary.possession_time'].apply(self.data_processing.time_to_minutes)
 
             # Convert scheduled column to datetime
             processed_df['game_date'] = pd.to_datetime(processed_df['scheduled'])
@@ -552,12 +553,12 @@ def generate_tuesdays_list(date_obj):
 
 if __name__ == "__main__":
     nfl_stats = StatsCalculator()
-    # nfl_stats.clear_team_metrics()
-    # nfl_stats.clear_temp_tables()
-    # date_obj = datetime.today()
-    # tuesdays_list = generate_tuesdays_list(date_obj)
-    # for tuesday in tuesdays_list:
-    #     print(tuesday)
-    #     nfl_stats.set_date(tuesday)
-    #     nfl_stats.generate_ranks()
+    nfl_stats.clear_team_metrics()
+    nfl_stats.clear_temp_tables()
+    date_obj = datetime.today()
+    tuesdays_list = generate_tuesdays_list(date_obj)
+    for tuesday in tuesdays_list:
+        print(tuesday)
+        nfl_stats.set_date(tuesday)
+        nfl_stats.generate_ranks()
     nfl_stats.create_pre_game_data_collection()

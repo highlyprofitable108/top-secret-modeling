@@ -3,6 +3,7 @@ import numpy as np
 import logging
 from importlib import reload
 import scripts.constants
+import scripts.all_columns
 
 
 class DataProcessing:
@@ -109,6 +110,7 @@ class DataProcessing:
 
                 # Update constants.py to remove dropped columns
                 self.update_constants_file(columns_to_drop)
+                self.update_columns_file(columns_to_drop)
 
             # Fill NaN values in remaining columns with the mean of each column
             nan_columns = nan_counts[nan_counts > 0].index.tolist()
@@ -125,6 +127,21 @@ class DataProcessing:
         except Exception as e:
             logging.error(f"Error in handle_null_values: {e}")
             return df
+
+    def update_columns_file(self, columns_to_remove):
+        """Update the constants.py file to remove specified columns."""
+        reload(scripts.all_columns)
+
+        with open('./scripts/all_columns.py', 'r') as file:
+            lines = file.readlines()
+
+        # Remove lines containing columns to remove
+        new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
+
+        with open('./scripts/all_columns.py', 'w') as file:
+            file.writelines(new_lines)
+
+        reload(scripts.all_columns)
 
     def update_constants_file(self, columns_to_remove):
         """Update the constants.py file to remove specified columns."""
