@@ -318,7 +318,7 @@ class StatsCalculator:
         :param database_operations: An instance of the DatabaseOperations class
         """
         try:
-            # Insert the aggregated data into the collection
+            aggregated_df.drop_duplicates()
             aggregated_df.reset_index(inplace=True, drop=True)
             aggregated_df.loc[:, 'update_date'] = self.date
             if '_id' in aggregated_df.columns:
@@ -335,8 +335,15 @@ class StatsCalculator:
             print(f"Error inserting aggregated data into MongoDB: {e}")
 
     def plot_power_rankings(self, ranks_df):
+        # Filter out the rows based on the conditions
+        # FIX RAIDERS WEIGHTING LOGIC
+        ranks_df_sorted = ranks_df[~((ranks_df['alias'] == 'OAK') & (ranks_df['update_date'] > '2020-09-08'))]
+
         # Filter the required columns and sort by update_date and normalized_power_rank
-        ranks_df_sorted = ranks_df[['name', 'normalized_power_rank', 'update_date']].sort_values(by=['update_date', 'normalized_power_rank'], ascending=[True, False])
+        ranks_df_sorted = ranks_df_sorted[['name', 'normalized_power_rank', 'update_date']].sort_values(by=['update_date', 'normalized_power_rank'], ascending=[True, False])
+
+        # Convert the 'update_date' column to datetime format if it's not already
+        ranks_df_sorted['update_date'] = pd.to_datetime(ranks_df_sorted['update_date'])
 
         # Create a pivot table to restructure the data for plotting
         pivot_df = ranks_df_sorted.pivot(index='update_date', columns='name', values='normalized_power_rank')
@@ -378,15 +385,12 @@ class StatsCalculator:
 
             # Convert game['scheduled'] to a tz-naive datetime object
             game_scheduled_naive = parse(game['scheduled']).replace(tzinfo=None)
-            print(f"Processing game scheduled on: {game_scheduled_naive}")
 
             # For home team
             home_team_id = game['summary']['home']['id']
             filtered_home_rank = ranks_df[
                 (ranks_df['id'] == home_team_id) & (ranks_df['update_date'] < game_scheduled_naive)
             ].sort_values(by='update_date', ascending=False)
-
-            print(f"Number of rows for home team {home_team_id}: {len(filtered_home_rank)}")
 
             if not filtered_home_rank.empty:
                 home_rank = filtered_home_rank.iloc[0]
@@ -400,26 +404,23 @@ class StatsCalculator:
                 (ranks_df['id'] == away_team_id) & (ranks_df['update_date'] < game_scheduled_naive)
             ].sort_values(by='update_date', ascending=False)
 
-            print(f"Number of rows for away team {away_team_id}: {len(filtered_away_rank)}")
-
             if not filtered_away_rank.empty:
                 away_rank = filtered_away_rank.iloc[0]
                 game_data['ranks_away'] = away_rank.to_dict()
             else:
                 print(f"No rank data found for away team {away_team_id} before {game_scheduled_naive}")
 
-            # Print unique team IDs and update dates in ranks_df for debugging
-            print("Unique team IDs in ranks_df:", ranks_df['id'].unique())
-            print("Unique update dates in ranks_df:", ranks_df['update_date'].unique())
-            self.plot_power_rankings(ranks_df)
-
             pre_game_data_list.append(game_data)
 
         # Convert the pre-game data list to a DataFrame
         pre_game_data_df = pd.DataFrame(pre_game_data_list)
+        self.plot_power_rankings(ranks_df)
 
-        # Insert the pre-game data DataFrame into MongoDB
-        self.database_operations.insert_data_into_mongodb("pre_game_data", pre_game_data_df)
+        # Convert the pre-game data DataFrame to a list of dictionaries
+        pre_game_data_list_of_dicts = pre_game_data_df.to_dict(orient='records')
+
+        # Insert the pre-game data list of dictionaries into MongoDB
+        self.database_operations.insert_data_into_mongodb("pre_game_data", pre_game_data_list_of_dicts)
 
         print("Pre-game data inserted into MongoDB successfully.")
 
@@ -551,12 +552,12 @@ def generate_tuesdays_list(date_obj):
 
 if __name__ == "__main__":
     nfl_stats = StatsCalculator()
-    nfl_stats.clear_team_metrics()
-    nfl_stats.clear_temp_tables()
-    date_obj = datetime.today()
-    tuesdays_list = generate_tuesdays_list(date_obj)
-    for tuesday in tuesdays_list:
-        print(tuesday)
-        nfl_stats.set_date(tuesday)
-        nfl_stats.generate_ranks()
+    # nfl_stats.clear_team_metrics()
+    # nfl_stats.clear_temp_tables()
+    # date_obj = datetime.today()
+    # tuesdays_list = generate_tuesdays_list(date_obj)
+    # for tuesday in tuesdays_list:
+    #     print(tuesday)
+    #     nfl_stats.set_date(tuesday)
+    #     nfl_stats.generate_ranks()
     nfl_stats.create_pre_game_data_collection()

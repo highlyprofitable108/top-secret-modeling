@@ -34,7 +34,7 @@ class NFLDataAnalyzer:
         self.config_manager = ConfigManager()
         self.db_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
-        self.target_variable = 'scoring_differential'
+        self.target_variable = 'odds_spread'
         self.data_dir = self.get_config('paths', 'data_dir')
         self.static_dir = self.get_config('paths', 'static_dir')
         self.template_dir = self.get_config('paths', 'template_dir')
@@ -61,12 +61,14 @@ class NFLDataAnalyzer:
         """Processes the data by flattening, merging, and calculating scoring differential."""
         try:
             df = self.data_processing.flatten_and_merge_data(df)
-            df = self.data_processing.calculate_scoring_differential(df)
+            df = df.dropna(subset=['odds_spread'])  # Remove rows where 'odds_spread' is NaN
+
+            # df = self.data_processing.calculate_scoring_differential(df)
             # Convert time strings to minutes (apply this to the relevant columns)
-            if 'statistics_home.summary.possession_time' in df.columns:
-                df['statistics_home.summary.possession_time'] = df['statistics_home.summary.possession_time'].apply(self.data_processing.time_to_minutes)
-            if 'statistics_away.summary.possession_time' in df.columns:
-                df['statistics_away.summary.possession_time'] = df['statistics_away.summary.possession_time'].apply(self.data_processing.time_to_minutes)
+            # if 'ranks_home_summary.possession_time' in df.columns:
+            #     df['ranks_home_summary.possession_time'] = df['ranks_home_summary.possession_time'].apply(self.data_processing.time_to_minutes)
+            # if 'ranks_away_summary.possession_time' in df.columns:
+            #     df['ranks_away_summary.possession_time'] = df['ranks_away_summary.possession_time'].apply(self.data_processing.time_to_minutes)
 
             # Descriptive Statistics (Integration of suggestion 2)
             descriptive_stats = df.describe()
@@ -96,7 +98,6 @@ class NFLDataAnalyzer:
         try:
             # Reload constants
             reload(scripts.constants)
-
             # Filter columns with stripping whitespaces
             columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)]
 
@@ -116,6 +117,7 @@ class NFLDataAnalyzer:
         df = self.process_data(df)
         df = self.filter_columns(df)
         df = self.data_processing.handle_null_values(df)
+
         return df
 
     def plot_feature_importance(self, df):
@@ -365,7 +367,7 @@ class NFLDataAnalyzer:
         """Main method to load data and generate EDA report."""
         try:
             logging.info("Starting main method")
-            collection_name = 'games'
+            collection_name = 'pre_game_data'
             df = self.load_and_process_data(collection_name)
             return self.generate_eda_report(df)
         except Exception as e:
@@ -373,5 +375,5 @@ class NFLDataAnalyzer:
             return None, None
 
 
-# analyzer = NFLDataAnalyzer()
-# analyzer.main()
+analyzer = NFLDataAnalyzer()
+analyzer.main()
