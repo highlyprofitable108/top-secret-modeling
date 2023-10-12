@@ -103,7 +103,7 @@ class DataProcessing:
         """Handles null values in the dataframe by dropping columns with high NaN count and filling others with mean."""
         try:
             nan_counts = df.isnull().sum()
-            columns_to_drop = nan_counts[nan_counts > 100].index.tolist()
+            columns_to_drop = [col for col in nan_counts[nan_counts > 100].index.tolist() if 'odds' in col]
             if columns_to_drop:
                 logging.warning(f"Dropping columns with more than 100 NaN values: {columns_to_drop}")
                 df = df.drop(columns=columns_to_drop).reset_index(drop=True)

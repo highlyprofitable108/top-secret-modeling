@@ -46,14 +46,18 @@ class NFLModel:
         """Load and process data."""
         try:
             # Fetch data from MongoDB using DatabaseOperations class
-            collection_name = "games"
+            collection_name = "pre_game_data"
             df = db_operations.fetch_data_from_mongodb(collection_name)
 
             # Flatten and merge data using DataProcessing class
             df = data_processing.flatten_and_merge_data(df)
+            df['scheduled'] = pd.to_datetime(df['scheduled'])
+            df['scheduled'] = df['scheduled'].dt.tz_localize(None)
+            current_date = pd.Timestamp.now().normalize()
+            df = df[df['scheduled'] < current_date]
 
             # Compute scoring differential using DataProcessing class
-            df = data_processing.calculate_scoring_differential(df)
+            # df = data_processing.calculate_scoring_differential(df)
 
             # Reload constants
             reload(scripts.constants)
@@ -63,19 +67,10 @@ class NFLModel:
 
             # Keep only the columns specified in COLUMNS_TO_KEEP
             df = df[columns_to_filter]
-            df = self.data_processing.handle_null_values(df)
 
-            # TODO: Remove values not used in calculation from constants.py
-
-            # Convert time strings to minutes (apply this to the relevant columns)
-            if 'statistics_home.summary.possession_time' in df.columns:
-                df['statistics_home.summary.possession_time'] = df['statistics_home.summary.possession_time'].apply(data_processing.time_to_minutes)
-            if 'statistics_away.summary.possession_time' in df.columns:
-                df['statistics_away.summary.possession_time'] = df['statistics_away.summary.possession_time'].apply(data_processing.time_to_minutes)
-            
             # Drop games if 'scoring_differential' key does not exist
-            if 'scoring_differential' not in df.columns:
-                logging.warning("'scoring_differential' key does not exist. Dropping games.")
+            if 'odds_spread' not in df.columns:
+                logging.warning("'odds_spread' key does not exist. Dropping games.")
                 return pd.DataFrame() # Return an empty dataframe
             else:
                 return df
@@ -86,15 +81,13 @@ class NFLModel:
     def preprocess_nfl_data(self, df):
         """Preprocess NFL data."""
         try:
-            df = data_processing.handle_null_values(df)
-
             # Update the feature_columns list to reflect the changes
-            feature_columns = [col for col in df.columns if col != 'scoring_differential']
-            print(feature_columns)
+            df = self.data_processing.handle_null_values(df)
+            feature_columns = [col for col in df.columns if col != 'odds_spread']
 
             # Separate the target variable
-            X = df.drop('scoring_differential', axis=1)  # Features
-            y = df['scoring_differential']  # Target
+            X = df.drop('odds_spread', axis=1)  # Features
+            y = df['odds_spread']  # Target
 
             # Check for NaN values and handle them before splitting
             if X.isnull().sum().sum() > 0:
@@ -120,7 +113,7 @@ class NFLModel:
 
             # Save the Blind Test Set to a File
             # Convert numpy arrays back to dataframes before concatenating
-            X_blind_test = pd.DataFrame(X_blind_test, columns=df.columns.drop('scoring_differential'))
+            X_blind_test = pd.DataFrame(X_blind_test, columns=df.columns.drop('odds_spread'))
             blind_test_data = pd.concat([X_blind_test, y_blind_test.reset_index(drop=True)], axis=1)
             blind_test_data.to_csv(os.path.join(data_dir, 'blind_test_data.csv'), index=False)
 
@@ -131,7 +124,7 @@ class NFLModel:
 
             # Print the first few rows of the training data for inspection
             print("\nFirst few rows of the training data:")
-            X_train = pd.DataFrame(X_train, columns=df.columns.drop('scoring_differential'))
+            X_train = pd.DataFrame(X_train, columns=df.columns.drop('odds_spread'))
             print(X_train.head())
 
             return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns
@@ -184,10 +177,10 @@ class NFLModel:
 
             # Preprocess data
             X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(processed_df)
-            
+
             # Train and evaluate model
             model = self.train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns)
-            
+
             # Save the model and related files to the models directory
             joblib.dump(model, os.path.join(model_dir, 'trained_nfl_model.pkl'))
             joblib.dump(scaler, os.path.join(model_dir, 'data_scaler.pkl'))

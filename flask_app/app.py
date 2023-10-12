@@ -104,7 +104,6 @@ def process_columns():
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
     try:
-        # generate_power_ranks_internal()
         analyzer.main()
 
     except Exception as e:
@@ -153,35 +152,6 @@ def generate_power_ranks():
     except Exception as e:
         # If there is an error, return an error message
         return jsonify(error=str(e)), 500
-
-
-def generate_power_ranks_internal(user_date=None):
-    # If no date is provided by the user, use the current date
-    if not user_date:
-        user_date = datetime.today().strftime('%Y-%m-%d')
-
-    # Convert the user_date to a datetime object
-    user_date_obj = datetime.strptime(user_date, '%Y-%m-%d')
-
-    # Find the most recent Tuesday before or on the user_date
-    while user_date_obj.weekday() != 1:  # 1 represents Tuesday
-        user_date_obj -= timedelta(days=1)
-
-    # Generate a list of Tuesdays from 09/01/2019 to the most recent Tuesday
-    start_date = '2019-09-01'
-    tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE').strftime('%Y-%m-%d').tolist()
-
-    # WEIGHT STATS PREMODELING
-    # Clean DB
-    nfl_stats = StatsCalculator()
-    nfl_stats.clear_temp_tables()
-
-    for tuesday in tuesdays_list:
-        # Create an instance of the NFLModel class
-        nfl_stats = StatsCalculator(tuesday)
-
-        # Call the main method to generate the model
-        nfl_stats.main()
 
 
 @app.route('/interactive_heatmap')
