@@ -10,6 +10,7 @@ from pymongo import MongoClient
 import mpld3
 import time
 import random
+from datetime import datetime
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -20,7 +21,7 @@ from scipy.stats import mode, gaussian_kde
 
 
 class NFLPredictor:
-    def __init__(self, home_team, away_team):
+    def __init__(self, home_team, away_team, date):
         # Configuration and Database Connection
         self.config = ConfigManager()
         self.data_processing = DataProcessing()
@@ -36,6 +37,7 @@ class NFLPredictor:
         self.db = self.client[self.DATABASE_NAME]
         self.home_team = home_team
         self.away_team = away_team
+        self.date = date
 
         # Loading the pre-trained model and the data scaler
         self.LOADED_MODEL, self.LOADED_SCALER = self.load_model_and_scaler()
@@ -52,12 +54,12 @@ class NFLPredictor:
 
     def get_team_data(self, alias, df):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
-        return df[df['alias'] == alias]
+        return df[df['name'] == alias]
 
     def rename_columns(self, data, prefix):
         """Renames columns with a specified prefix."""
         reload(scripts.constants)
-        columns_to_rename = [col.replace('statistics_home.', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('statistics_home.')]
+        columns_to_rename = [col.replace('ranks_home_', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('ranks_home_')]
         rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
         return data.rename(columns=rename_dict)
 
@@ -69,6 +71,8 @@ class NFLPredictor:
         """Filters the merged data using the feature columns and scales the numeric features."""
         # Reload constants
         reload(scripts.constants)
+        # Filter the DataFrame
+        merged_data = df[df['update_date'] == self.date]
 
         # Filter columns with stripping whitespaces and exclude 'scoring_differential'
         columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, merged_data.columns) and col.strip() != 'scoring_differential']
@@ -78,7 +82,9 @@ class NFLPredictor:
         return merged_data
 
     def monte_carlo_simulation(self, df, num_simulations=2500):
+        print(df.head)
         print("Starting Monte Carlo Simulation...")
+
         simulation_results = []
         start_time = time.time()
         with tqdm(total=num_simulations, ncols=100) as pbar:  # Initialize tqdm with total number of simulations
@@ -96,7 +102,7 @@ class NFLPredictor:
                 # Filter columns and scale numeric features
                 reload(scripts.constants)
 
-                columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, sampled_df.columns) and col.strip() != 'scoring_differential']
+                columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, sampled_df.columns) and col.strip() != 'odds_spread']
 
                 sampled_df = sampled_df[columns_to_filter]
                 modified_df = sampled_df.dropna(axis=1, how='any')
@@ -195,19 +201,19 @@ class NFLPredictor:
         home_team_alias = self.home_team
         away_team_alias = self.away_team
 
-        # Fetch data only for the selected teams from the team_aggregated_metrics collection
-        df = self.database_operations.fetch_data_from_mongodb('team_aggregated_metrics')
+        # Fetch data only for the selected teams from the weekly_ranks collection
+        df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
         home_team_data = self.get_team_data(home_team_alias, df)
         away_team_data = self.get_team_data(away_team_alias, df)
 
         # Rename columns and merge data
-        home_team_data = self.rename_columns(home_team_data.reset_index(drop=True), "statistics_home.")
-        away_team_data = self.rename_columns(away_team_data.reset_index(drop=True), "statistics_away.")
+        home_team_data = self.rename_columns(home_team_data.reset_index(drop=True), "ranks_home_")
+        away_team_data = self.rename_columns(away_team_data.reset_index(drop=True), "ranks_away_")
 
         # Identify and rename standard deviation columns
-        home_team_data_stddev = home_team_data.filter(like='stddev').rename(columns=lambda x: "statistics_home." + x)
-        away_team_data_stddev = away_team_data.filter(like='stddev').rename(columns=lambda x: "statistics_away." + x)
+        home_team_data_stddev = home_team_data.filter(like='stddev').rename(columns=lambda x: "ranks_home_" + x)
+        away_team_data_stddev = away_team_data.filter(like='stddev').rename(columns=lambda x: "ranks_away_" + x)
 
         # Create matchup
         merged_data = self.merge_data(home_team_data, away_team_data, home_team_data_stddev, away_team_data_stddev)
@@ -252,6 +258,6 @@ class NFLPredictor:
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor()
+    predictor = NFLPredictor("Cardinals", "Titans", datetime.today().strftime('%Y-%m-%d'))
     predictor.main()
     # Call other methods of the predictor as needed

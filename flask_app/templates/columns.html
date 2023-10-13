@@ -28,24 +28,29 @@
       <div class="mb-8">
         <h5 class="font-bold mb-2">Active Constants:</h5>
         <div class="bg-white p-4 rounded-md shadow-md max-h-40 overflow-y-auto">
-          {% if active_constants %}
-            <ul>
-              {% for category, constants in active_constants.items() %}
-                <li class="mb-2">
-                  <span class="font-bold">{{ category.replace('_', ' ').title() }}:</span>
-                  <span>
-                    {% for constant in constants %}
-                      {{ constant.split('.')[-1].replace('_', ' ').title() }}{% if not loop.last %}, {% endif %}
+            {% if active_constants %}
+                <ul>
+                    {% for category, constants in active_constants.items() %}
+                        <li class="mb-2">
+                            <span class="font-bold">{{ category.replace('_', ' ').title() }}:</span>
+                            <span>
+                                {% for constant in constants %}
+                                    {% if "efficiency" in constant %}
+                                        {{ constant.split('.')[-2].replace('_', ' ').title() }} {{ constant.split('.')[-1].replace('_', ' ').title() }}
+                                    {% else %}
+                                        {{ constant.split('.')[-1].replace('_', ' ').title() }}
+                                    {% endif %}
+                                    {% if not loop.last %},{% endif %}
+                                {% endfor %}
+                            </span>
+                        </li>
                     {% endfor %}
-                  </span>
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p>None</p>
-          {% endif %}
+                </ul>
+            {% else %}
+                <p>None</p>
+            {% endif %}
         </div>
-      </div>      
+      </div>
 
       <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
         <h5 class="font-bold text-gray-800">Currently Selected Columns:</h5>

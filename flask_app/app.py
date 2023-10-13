@@ -23,17 +23,18 @@ database_operations = DatabaseOperations()
 data_processing = DataProcessing()
 analyzer = NFLDataAnalyzer()
 nfl_model = NFLModel()
+nfl_power_ranks = StatsCalculator()
 
 # Fetch configurations using ConfigManager
 data_dir = config.get_config('paths', 'data_dir')
 model_dir = config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'scoring_differential'))
+feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'odds_spread'))
 
 
 def get_active_constants():
-    active_constants = list(set(col.replace('statistics_home.', '') for col in constants.COLUMNS_TO_KEEP if 'scoring_differential' not in col))
-    active_constants = list(set(col.replace('statistics_away.', '') for col in active_constants))
+    active_constants = list(set(col.replace('ranks_home_', '') for col in constants.COLUMNS_TO_KEEP if 'odds_spread' not in col))
+    active_constants = list(set(col.replace('ranks_away_', '') for col in active_constants))
     active_constants.sort()
 
     importlib.reload(constants)
@@ -104,8 +105,7 @@ def process_columns():
 @app.route('/generate_analysis', methods=['POST'])
 def generate_analysis():
     try:
-        generate_power_ranks_internal()
-        # analyzer.main()
+        analyzer.main()
 
     except Exception as e:
         return jsonify(error=str(e)), 500
@@ -129,24 +129,7 @@ def generate_model():
 @app.route('/generate_power_ranks', methods=['POST'])
 def generate_power_ranks():
     try:
-        # Retrieve parameters from the POST request if available
-        home_team = request.form.get('homeTeam', None)
-        away_team = request.form.get('awayTeam', None)
-
-        # Date function currently stinks on UI
-        date = request.form.get('date', datetime.today().strftime('%Y-%m-%d'))  # Set to current date if not available
-
-        # Find the most recent Tuesday
-        while date.weekday() != 1:  # 1 represents Tuesday
-            date -= timedelta(days=1)
-
-        if home_team is not None and away_team is not None:
-
-            """ Won't work until sim class is updated
-            predictor = NFLPredictor(home_team, away_team, date)
-            predictor.main()
-            return render_template('simulator_results.html')
-            """
+        nfl_power_ranks.main()
 
         # If successful, return a success message
         return jsonify(status="success"), 200
@@ -155,33 +138,35 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
-def generate_power_ranks_internal(user_date=None):
-    # If no date is provided by the user, use the current date
-    if not user_date:
-        user_date = datetime.today().strftime('%Y-%m-%d')
+@app.route('/sim_runner', methods=['POST'])
+def sim_runner():
+    try:
+        # Retrieve parameters from the POST request if available
+        home_team = request.form.get('homeTeam', None)
+        away_team = request.form.get('awayTeam', None)
 
-    # Convert the user_date to a datetime object
-    user_date_obj = datetime.strptime(user_date, '%Y-%m-%d')
+        # Given date
+        date_input = request.form.get('date')
+        if not date_input:
+            date_input = datetime.today()
+        elif isinstance(date_input, str):
+            date_input = datetime.strptime(date_input, '%Y-%m-%d')
 
-    # Find the most recent Tuesday before or on the user_date
-    while user_date_obj.weekday() != 1:  # 1 represents Tuesday
-        user_date_obj -= timedelta(days=1)
+        # Determine the closest past Tuesday
+        while date_input.weekday() != 1:  # 1 represents Tuesday
+            date_input -= timedelta(days=1)
 
-    # Generate a list of Tuesdays from 09/01/2019 to the most recent Tuesday
-    start_date = '2019-09-01'
-    tuesdays_list = pd.date_range(start=start_date, end=user_date_obj, freq='W-TUE').strftime('%Y-%m-%d').tolist()
+        if home_team is not None and away_team is not None:
+            nfl_sim = NFLPredictor(home_team, away_team, date)
+            nfl_sim.main()
 
-    # WEIGHT STATS PREMODELING
-    # Clean DB
-    nfl_stats = StatsCalculator()
-    nfl_stats.clear_temp_tables()
+            return render_template('simulator_results.html')
 
-    for tuesday in tuesdays_list:
-        # Create an instance of the NFLModel class
-        nfl_stats = StatsCalculator(tuesday)
-
-        # Call the main method to generate the model
-        nfl_stats.main()
+        # If successful, return a success message
+        return jsonify(status="success"), 200
+    except Exception as e:
+        # If there is an error, return an error message
+        return jsonify(error=str(e)), 500
 
 
 @app.route('/interactive_heatmap')

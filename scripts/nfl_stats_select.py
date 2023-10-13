@@ -34,15 +34,13 @@ def generate_constants_file(selected_columns):
         file.write("# constants.py\n\n")
         file.write("# List of column names to keep\n")
         file.write("COLUMNS_TO_KEEP = [\n")
-        file.write('    "scoring_differential",\n')  # Ensure scoring_differential is always included
+        file.write('    "odds_spread",\n')
         for col in selected_columns:
-            if 'summary' not in col and 'efficiency' not in col:
-                # TODO: REPLACE SPACES IN COL HERE TO FIX CATEGORIES
-
-                # Find the last occurrence of '.' and replace it with '.totals.'
-                last_dot_index = col.rfind('.')
-                if last_dot_index != -1:  # Check if '.' is found in the string
-                    col = col[:last_dot_index] + '.totals.' + col[last_dot_index + 1:]
+            col = col.replace(' ', '.')
+            if 'efficiency' not in col and 'summary' not in col and '_first_downs.' not in col and '_interceptions.' not in col and '_touchdowns.' not in col:
+                # Split the column name at each period and join with '.totals.' at the last split
+                parts = col.rsplit('.', 1)
+                col = '.totals.'.join(parts)
             file.write(f'    "ranks_home_{col}",\n')
             file.write(f'    "ranks_away_{col}",\n')
         file.write("]\n")
