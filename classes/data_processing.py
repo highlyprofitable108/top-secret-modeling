@@ -102,8 +102,16 @@ class DataProcessing:
     def handle_null_values(self, df):
         """Handles null values in the dataframe by dropping columns with high NaN count and filling others with mean."""
         try:
+            if 'scheduled' in df.columns:
+                # Ensure 'scheduled' column is in datetime format
+                df['scheduled'] = pd.to_datetime(df['scheduled'])
+                df['scheduled'] = df['scheduled'].dt.tz_localize(None)
+
+                # Drop rows where 'scheduled' is greater than the current date and time
+                df = df[df['scheduled'] <= pd.Timestamp.now()]
+
             nan_counts = df.isnull().sum()
-            columns_to_drop = [col for col in nan_counts[nan_counts > 100].index.tolist() if 'odds' in col]
+            columns_to_drop = [col for col in nan_counts[nan_counts > 100].index.tolist() if 'odds' not in col]
             if columns_to_drop:
                 logging.warning(f"Dropping columns with more than 100 NaN values: {columns_to_drop}")
                 df = df.drop(columns=columns_to_drop).reset_index(drop=True)

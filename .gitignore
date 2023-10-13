@@ -13,3 +13,6 @@ data/blind_test_data.csv
 data/csvs/odds.csv
 models/*
 scripts/nfl_db_calculations.py
+flask_app/templates/team_power_rank.html
+flask_app/templates/normalized_power_ranks.html
+.gitignore

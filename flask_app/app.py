@@ -23,6 +23,7 @@ database_operations = DatabaseOperations()
 data_processing = DataProcessing()
 analyzer = NFLDataAnalyzer()
 nfl_model = NFLModel()
+nfl_power_ranks = StatsCalculator()
 
 # Fetch configurations using ConfigManager
 data_dir = config.get_config('paths', 'data_dir')
@@ -128,24 +129,7 @@ def generate_model():
 @app.route('/generate_power_ranks', methods=['POST'])
 def generate_power_ranks():
     try:
-        # Retrieve parameters from the POST request if available
-        home_team = request.form.get('homeTeam', None)
-        away_team = request.form.get('awayTeam', None)
-
-        # Date function currently stinks on UI
-        date = request.form.get('date', datetime.today().strftime('%Y-%m-%d'))  # Set to current date if not available
-
-        # Find the most recent Tuesday
-        while date.weekday() != 1:  # 1 represents Tuesday
-            date -= timedelta(days=1)
-
-        if home_team is not None and away_team is not None:
-
-            """ Won't work until sim class is updated
-            predictor = NFLPredictor(home_team, away_team, date)
-            predictor.main()
-            return render_template('simulator_results.html')
-            """
+        nfl_power_ranks.main()
 
         # If successful, return a success message
         return jsonify(status="success"), 200
