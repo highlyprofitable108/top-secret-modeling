@@ -44,6 +44,22 @@ class DataProcessing:
             self.logger.error(f"Error flattening and merging data: {e}")
             return pd.DataFrame()
 
+    def collapse_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert a dataframe with columns containing '.' into a dataframe with nested dictionaries.
+        """
+        collapsed_data = []
+        for _, row in df.iterrows():
+            nested_data = {}
+            for col, value in row.items():
+                keys = col.split('.')
+                d = nested_data
+                for key in keys[:-1]:
+                    d = d.setdefault(key, {})
+                d[keys[-1]] = value
+            collapsed_data.append(nested_data)
+        return pd.DataFrame(collapsed_data)
+
     def time_to_minutes(self, time_str: str) -> float:
         """
         Convert time string 'MM:SS' to minutes as a float.
