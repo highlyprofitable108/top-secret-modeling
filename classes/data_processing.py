@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+from datetime import datetime, timedelta
 from importlib import reload
 import scripts.constants
 import scripts.all_columns
@@ -53,12 +54,46 @@ class DataProcessing:
         Returns:
             float: The time in minutes.
         """
+        if pd.isna(time_str):
+            return None
+
         try:
             minutes, seconds = map(int, time_str.split(':'))
             return minutes + seconds / 60
         except ValueError:
             self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None
+
+    # CURRENTLY HAS END_DATE IN DEBUG MODE
+    def generate_weekdays_list(self, start_date, weekday=1, excluded_months=list(range(3, 9))):
+        """
+        Generate a list of specific weekdays between start_date and end_date.
+
+        Parameters:
+        - start_date (datetime): The start date.
+        - end_date (datetime): The end date.
+        - weekday (int): The desired weekday (0=Monday, 1=Tuesday, ..., 6=Sunday).
+        - excluded_months (list): List of months to exclude.
+
+        Returns:
+        - List[datetime]: List of desired weekdays.
+        """
+        # end_date = datetime.today()  # Set end_date to the current date
+        end_date = datetime(2022, 11, 22)
+        current_date = start_date
+        weekdays_list = []
+
+        # Adjust the start date to the next desired weekday
+        days_to_next_weekday = (weekday - current_date.weekday() + 7) % 7
+        current_date += timedelta(days=days_to_next_weekday)
+
+        # Append desired weekdays to the list until the end date, skipping excluded months
+        while current_date <= end_date:
+            if current_date.month not in excluded_months:
+                weekdays_list.append(current_date)
+            current_date += timedelta(weeks=1)
+
+        return weekdays_list
 
     def calculate_scoring_differential(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -135,6 +170,41 @@ class DataProcessing:
         except Exception as e:
             logging.error(f"Error in handle_null_values: {e}")
             return df
+
+    def handle_duplicate_columns(self, ranks_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Handle duplicate columns in the provided DataFrame.
+
+        :param ranks_df: DataFrame with potential duplicate columns.
+        :return: DataFrame with duplicate columns handled.
+        """
+        # Identify duplicate columns
+        is_duplicate = ranks_df.columns.duplicated(keep=False)
+        duplicated_cols = ranks_df.columns[is_duplicate].unique()
+
+        for col in duplicated_cols:
+            # If the column data is a DataFrame (multiple columns with the same name)
+            if isinstance(ranks_df[col], pd.DataFrame):
+                # Combine the data from all duplicate columns (e.g., take the mean, sum, or any other operation)
+                # Here, I'm taking the last column as an example
+                ranks_df.loc[:, col] = ranks_df[col].iloc[:, -1]
+
+            # Drop all but the last occurrence of the duplicated column
+            col_locs = ranks_df.columns.get_loc(col)
+            if isinstance(col_locs, slice):
+                col_locs = list(range(col_locs.start, col_locs.stop))
+            if isinstance(col_locs, list) and len(col_locs) > 1:
+                ranks_df = ranks_df.drop(ranks_df.columns[col_locs[:-1]], axis=1)
+
+        # De-fragment the DataFrame
+        ranks_df = ranks_df.reset_index(drop=True)
+
+        # Check for any remaining duplicates
+        remaining_duplicates = ranks_df.columns[ranks_df.columns.duplicated()]
+        if len(remaining_duplicates) > 0:
+            print(f"Remaining duplicate columns: {remaining_duplicates}")
+
+        return ranks_df
 
     def update_columns_file(self, columns_to_remove):
         """Update the constants.py file to remove specified columns."""

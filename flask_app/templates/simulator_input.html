@@ -17,7 +17,7 @@
 
     <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
         <h3 class="text-2xl font-bold mb-4 text-gray-800">NFL Game Simulator</h3>
-        <form action="/generate_power_ranks" method="post">
+        <form action="/sim_runner" method="post">
             <div class="mb-4">
                 <label for="date" class="block text-gray-700">Select a date:</label>
                 <input id="date" min="2021-01-01" name="date" type="date" class="form-input mt-1 block w-full"/>
@@ -26,39 +26,39 @@
             <div class="mb-4">
                 <label for="homeTeam" class="block text-gray-700">Select a home team:</label>
                 <select id="homeTeam" name="homeTeam" class="form-select mt-1 block w-full">
-                    <option value="ARI">ARI</option>
-                    <option value="ATL">ATL</option>
-                    <option value="BAL">BAL</option>
-                    <option value="BUF">BUF</option>
-                    <option value="CAR">CAR</option>
-                    <option value="CHI">CHI</option>
-                    <option value="CIN">CIN</option>
-                    <option value="CLE">CLE</option>
-                    <option value="DAL">DAL</option>
-                    <option value="DEN">DEN</option>
-                    <option value="DET">DET</option>
-                    <option value="GB">GB</option>
-                    <option value="HOU">HOU</option>
-                    <option value="IND">IND</option>
-                    <option value="JAC">JAC</option>
-                    <option value="KC">KC</option>
-                    <option value="LA">LAR</option>
-                    <option value="LAC">LAC</option>
-                    <option value="LV">LV</option>
-                    <option value="MIA">MIA</option>
-                    <option value="MIN">MIN</option>
-                    <option value="NE">NE</option>
-                    <option value="NO">NO</option>
-                    <option value="NYG">NYG</option>
-                    <option value="NYJ">NYJ</option>
-                    <option value="OAK">OAK</option>
-                    <option value="PHI">PHI</option>
-                    <option value="PIT">PIT</option>
-                    <option value="SEA">SEA</option>
-                    <option value="SF">SF</option>
-                    <option value="TB">TB</option>
-                    <option value="TEN">TEN</option>
-                    <option value="WAS">WAS</option>
+                    <option value="Cardinals">ARI</option>
+                    <option value="Falcons">ATL</option>
+                    <option value="Ravens">BAL</option>
+                    <option value="Bills">BUF</option>
+                    <option value="Panthers">CAR</option>
+                    <option value="Bears">CHI</option>
+                    <option value="Bengals">CIN</option>
+                    <option value="Browns">CLE</option>
+                    <option value="Cowboys">DAL</option>
+                    <option value="Broncos">DEN</option>
+                    <option value="Lions">DET</option>
+                    <option value="Packer">GB</option>
+                    <option value="Texans">HOU</option>
+                    <option value="Colts">IND</option>
+                    <option value="Jaguars">JAC</option>
+                    <option value="Chiefs">KC</option>
+                    <option value="Rams">LAR</option>
+                    <option value="Chargers">LAC</option>
+                    <option value="Raiders">LV</option>
+                    <option value="Dolphins">MIA</option>
+                    <option value="Vikings">MIN</option>
+                    <option value="Patriots">NE</option>
+                    <option value="Saints">NO</option>
+                    <option value="Giants">NYG</option>
+                    <option value="Jets">NYJ</option>
+                    <option value="Raiders">OAK</option>
+                    <option value="Eagles">PHI</option>
+                    <option value="Steelers">PIT</option>
+                    <option value="Seahawks">SEA</option>
+                    <option value="49ers">SF</option>
+                    <option value="Buccaneers">TB</option>
+                    <option value="Titans">TEN</option>
+                    <option value="Commanders">WAS</option>
                 </select>
                 <span class="tooltiptext">The team that will be playing on their home ground.</span>
             </div>

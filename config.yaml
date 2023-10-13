@@ -1,6 +1,17 @@
 default:
   base_dir: .
 
+constants:
+  TWO_YEARS_IN_DAYS: 730
+  MAX_DAYS_SINCE_GAME: 728
+  CUTOFF_DATE: '2019-09-01'
+  BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
+  AWAY_PREFIX: "statistics_away."
+  HOME_PREFIX: "statistics_home."
+  GAMES_DB_NAME: "games"
+  TEAMS_DB_NAME: "teams"
+  RANKS_DB_NAME: "team_aggregated_metrics"
+
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
   api_key: "pvuwb272w345p6gkkzpytjd7"

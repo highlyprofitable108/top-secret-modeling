@@ -1,5 +1,4 @@
 # all_columns.py
-
 # List of columns
 
 ALL_COLUMNS = [

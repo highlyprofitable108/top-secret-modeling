@@ -138,6 +138,37 @@ def generate_power_ranks():
         return jsonify(error=str(e)), 500
 
 
+@app.route('/sim_runner', methods=['POST'])
+def sim_runner():
+    try:
+        # Retrieve parameters from the POST request if available
+        home_team = request.form.get('homeTeam', None)
+        away_team = request.form.get('awayTeam', None)
+
+        # Given date
+        date_input = request.form.get('date')
+        if not date_input:
+            date_input = datetime.today()
+        elif isinstance(date_input, str):
+            date_input = datetime.strptime(date_input, '%Y-%m-%d')
+
+        # Determine the closest past Tuesday
+        while date_input.weekday() != 1:  # 1 represents Tuesday
+            date_input -= timedelta(days=1)
+
+        if home_team is not None and away_team is not None:
+            nfl_sim = NFLPredictor(home_team, away_team, date)
+            nfl_sim.main()
+
+            return render_template('simulator_results.html')
+
+        # If successful, return a success message
+        return jsonify(status="success"), 200
+    except Exception as e:
+        # If there is an error, return an error message
+        return jsonify(error=str(e)), 500
+
+
 @app.route('/interactive_heatmap')
 def heatmap():
     return render_template('interactive_heatmap.html')

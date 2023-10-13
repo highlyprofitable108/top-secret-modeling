@@ -1,4 +1,3 @@
-from classes.config_manager import ConfigManager
 from classes.api_handler import APIHandler
 import logging
 
@@ -54,4 +53,4 @@ def fetch_nfl_data(year: int, season_type: str) -> dict:
 
 if __name__ == "__main__":
     # Example usage:
-    fetch_nfl_data(2020, "POST")
+    fetch_nfl_data(2022, "REG")

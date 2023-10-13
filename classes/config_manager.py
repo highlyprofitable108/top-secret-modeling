@@ -55,6 +55,10 @@ class ConfigManager:
         except AttributeError:
             self.logger.error("Error: Configuration data is not loaded correctly.")
             return None
+        
+    def get_constant(self, key: str) -> any:
+        """Gets a constant value from the configuration data."""
+        return self.get_config('constants', key)
 
     def get_json_dir(self) -> str:
         """Gets the JSON directory path from the configuration data."""
