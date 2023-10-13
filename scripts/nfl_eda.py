@@ -117,7 +117,6 @@ class NFLDataAnalyzer:
         df = self.process_data(df)
         df = self.filter_columns(df)
         df = self.data_processing.handle_null_values(df)
-
         return df
 
     def plot_feature_importance(self, df):
@@ -128,8 +127,8 @@ class NFLDataAnalyzer:
 
             # Hyperparameter tuning
             param_grid = {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [None, 10, 20],
+                'n_estimators': [100],
+                'max_depth': [None],
             }
             model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3)
             model.fit(X, y)
@@ -369,6 +368,7 @@ class NFLDataAnalyzer:
             logging.info("Starting main method")
             collection_name = 'pre_game_data'
             df = self.load_and_process_data(collection_name)
+
             return self.generate_eda_report(df)
         except Exception as e:
             logging.error(f"Error in main: {e}")
