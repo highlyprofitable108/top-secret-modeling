@@ -2,6 +2,7 @@ default:
   base_dir: .
 
 constants:
+  TARGET_VARIABLE: "odds_spread"
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
   CUTOFF_DATE: '2019-09-01'
@@ -29,3 +30,7 @@ paths:
 database:
   mongo_uri: "mongodb://localhost:27017/"
   database_name: "nfl_db"
+
+eda_settings:
+  type: "random forest"
+  grid_search: "some value"
