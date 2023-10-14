@@ -11,7 +11,7 @@ constants:
   HOME_PREFIX: "statistics_home."
   GAMES_DB_NAME: "games"
   TEAMS_DB_NAME: "teams"
-  RANKS_DB_NAME: "team_aggregated_metrics"
+  RANKS_DB_NAME: "team_aggregated_metrics" 
 
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
@@ -32,5 +32,7 @@ database:
   database_name: "nfl_db"
 
 eda_settings:
-  type: "random forest"
-  grid_search: "some value"
+  model_type: "random_forest"
+  grid_search:
+    n_estimators: [100]
+    max_depth: [None]
