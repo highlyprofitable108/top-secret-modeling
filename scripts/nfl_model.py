@@ -138,7 +138,6 @@ class NFLModel:
         """Train a RandomForestRegressor with hyperparameter tuning."""
         logging.info("Training RandomForestRegressor with hyperparameter tuning...")
 
-
         # Figure out how to filter and input from config.yaml
         param_grid = {
             'n_estimators': [100], 

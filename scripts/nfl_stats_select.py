@@ -1,8 +1,10 @@
+from classes.config_manager import ConfigManager
 import random
 from .all_columns import ALL_COLUMNS
 
+config = ConfigManager()
 PAGE_SIZE = 20
-
+TARGET_VARIABLE = config.get_constant('TARGET_VARIABLE')
 
 def display_columns(columns, page):
     """Displays the columns with indices to the user."""
@@ -34,7 +36,7 @@ def generate_constants_file(selected_columns):
         file.write("# constants.py\n\n")
         file.write("# List of column names to keep\n")
         file.write("COLUMNS_TO_KEEP = [\n")
-        file.write('    "odds_spread",\n')
+        file.write(f'    "{TARGET_VARIABLE}",\n')
         for col in selected_columns:
             col = col.replace(' ', '.')
             if 'efficiency' not in col and 'summary' not in col and '_first_downs.' not in col and '_interceptions.' not in col and '_touchdowns.' not in col:

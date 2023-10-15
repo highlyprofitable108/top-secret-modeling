@@ -6,12 +6,15 @@ constants:
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
   CUTOFF_DATE: '2019-09-01'
+  END_DATE: '2022-11-22'
   BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
   AWAY_PREFIX: "statistics_away."
   HOME_PREFIX: "statistics_home."
   GAMES_DB_NAME: "games"
   TEAMS_DB_NAME: "teams"
+  PREGAME_DB_NAME: "pre_game_data"
   RANKS_DB_NAME: "team_aggregated_metrics"
+  WEEKLY_RANKS_DB_NAME: "weekly_ranks"
   WASHINGTON: "Commanders"
   DATE_FLEXIBILITY: 1
 

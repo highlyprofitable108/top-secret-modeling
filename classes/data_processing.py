@@ -80,8 +80,7 @@ class DataProcessing:
             self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None
 
-    # CURRENTLY HAS END_DATE IN DEBUG MODE
-    def generate_weekdays_list(self, start_date, weekday=1, excluded_months=list(range(3, 9))):
+    def generate_weekdays_list(self, start_date, end_date, weekday=1, excluded_months=list(range(3, 9))):
         """
         Generate a list of specific weekdays between start_date and end_date.
 
@@ -94,8 +93,6 @@ class DataProcessing:
         Returns:
         - List[datetime]: List of desired weekdays.
         """
-        # end_date = datetime.today()  # Set end_date to the current date
-        end_date = datetime(2022, 11, 22)
         current_date = start_date
         weekdays_list = []
 

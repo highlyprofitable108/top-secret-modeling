@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class NFLDataAnalyzer:
     """A class to analyze NFL data and generate EDA reports."""
 
-    def __init__(self, TARGET_VARIABLE='self.TARGET_VARIABLE'):
+    def __init__(self):
         """Initializes the NFLDataAnalyzer with necessary configurations and setups."""
         # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
@@ -37,14 +37,15 @@ class NFLDataAnalyzer:
         self.GAMES_DB_NAME = self.config.get_constant('GAMES_DB_NAME')
         self.TEAMS_DB_NAME = self.config.get_constant('TEAMS_DB_NAME')
         self.RANKS_DB_NAME = self.config.get_constant('RANKS_DB_NAME')
+        self.PREGAME_DB_NAME = self.config.get_constant('PREGAME_DB_NAME')
         self.TARGET_VARIABLE = self.config.get_constant('TARGET_VARIABLE')
 
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.static_dir = self.config.get_config('paths', 'static_dir')
         self.template_dir = self.config.get_config('paths', 'template_dir')
 
-        self.model_type = self.config.get_model_settings('model_type')
-        self.grid_search_params = self.config.get_model_settings('grid_search')
+        self.model_type = self.config.model_settings('model_type')
+        self.grid_search_params = self.config.model_settings('grid_search')
 
     def load_and_process_data(self, collection_name):
         """Loads and processes data from the specified MongoDB collection."""
@@ -67,7 +68,7 @@ class NFLDataAnalyzer:
         """Processes the data by flattening, merging, and calculating scoring differential."""
         try:
             df = self.data_processing.flatten_and_merge_data(df)
-            df = df.dropna(subset=['self.TARGET_VARIABLE'])  # Remove rows where 'self.TARGET_VARIABLE' is NaN
+            df = df.dropna(subset=[self.TARGET_VARIABLE])  # Remove rows where self.TARGET_VARIABLE is NaN
 
             # Descriptive Statistics (Integration of suggestion 2)
             descriptive_stats = df.describe()
@@ -317,7 +318,7 @@ class NFLDataAnalyzer:
         """Main method to load data and generate EDA report."""
         try:
             logging.info("Starting main method")
-            collection_name = 'pre_game_data'
+            collection_name = self.PREGAME_DB_NAME
             df = self.load_and_process_data(collection_name)
 
             return self.generate_eda_report(df)
