@@ -55,10 +55,25 @@ class ConfigManager:
         except AttributeError:
             self.logger.error("Error: Configuration data is not loaded correctly.")
             return None
-        
+
     def get_constant(self, key: str) -> any:
         """Gets a constant value from the configuration data."""
         return self.get_config('constants', key)
+
+    def get_model_settings(self, key: str = None) -> any:
+        """
+        Gets an EDA setting from the configuration data.
+
+        Args:
+            key (str): The key for the specific EDA setting. If not provided, returns the entire EDA settings.
+
+        Returns:
+            any: The EDA setting value.
+        """
+        model_settings = self.get_config('model_settings')
+        if key:
+            return model_settings.get(key)
+        return model_settings
 
     def get_json_dir(self) -> str:
         """Gets the JSON directory path from the configuration data."""

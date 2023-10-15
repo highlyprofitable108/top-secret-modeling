@@ -30,14 +30,6 @@ class DBInserter:
         self.client = pymongo.MongoClient(self.mongo_uri)
         self.db = self.client[self.db_name]
 
-    def insert_venue_if_not_exists(self, venue_data):
-        """Inserts the venue data into the database if it does not already exist."""
-        if venue_data:
-            venue_collection = self.db['venues']
-            venue_id = venue_data.get('id', None)
-            if venue_id and not venue_collection.find_one({'venue_id': venue_id}):
-                venue_collection.insert_one(venue_data)
-
     def insert_data_from_json(self, file_path):
         """Inserts data from a JSON file into the database."""
         if os.path.exists(file_path):
@@ -102,7 +94,17 @@ class DBInserter:
         """Inserts summary data into the database."""
         if 'summary' in data:
             summary_collection = self.db['summary']
-            summary_collection.insert_one(data['summary'])
+            summary_collection.insert_one(data['summary'])    
+
+    def load_data_from_csv(self):
+        """Loads data from a CSV file."""
+        if os.path.exists(self.odds_dir):
+            with open(self.odds_dir, 'r') as file:
+                reader = csv.reader(file)
+                next(reader)  # skip header row
+                for row in reader:
+                    date, home_team, away_team, spread, total = self.add_odds_data(row)
+                    self.update_odds_in_mongodb(date, home_team, away_team, spread, total)
 
     def add_odds_data(self, row):
         """Processes a row from the CSV and inserts it into the 'games' collection."""
@@ -194,7 +196,7 @@ class DBInserter:
             # Extract summary data from the game document
             home_points = game['summary']['home']['points']
             away_points = game['summary']['away']['points']
-            
+
             # Calculate covered value
             if (home_points + spread) - away_points > 0:
                 covered = "Yes"
@@ -223,16 +225,6 @@ class DBInserter:
             )
         else:
             logging.warning(f"No match found for date: {date_str}, home_team: {home_team_main}, away_team: {away_team_main}")
-
-    def load_data_from_csv(self):
-        """Loads data from a CSV file."""
-        if os.path.exists(self.odds_dir):
-            with open(self.odds_dir, 'r') as file:
-                reader = csv.reader(file)
-                next(reader)  # skip header row
-                for row in reader:
-                    date, home_team, away_team, spread, total = self.add_odds_data(row)
-                    self.update_odds_in_mongodb(date, home_team, away_team, spread, total)
 
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""

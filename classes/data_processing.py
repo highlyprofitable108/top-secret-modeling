@@ -44,6 +44,22 @@ class DataProcessing:
             self.logger.error(f"Error flattening and merging data: {e}")
             return pd.DataFrame()
 
+    def collapse_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert a dataframe with columns containing '.' into a dataframe with nested dictionaries.
+        """
+        collapsed_data = []
+        for _, row in df.iterrows():
+            nested_data = {}
+            for col, value in row.items():
+                keys = col.split('.')
+                d = nested_data
+                for key in keys[:-1]:
+                    d = d.setdefault(key, {})
+                d[keys[-1]] = value
+            collapsed_data.append(nested_data)
+        return pd.DataFrame(collapsed_data)
+
     def time_to_minutes(self, time_str: str) -> float:
         """
         Convert time string 'MM:SS' to minutes as a float.
@@ -64,8 +80,7 @@ class DataProcessing:
             self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None
 
-    # CURRENTLY HAS END_DATE IN DEBUG MODE
-    def generate_weekdays_list(self, start_date, weekday=1, excluded_months=list(range(3, 9))):
+    def generate_weekdays_list(self, start_date, end_date, weekday=1, excluded_months=list(range(3, 9))):
         """
         Generate a list of specific weekdays between start_date and end_date.
 
@@ -78,8 +93,6 @@ class DataProcessing:
         Returns:
         - List[datetime]: List of desired weekdays.
         """
-        # end_date = datetime.today()  # Set end_date to the current date
-        end_date = datetime(2022, 11, 22)
         current_date = start_date
         weekdays_list = []
 

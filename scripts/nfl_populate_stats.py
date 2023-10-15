@@ -1,12 +1,10 @@
-from datetime import datetime
-from pymongo import MongoClient
-import scripts.constants
-import plotly.express as px
-import pandas as pd
-import numpy as np
 import os
-import joblib
 import logging
+import joblib
+import pandas as pd
+from pymongo import MongoClient
+import plotly.express as px
+from datetime import datetime
 from importlib import reload
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
@@ -16,36 +14,37 @@ import scripts.constants
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize ConfigManager, DatabaseOperations, and DataProcessing
-config = ConfigManager()
-db_operations = DatabaseOperations()
-data_processing = DataProcessing()
-
-# Fetch configurations using ConfigManager
-data_dir = config.get_config('paths', 'data_dir')
-model_dir = config.get_config('paths', 'model_dir')
-database_name = config.get_config('database', 'database_name')
-
 
 class StatsCalculator:
     def __init__(self, date=None):
-        # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
-        self.constants = scripts.constants.COLUMNS_TO_KEEP
-
-        # Fetch configurations using ConfigManager
-        self.data_dir = self.config.get_config('paths', 'data_dir')
-        self.model_dir = self.config.get_config('paths', 'model_dir')
-        self.static_dir = self.config.get_config('paths', 'static_dir')
-        self.template_dir = self.config.get_config('paths', 'template_dir')
-        self.database_name = self.config.get_config('database', 'database_name')
-        self.feature_columns = [col for col in self.constants]
+        self.CONSTANTS = scripts.constants.COLUMNS_TO_KEEP
+        self._fetch_constants_and_configs()
         self.LOADED_MODEL = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
+        self.feature_columns = [col for col in self.CONSTANTS]
 
-        # Convert the string date to a datetime object
-        # self.date_obj = datetime.strptime(self.date, '%Y-%m-%d')
+    def _fetch_constants_and_configs(self):
+        try:
+            constants = [
+                'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX',
+                'HOME_PREFIX', 'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'PREGAME_DB_NAME', 'RANKS_DB_NAME',
+                'WEEKLY_RANKS_DB_NAME', 'CUTOFF_DATE', 'TARGET_VARIABLE'
+            ]
+            for const in constants:
+                setattr(self, const, self.config.get_constant(const))
+            self.CUTOFF_DATE = datetime.strptime(self.CUTOFF_DATE, '%Y-%m-%d')
+            self.model_type = self.config.get_model_settings('model_type')
+            self.grid_search_params = self.config.get_model_settings('grid_search')
+
+            paths = ['data_dir', 'model_dir', 'static_dir', 'template_dir']
+            for path in paths:
+                setattr(self, path, self.config.get_config('paths', path))
+
+            self.database_name = self.config.get_config('database', 'database_name')
+        except Exception as e:
+            raise ValueError(f"Error fetching configurations: {e}")
 
     def load_and_process_data(self):
         """
@@ -55,29 +54,21 @@ class StatsCalculator:
         :return: Two dataframes containing the loaded and processed data
         """
         try:
-            # Step 1: Fetch data from the database
-            games_df = self.database_operations.fetch_data_from_mongodb("pre_game_data")
+            games_df = self.database_operations.fetch_data_from_mongodb(self.PREGAME_DB_NAME)
+            processed_games_df = self.data_processing.flatten_and_merge_data(games_df)
 
-            # Step 2: Perform initial data processing (like flattening the data)
-            processed_games_df = data_processing.flatten_and_merge_data(games_df)
-
-            # Convert columns with list values to string
             for col in processed_games_df.columns:
                 if processed_games_df[col].apply(type).eq(list).any():
                     processed_games_df[col] = processed_games_df[col].astype(str)
 
-            # Additional data processing steps (as per the original script)
-            # processed_games_df = data_processing.calculate_scoring_differential(processed_games_df)
-
-            # Drop games if 'scoring_differential' key does not exist
-            if 'odds_spread' not in processed_games_df.columns:
-                print("'odds_spread' key does not exist. Dropping games.")
+            if self.TARGET_VARIABLE not in processed_games_df.columns:
+                logging.warning(f"{self.TARGET_VARIABLE} key does not exist. Dropping games.")
                 return pd.DataFrame()
 
             return processed_games_df
         except Exception as e:
-            print(f"Error in load_and_process_data function: {e}")
-            return None, None
+            logging.error(f"Error in load_and_process_data function: {e}")
+            return None
 
     def transform_data(self, processed_df, feature_columns):
         """
@@ -100,7 +91,7 @@ class StatsCalculator:
             df_away = df_away.rename(columns={'ranks_away_update_date': 'update_date'})
             return df_home, df_away
         except Exception as e:
-            print(f"Error in transform_data function: {e}")
+            logging.error(f"Error in transform_data function: {e}")
             return None, None
 
     def calculate_power_rank(self, df_home, df_away, metrics_home, metrics_away, weights):
@@ -146,12 +137,15 @@ class StatsCalculator:
             # Concatenate home and away dataframes to create a single dataframe
             df = pd.concat([df_home, df_away], ignore_index=True)
 
+            # Ensure update_date is in datetime format
+            df['update_date'] = pd.to_datetime(df['update_date'])
+
             # Determine the week number based on the Tuesday-to-Monday window
             df['week_number'] = (df['update_date'] - pd.Timedelta(days=1)).dt.isocalendar().week
 
             return df
         except Exception as e:
-            print(f"Error in calculate_power_rank function: {e}")
+            logging.error(f"Error in calculate_power_rank function: {e}")
             return pd.DataFrame()  # Return an empty dataframe if an error occurs
 
     def normalize_data(self, df):
@@ -187,7 +181,7 @@ class StatsCalculator:
 
             return df  # The final aggregated and normalized dataframe
         except Exception as e:
-            print(f"Error in normalize_data function: {e}")
+            logging.error(f"Error in normalize_data function: {e}")
             return None
 
     def insert_aggregated_data_into_database(self, aggregated_df,):
@@ -198,26 +192,26 @@ class StatsCalculator:
         """
         try:
             # Drop the collection if it exists
-            if 'weekly_ranks' in self.database_operations.db.list_collection_names():
+            if self.WEEKLY_RANKS_DB_NAME in self.database_operations.db.list_collection_names():
                 self.database_operations.db.weekly_ranks.drop()
 
             # Insert the aggregated data into the collection
             aggregated_df.reset_index(inplace=True, drop=True)
-            self.database_operations.insert_data_into_mongodb('weekly_ranks', aggregated_df.to_dict('records'))
+            self.database_operations.insert_data_into_mongodb(self.WEEKLY_RANKS_DB_NAME, aggregated_df.to_dict('records'))
 
             # Saving the report to a CSV file
             aggregated_df = aggregated_df.sort_values(by='normalized_power_rank', ascending=False)
             power_ranks_report_path = os.path.join(self.static_dir, 'power_ranks.csv')
             aggregated_df.to_csv(power_ranks_report_path)
-            print("Aggregated data inserted into MongoDB successfully.")
+            logging.info("Aggregated data inserted into MongoDB successfully.")
         except Exception as e:
-            print(f"Error inserting aggregated data into MongoDB: {e}")
+            logging.error(f"Error inserting aggregated data into MongoDB: {e}")
 
     def fetch_team_ranking_metrics(self):
         """Fetch weekly_ranks from MongoDB and return as a DataFrame."""
         client = MongoClient()
         db = client[self.database_name]
-        collection = db['weekly_ranks']
+        collection = db[self.WEEKLY_RANKS_DB_NAME]
         df = pd.DataFrame(list(collection.find()))
         return df
 
@@ -240,8 +234,8 @@ class StatsCalculator:
         else:
             # Find the most recent update_date that contains at least 30 rows
             date_counts = df.groupby('update_date').size()
-            print(date_counts)
-            valid_dates = date_counts[date_counts >= 30].index
+
+            valid_dates = date_counts[date_counts >= 25].index
             recent_date = valid_dates.max()
 
         recent_df = df[df['update_date'] == recent_date]
@@ -258,12 +252,8 @@ class StatsCalculator:
 
     def main(self):    # Load and process data
         processed_games_df = self.load_and_process_data()
-
-        # Reload constants
         reload(scripts.constants)
-
-        # Filter columns with stripping whitespaces and exclude 'scoring_differential'
-        columns_to_filter = [col for col in self.constants]
+        columns_to_filter = [col.strip() for col in self.CONSTANTS]
 
         if processed_games_df is not None:
             # Transform data
@@ -273,7 +263,7 @@ class StatsCalculator:
                 # Calculate power rank
                 metrics_home = [metric for metric in columns_to_filter if metric.startswith('ranks_home_')]
                 metrics_away = [metric for metric in columns_to_filter if metric.startswith('ranks_away_')]
-                feature_importances = self.LOADED_MODEL.feature_importances_
+                feature_importances = self.LOADED_MODEL.best_estimator_.feature_importances_
                 weights = dict(zip(columns_to_filter, feature_importances))
                 df = self.calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
 
@@ -282,11 +272,11 @@ class StatsCalculator:
                     # Insert aggregated data into MongoDB
                     self.insert_aggregated_data_into_database(normalized_df)
                 else:
-                    print("Error in calculating power rank. Exiting script.")
+                    logging.error("Error in calculating power rank. Exiting script.")
             else:
-                print("Error in data transformation. Exiting script.")
+                logging.error("Error in data transformation. Exiting script.")
         else:
-            print("Error in data loading and processing. Exiting script.")
+            logging.error("Error in data loading and processing. Exiting script.")
 
         # After inserting aggregated data into MongoDB
         df = self.fetch_team_ranking_metrics()
