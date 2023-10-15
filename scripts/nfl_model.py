@@ -18,6 +18,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class NFLModel:
     def __init__(self):
+        """
+        Initialize the NFLModel class, loading configurations and constants.
+
+        Initializes configuration settings, constants, and necessary class instances.
+        """
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
@@ -25,6 +30,11 @@ class NFLModel:
         self._fetch_constants_and_configs()
 
     def _fetch_constants_and_configs(self):
+        """
+        Fetch constants and configurations from the configuration manager.
+
+        Fetches various constants and configuration settings from the configuration manager.
+        """
         try:
             constants = [
                 'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX', 
@@ -47,6 +57,13 @@ class NFLModel:
             raise ValueError(f"Error fetching configurations: {e}")
 
     def load_and_process_data(self):
+        """
+        Load and preprocess data from MongoDB.
+
+        Loads data from MongoDB, preprocesses it, and filters based on specified criteria.
+
+        :return: Preprocessed DataFrame.
+        """
         logging.info("Loading and processing data...")
 
         try:
@@ -71,6 +88,14 @@ class NFLModel:
             return pd.DataFrame()
 
     def preprocess_nfl_data(self, df):
+        """
+        Preprocess NFL data for model training.
+
+        Handles null values, splits data into features and target variable, scales features, and prepares blind test data.
+
+        :param df: Preprocessed DataFrame.
+        :return: Tuple containing processed data and related objects.
+        """
         logging.info("Preprocessing NFL data...")
 
         try:
@@ -98,7 +123,18 @@ class NFLModel:
 
     def train_and_evaluate(self, X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns):
         """
-        This function trains the model on the training data and evaluates it on the test data and blind test data.
+        Train and evaluate the model on test and blind test data.
+
+        Trains the model, evaluates it on test and blind test data, and logs performance metrics.
+
+        :param X_train: Training features.
+        :param y_train: Training target variable.
+        :param X_test: Test features.
+        :param y_test: Test target variable.
+        :param X_blind_test: Blind test features.
+        :param y_blind_test: Blind test target variable.
+        :param feature_columns: List of feature column names.
+        :return: Trained model.
         """
         logging.info("Training and evaluating the model...")
 
@@ -124,7 +160,16 @@ class NFLModel:
             return None
 
     def train_model(self, X, y):
-        """Train a model based on the type settings in the configuration."""
+        """
+        Train a machine learning model based on specified settings.
+
+        Trains a machine learning model based on the model type defined in the configuration.
+
+        :param X: Features.
+        :param y: Target variable.
+        :return: Trained machine learning model.
+        """
+
         logging.info(f"Training model of type: {self.model_type}")
 
         model_type = self.model_type
@@ -135,7 +180,15 @@ class NFLModel:
             raise ValueError(f"The model type '{model_type}' specified in the config is not supported.")
 
     def train_random_forest(self, X, y):
-        """Train a RandomForestRegressor with hyperparameter tuning."""
+        """
+        Train a RandomForestRegressor with hyperparameter tuning.
+
+        Trains a RandomForestRegressor model with hyperparameter tuning using GridSearchCV.
+
+        :param X: Features.
+        :param y: Target variable.
+        :return: Trained RandomForestRegressor model.
+        """
         logging.info("Training RandomForestRegressor with hyperparameter tuning...")
 
         # Figure out how to filter and input from config.yaml
@@ -149,6 +202,12 @@ class NFLModel:
         return model
 
     def main(self):
+        """
+        Main method for executing the model training and evaluation pipeline.
+
+        This method orchestrates the entire model training and evaluation process, including data preprocessing,
+        model training, evaluation, and logging of results.
+        """
         try:
             processed_df = self.load_and_process_data()
             X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(processed_df)

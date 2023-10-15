@@ -16,7 +16,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 class StatsCalculator:
-    def __init__(self, date=None):
+    def __init__(self):
+        """
+        Initialize the StatsCalculator class, loading configurations, constants, and the trained model.
+
+        Initializes configuration settings, constants, class instances, and loads a pre-trained machine learning model.
+        """
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
@@ -26,6 +31,11 @@ class StatsCalculator:
         self.feature_columns = [col for col in self.CONSTANTS]
 
     def _fetch_constants_and_configs(self):
+        """
+        Fetch constants and configurations from the configuration manager.
+
+        Fetches various constants and configuration settings from the configuration manager and initializes class attributes.
+        """
         try:
             constants = [
                 'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX',
@@ -208,7 +218,13 @@ class StatsCalculator:
             logging.error(f"Error inserting aggregated data into MongoDB: {e}")
 
     def fetch_team_ranking_metrics(self):
-        """Fetch weekly_ranks from MongoDB and return as a DataFrame."""
+        """
+        Fetch team ranking metrics from MongoDB and return as a DataFrame.
+
+        Fetches the team ranking metrics from a MongoDB collection and returns them as a DataFrame.
+
+        :return: DataFrame containing team ranking metrics.
+        """
         client = MongoClient()
         db = client[self.database_name]
         collection = db[self.WEEKLY_RANKS_DB_NAME]
@@ -216,7 +232,14 @@ class StatsCalculator:
         return df
 
     def generate_interactive_htmls(self, df, date=None):
-        """Generate an interactive HTML visualization based on the DataFrame."""
+        """
+        Generate interactive HTML visualizations based on the DataFrame.
+
+        Generates interactive line and bar charts based on the DataFrame data and saves them as HTML files.
+
+        :param df: DataFrame containing team ranking metrics.
+        :param date: The date for which to generate visualizations.
+        """
         # Create the interactive line chart
         fig = px.line(df, x='update_date', y='normalized_power_rank', color='name', title='Normalized Power Rank by Update Date for Each Team')
 
@@ -250,7 +273,12 @@ class StatsCalculator:
         # Optionally, save the plot to an HTML file
         # fig.write_html("bar_chart.html")
 
-    def main(self):    # Load and process data
+    def main(self):
+        """
+        Main method for executing the power rank calculation and visualization pipeline.
+
+        Orchestrates the entire process of loading, transforming, calculating power ranks, and generating visualizations.
+        """
         processed_games_df = self.load_and_process_data()
         reload(scripts.constants)
         columns_to_filter = [col.strip() for col in self.CONSTANTS]
