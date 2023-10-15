@@ -11,7 +11,9 @@ constants:
   HOME_PREFIX: "statistics_home."
   GAMES_DB_NAME: "games"
   TEAMS_DB_NAME: "teams"
-  RANKS_DB_NAME: "team_aggregated_metrics" 
+  RANKS_DB_NAME: "team_aggregated_metrics"
+  WASHINGTON: "Commanders"
+  DATE_FLEXIBILITY: 1
 
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
@@ -31,7 +33,7 @@ database:
   mongo_uri: "mongodb://localhost:27017/"
   database_name: "nfl_db"
 
-eda_settings:
+model_settings:
   model_type: "random_forest"
   grid_search:
     n_estimators: [100]

@@ -43,8 +43,8 @@ class NFLDataAnalyzer:
         self.static_dir = self.config.get_config('paths', 'static_dir')
         self.template_dir = self.config.get_config('paths', 'template_dir')
 
-        self.model_type = self.config.get_eda('model_type')
-        self.grid_search_params = self.config.get_eda('grid_search')
+        self.model_type = self.config.get_model_settings('model_type')
+        self.grid_search_params = self.config.get_model_settings('grid_search')
 
     def load_and_process_data(self, collection_name):
         """Loads and processes data from the specified MongoDB collection."""
@@ -53,7 +53,7 @@ class NFLDataAnalyzer:
         df = self.filter_columns(df)
         df = self.data_processing.handle_null_values(df)
         return df
-    
+
     def load_data(self, collection_name):
         """Loads data from the specified MongoDB collection."""
         try:
@@ -94,7 +94,7 @@ class NFLDataAnalyzer:
         except Exception as e:
             logging.error(f"Error filtering columns: {e}")
             return pd.DataFrame()
-        
+
     def generate_eda_report(self, df):
         """Generates an EDA report with various analyses and saves it as image files."""
         try:

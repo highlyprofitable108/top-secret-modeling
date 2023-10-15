@@ -60,7 +60,7 @@ class ConfigManager:
         """Gets a constant value from the configuration data."""
         return self.get_config('constants', key)
 
-    def get_eda(self, key: str = None) -> any:
+    def get_model_settings(self, key: str = None) -> any:
         """
         Gets an EDA setting from the configuration data.
 
@@ -70,10 +70,10 @@ class ConfigManager:
         Returns:
             any: The EDA setting value.
         """
-        eda_settings = self.get_config('eda_settings')
+        model_settings = self.get_config('model_settings')
         if key:
-            return eda_settings.get(key)
-        return eda_settings
+            return model_settings.get(key)
+        return model_settings
 
     def get_json_dir(self) -> str:
         """Gets the JSON directory path from the configuration data."""
