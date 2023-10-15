@@ -6,7 +6,7 @@ constants:
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
   CUTOFF_DATE: '2019-09-01'
-  END_DATE: '2022-11-22'
+  END_DATE: '2019-10-20'
   BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
   AWAY_PREFIX: "statistics_away."
   HOME_PREFIX: "statistics_home."

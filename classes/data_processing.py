@@ -60,6 +60,55 @@ class DataProcessing:
             collapsed_data.append(nested_data)
         return pd.DataFrame(collapsed_data)
 
+    def cleanup_ranks(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert a dataframe that has ranks_* > type.stats to ranks_* > type > stats
+        """
+        cleaned_data = []
+
+        for _, row in df.iterrows():
+            cleaned_row = {}
+
+            for col, value in row.items():
+                if col.startswith("ranks_") and isinstance(value, dict):
+                    # Process 'ranks_*' columns with nested dictionaries
+                    nested_data = {}
+
+                    for sub_col, sub_value in value.items():
+                        if '.' in sub_col:
+                            # Split the sub-column name by dot ('.') to get the hierarchy levels
+                            keys = sub_col.split('.')
+
+                            if len(keys) > 1:
+                                # If the sub-column contains a period, nest it under 'type'
+                                type_key = keys[0]
+                                sub_key = '.'.join(keys[1:])
+
+                                if type_key not in nested_data:
+                                    nested_data[type_key] = {}
+
+                                # Access the 'type' dictionary and set the sub-values
+                                sub_nested_data = nested_data[type_key]
+                                sub_nested_data[sub_key] = sub_value
+                            else:
+                                # If there is no period in the sub-column, keep it as-is
+                                nested_data[sub_col] = sub_value
+                        else:
+                            # Keep non-'.' sub-columns as-is
+                            nested_data[sub_col] = sub_value
+
+                    cleaned_row[col] = nested_data
+                else:
+                    # If the column doesn't match the criteria, copy it as-is
+                    cleaned_row[col] = value
+
+            cleaned_data.append(cleaned_row)
+
+        # Create a new DataFrame from the cleaned data
+        cleaned_df = pd.DataFrame(cleaned_data)
+
+        return cleaned_df
+
     def time_to_minutes(self, time_str: str) -> float:
         """
         Convert time string 'MM:SS' to minutes as a float.
