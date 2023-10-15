@@ -34,13 +34,20 @@ class DBInserter:
         """Inserts data from a JSON file into the database."""
         if os.path.exists(file_path):
             try:
+                logging.info(f"Reading JSON data from file: {file_path}")
                 with open(file_path, 'r') as file:
                     data = json.load(file)
+                    logging.info("Inserting game data")
                     self.insert_game_data(data)
+                    logging.info("Inserting team data")
                     self.insert_team_data(data)
+                    logging.info("Inserting venue data")
                     self.insert_venue_data(data)
+                    logging.info("Inserting statistics data")
                     self.insert_statistics_data(data)
+                    logging.info("Inserting players data")
                     self.insert_players_data(data)
+                    logging.info("Inserting summary data")
                     self.insert_summary_data(data)
 
             except json.JSONDecodeError:

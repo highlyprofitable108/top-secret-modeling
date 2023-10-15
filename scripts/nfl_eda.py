@@ -44,8 +44,8 @@ class NFLDataAnalyzer:
         self.static_dir = self.config.get_config('paths', 'static_dir')
         self.template_dir = self.config.get_config('paths', 'template_dir')
 
-        self.model_type = self.config.model_settings('model_type')
-        self.grid_search_params = self.config.model_settings('grid_search')
+        self.model_type = self.config.get_model_settings('model_type')
+        self.grid_search_params = self.config.get_model_settings('grid_search')
 
     def load_and_process_data(self, collection_name):
         """Loads and processes data from the specified MongoDB collection."""
@@ -146,7 +146,7 @@ class NFLDataAnalyzer:
     def train_model(self, X, y):
         """Train a model based on the EDA settings in the configuration."""
         eda_type = self.model_type
-        if eda_type == "random forest":
+        if eda_type == "random_forest":
             return self.train_random_forest(X, y)
         # Add other model training methods here as needed
         else:
@@ -155,7 +155,7 @@ class NFLDataAnalyzer:
     def train_random_forest(self, X, y):
         """Train a RandomForestRegressor with hyperparameter tuning."""
         param_grid = self.grid_search_params
-        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3)
+        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3, verbose=2)
         model.fit(X, y)
         return model
 
@@ -327,5 +327,5 @@ class NFLDataAnalyzer:
             return None, None
 
 
-# analyzer = NFLDataAnalyzer()
-# analyzer.main()
+analyzer = NFLDataAnalyzer()
+analyzer.main()

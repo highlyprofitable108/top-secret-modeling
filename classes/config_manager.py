@@ -1,6 +1,10 @@
 import yaml
 import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
 class ConfigManager:
     """
     A class to manage the configuration settings from a YAML file.
@@ -13,9 +17,9 @@ class ConfigManager:
         Args:
             config_path (str): The path to the configuration file. Defaults to "config.yaml".
         """
+        self.logger = logging.getLogger(__name__)
         self.config_path = config_path
         self.config_data = self.load_config()
-        self.logger = logging.getLogger(__name__)
 
     def load_config(self) -> dict:
         """
