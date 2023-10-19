@@ -234,7 +234,7 @@ class WeightedStatsAvg:
         weeks_since_game = days // 7  # Convert days to weeks
 
         # Within the first week: No decay
-        if weeks_since_game == 0:
+        if weeks_since_game <= 0:
             return 1.0
 
         # After 1 week: Gentle decay for recent performances

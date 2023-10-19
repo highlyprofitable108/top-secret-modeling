@@ -29,12 +29,11 @@ nfl_power_ranks = StatsCalculator()
 data_dir = config.get_config('paths', 'data_dir')
 model_dir = config.get_config('paths', 'model_dir')
 database_name = config.get_config('database', 'database_name')
-feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'odds_spread'))
+feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'odds.spread'))
 
 
 def get_active_constants():
-    active_constants = list(set(col.replace('ranks_home_', '') for col in constants.COLUMNS_TO_KEEP if 'odds_spread' not in col))
-    active_constants = list(set(col.replace('ranks_away_', '') for col in active_constants))
+    active_constants = list(set(col for col in constants.COLUMNS_TO_KEEP if col != 'odds.spread'))
     active_constants.sort()
 
     importlib.reload(constants)
@@ -42,11 +41,17 @@ def get_active_constants():
     # Categorizing the constants
     categories = defaultdict(list)
     for constant in active_constants:
+        constant = constant.replace(' Difference', '').replace(' Ratio', '')
         category = constant.split('.')[0]
+        
         categories[category].append(constant)
 
     # Sorting the constants within each category
-    sorted_categories = {category: sorted(sub_categories, key=lambda x: x.split('.')[1]) for category, sub_categories in categories.items()}
+    def sort_key(x):
+        parts = x.split('.')
+        return parts[1] if len(parts) > 1 else parts[0]
+
+    sorted_categories = {category: sorted(sub_categories, key=sort_key) for category, sub_categories in categories.items()}
 
     return sorted_categories
 
@@ -63,13 +68,9 @@ def columns():
     columns = nfl_stats_select.ALL_COLUMNS
     categorized_columns = defaultdict(list)
     for column in columns:
-        column = column.replace('totals.', '').replace('kicks.', 'kicks ').replace('conversions.', 'conversions ')
         prefix, rest = column.split('.', 1)
         prefix_display = prefix.replace('_', ' ').title()
-        if prefix.lower() == "efficiency":
-            formatted_column = rest.replace('.', ' ').replace('_', ' ').title()
-        else:
-            formatted_column = rest.replace('_', ' ').title()
+        formatted_column = rest.replace('_', ' ').title()
         categorized_columns[prefix_display].append((formatted_column, column))
 
     active_constants = get_active_constants()
@@ -95,7 +96,34 @@ def get_model_update_time():
 def process_columns():
     selected_columns = request.form.getlist('columns')
     selected_columns = nfl_stats_select.get_user_selection(selected_columns)
-    nfl_stats_select.generate_constants_file(selected_columns)
+
+    print(selected_columns)
+    ratio_columns = [
+        "summary.avg_gain",
+        "rushing.totals.avg_yards",
+        "receiving.totals.avg_yards",
+        "receiving.totals.yards_after_catch",
+        "punts.totals.avg_net_yards",
+        "punts.totals.avg_yards",
+        "punts.totals.avg_hang_time",
+        "passing.totals.cmp_pct",
+        "passing.totals.rating",
+        "passing.totals.avg_yards",
+        "field_goals.totals.pct",
+        "efficiency.goaltogo.pct",
+        "efficiency.redzone.pct",
+        "efficiency.thirddown.pct",
+        "efficiency.fourthdown.pct"
+    ]
+
+    modified_columns = []
+    for column in selected_columns:
+        if column in ratio_columns:
+            modified_columns.append(column + '_ratio')
+        else:
+            modified_columns.append(column + '_difference')
+
+    nfl_stats_select.generate_constants_file(modified_columns)
 
     importlib.reload(constants)
 

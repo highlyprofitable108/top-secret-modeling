@@ -39,8 +39,7 @@ def generate_constants_file(selected_columns):
         file.write("COLUMNS_TO_KEEP = [\n")
         file.write(f'    "{TARGET_VARIABLE}",\n')
         for col in selected_columns:
-            file.write(f'    "{col}_difference",\n')
-            file.write(f'    "{col}_ratio",\n')
+            file.write(f'    "{col}",\n')
         file.write("]\n")
 
 

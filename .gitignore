@@ -15,3 +15,8 @@ flask_app/templates/team_power_rank.html
 flask_app/templates/normalized_power_ranks.html
 .gitignore
 data/.DS_Store
+data/blind_test_data.csv
+flask_app/static/descriptive_statistics.csv
+flask_app/static/power_ranks.csv
+flask_app/templates/team_power_rank.html
+models/*

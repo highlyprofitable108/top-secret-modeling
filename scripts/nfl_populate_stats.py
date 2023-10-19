@@ -266,8 +266,9 @@ class StatsCalculator:
         Orchestrates the entire process of loading, transforming, calculating power ranks, and generating visualizations.
         """
         processed_games_df = self.load_and_process_data()
+
         reload(scripts.constants)
-        columns_to_filter = [col.strip() for col in self.CONSTANTS if not col.startswith('odds.')]
+        columns_to_filter = [col.replace('_difference', '').replace('_ratio', '').strip() for col in self.CONSTANTS if not col.startswith('odds.')]
         columns_to_filter.extend(['id', 'update_date', 'name'])  # Add 'id' and 'name' to the columns
 
         processed_games_df = processed_games_df[columns_to_filter]
@@ -282,20 +283,17 @@ class StatsCalculator:
 
             # Calculate power rank
             feature_importances = self.LOADED_MODEL.best_estimator_.feature_importances_
-            feature_names = [col for col in self.CONSTANTS]
+            feature_names = [col.replace('_difference', '').replace('_ratio', '') for col in self.CONSTANTS]  # <-- Corrected this line
 
             # Create a dictionary to store the modified feature names and their importances
             modified_importances = {}
 
             for name, importance in zip(feature_names, feature_importances):
-                # Strip _difference and _ratio from the feature names
-                modified_name = name.replace('_difference', '').replace('_ratio', '')
-
                 # If the modified name already exists in the dictionary, average the importances
-                if modified_name in modified_importances:
-                    modified_importances[modified_name] = (modified_importances[modified_name] + importance) / 2
+                if name in modified_importances:
+                    modified_importances[name] = (modified_importances[name] + importance) / 2
                 else:
-                    modified_importances[modified_name] = importance
+                    modified_importances[name] = importance
 
             weights = modified_importances  # Directly use the modified_importances dictionary as weights
 
