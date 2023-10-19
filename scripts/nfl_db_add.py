@@ -6,6 +6,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -41,14 +42,14 @@ class DBInserter:
                     self.insert_game_data(data)
                     logging.info("Inserting team data")
                     self.insert_team_data(data)
-                    logging.info("Inserting venue data")
-                    self.insert_venue_data(data)
-                    logging.info("Inserting statistics data")
-                    self.insert_statistics_data(data)
-                    logging.info("Inserting players data")
-                    self.insert_players_data(data)
-                    logging.info("Inserting summary data")
-                    self.insert_summary_data(data)
+                    # logging.info("Inserting venue data")
+                    # self.insert_venue_data(data)
+                    # logging.info("Inserting statistics data")
+                    # self.insert_statistics_data(data)
+                    # logging.info("Inserting players data")
+                    # self.insert_players_data(data)
+                    # logging.info("Inserting summary data")
+                    # self.insert_summary_data(data)
 
             except json.JSONDecodeError:
                 logging.error(f"Error decoding JSON from file: {file_path}")
@@ -69,26 +70,23 @@ class DBInserter:
                 games_collection.insert_one(data)
 
     def insert_team_data(self, data):
-        """Inserts team data into the database."""
         teams_collection = self.db['teams']
         teams_collection.insert_one(data['summary']['home'])
         teams_collection.insert_one(data['summary']['away'])
 
+    """
     def insert_venue_data(self, data):
-        """Inserts venue data into the database."""
         if 'venue' in data:
             venue_collection = self.db['venues']
             venue_collection.insert_one(data['venue'])
 
     def insert_statistics_data(self, data):
-        """Inserts statistics data into the database."""
         if 'statistics' in data:
             statistics_collection = self.db['statistics']
             statistics_collection.insert_one(data['statistics']['home'])
             statistics_collection.insert_one(data['statistics']['away'])
 
     def insert_players_data(self, data):
-        """Inserts players data into the database."""
         if 'statistics' in data:
             players_collection = self.db['players']
             for team in ['home', 'away']:
@@ -98,10 +96,10 @@ class DBInserter:
                             players_collection.insert_one(player)
 
     def insert_summary_data(self, data):
-        """Inserts summary data into the database."""
         if 'summary' in data:
             summary_collection = self.db['summary']
-            summary_collection.insert_one(data['summary'])    
+            summary_collection.insert_one(data['summary'])
+    """
 
     def load_data_from_csv(self):
         """Loads data from a CSV file."""
@@ -141,97 +139,75 @@ class DBInserter:
         games_collection = self.db['games']
 
         # Convert the date from the CSV to match the format in MongoDB
-        try:
-            date_obj = datetime.strptime(date, '%b %d, %Y')  # Adjusted for the format 'Sep 8, 2019'
-            date_str = date_obj.strftime('%Y-%m-%d')  # Convert to "YYYY-MM-DD" format
-        except ValueError:
-            logging.error(f"Invalid date format: {date}")
+        date_str = self._convert_date_format(date)
+        if not date_str:
             return
 
-        # Extract main team names
-        home_team_main = home_team.split(' (')[0].split(' ')[-1] if ' (' in home_team else home_team.split(' ')[-1]
-        away_team_main = away_team.split(' (')[0].split(' ')[-1] if ' (' in away_team else away_team.split(' ')[-1]
+        home_team_main = self._extract_team_name(home_team)
+        away_team_main = self._extract_team_name(away_team)
 
-        if home_team_main == "Team":
-            home_team_main = "Football Team"
-        if away_team_main == "Team":
-            away_team_main = "Football Team"
-
-        # Query the 'games' collection to find a match
-        one_day = timedelta(days=1)
-        prev_day = (date_obj - one_day).strftime('%Y-%m-%d')
-        next_day = (date_obj + one_day).strftime('%Y-%m-%d')
-        # Define the query
-        query = {
-            '$or': [
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{date_str}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{date_str}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{next_day}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{prev_day}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': home_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': away_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{next_day}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-                {'$and': [
-                    {'scheduled': {'$regex': f'^{prev_day}'}},  # Match only the date part
-                    {'summary.home.name': {'$regex': away_team_main, '$options': 'i'}},  # Case-insensitive substring match for home team
-                    {'summary.away.name': {'$regex': home_team_main, '$options': 'i'}}   # Case-insensitive substring match for away team
-                ]},
-            ]
-        }
+        query = self._construct_query(date_str, home_team_main, away_team_main)
 
         game = games_collection.find_one(query)
 
         if game:
-            # Extract summary data from the game document
-            home_points = game['summary']['home']['points']
-            away_points = game['summary']['away']['points']
-
-            # Calculate covered value
-            if (home_points + spread) - away_points > 0:
-                covered = "Yes"
-            elif (home_points + spread) - away_points < 0:
-                covered = "No"
-            else:
-                covered = "Push"
-
-            # Calculate total value
-            if home_points + away_points > total:
-                total_value = "Over"
-            elif home_points + away_points < total:
-                total_value = "Under"
-            else:
-                total_value = "Push"
-
-            # Update the matched document with the spread, total, covered, and total_value values
-            games_collection.update_one(
-                {'_id': game['_id']},
-                {'$set': {
-                    'summary.odds.spread': spread,
-                    'summary.odds.total': total,
-                    'summary.odds.covered': covered,
-                    'summary.odds.total_value': total_value
-                }}
-            )
+            self._update_game_odds(game, games_collection, spread, total)
         else:
             logging.warning(f"No match found for date: {date_str}, home_team: {home_team_main}, away_team: {away_team_main}")
+
+    def _convert_date_format(self, date):
+        try:
+            date_obj = datetime.strptime(date, '%b %d, %Y')
+            return date_obj.strftime('%Y-%m-%d')
+        except ValueError:
+            logging.error(f"Invalid date format: {date}")
+            return None
+
+    def _extract_team_name(self, team_name):
+        main_name = team_name.split(' (')[0].split(' ')[-1] if ' (' in team_name else team_name.split(' ')[-1]
+        return main_name
+
+        # conversion = {"Team": "Commanders", "Redskins": "Commanders"}
+        # return conversion.get(main_name, main_name)
+
+    def _construct_query(self, date_str, home_team, away_team):
+        one_day = timedelta(days=1)
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        prev_day = (date_obj - one_day).strftime('%Y-%m-%d')
+        next_day = (date_obj + one_day).strftime('%Y-%m-%d')
+
+        conditions = [date_str, prev_day, next_day]
+
+        return {
+            '$or': [self._query_condition(date, home_team, away_team) for date in conditions]
+            + [self._query_condition(date, away_team, home_team) for date in conditions]
+        }
+
+    def _query_condition(self, date, home_team, away_team):
+        return {
+            '$and': [
+                {'scheduled': {'$regex': f'^{date}'}},
+                {'summary.home.name': {'$regex': home_team, '$options': 'i'}},
+                {'summary.away.name': {'$regex': away_team, '$options': 'i'}}
+            ]
+        }
+
+    def _update_game_odds(self, game, games_collection, spread, total):
+        home_points = game['summary']['home']['points']
+        away_points = game['summary']['away']['points']
+
+        covered = "Push" if (home_points + spread) - away_points == 0 else ("Yes" if (home_points + spread) - away_points > 0 else "No")
+        total_value = "Push" if home_points + away_points == total else ("Over" if home_points + away_points > total else "Under")
+
+        games_collection.update_one(
+            {'_id': game['_id']},
+            {'$set': {
+                'summary.odds.spread': spread,
+                'summary.odds.total': total,
+                'summary.odds.covered': covered,
+                'summary.odds.total_value': total_value
+            }}
+        )
 
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""
