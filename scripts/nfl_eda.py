@@ -53,6 +53,7 @@ class NFLDataAnalyzer:
         df = self.process_data(df)
         df = self.filter_columns(df)
         df = self.data_processing.handle_null_values(df)
+
         return df
 
     def load_data(self, collection_name):

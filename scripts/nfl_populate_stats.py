@@ -64,18 +64,14 @@ class StatsCalculator:
         :return: Two dataframes containing the loaded and processed data
         """
         try:
-            games_df = self.database_operations.fetch_data_from_mongodb(self.PREGAME_DB_NAME)
-            processed_games_df = self.data_processing.flatten_and_merge_data(games_df)
+            stats_df = self.database_operations.fetch_data_from_mongodb(self.RANKS_DB_NAME)
+            processed_stats_df = self.data_processing.flatten_and_merge_data(stats_df)
 
-            for col in processed_games_df.columns:
-                if processed_games_df[col].apply(type).eq(list).any():
-                    processed_games_df[col] = processed_games_df[col].astype(str)
+            for col in processed_stats_df.columns:
+                if processed_stats_df[col].apply(type).eq(list).any():
+                    processed_stats_df[col] = processed_stats_df[col].astype(str)
 
-            if self.TARGET_VARIABLE not in processed_games_df.columns:
-                logging.warning(f"{self.TARGET_VARIABLE} key does not exist. Dropping games.")
-                return pd.DataFrame()
-
-            return processed_games_df
+            return processed_stats_df
         except Exception as e:
             logging.error(f"Error in load_and_process_data function: {e}")
             return None
@@ -104,7 +100,7 @@ class StatsCalculator:
             logging.error(f"Error in transform_data function: {e}")
             return None, None
 
-    def calculate_power_rank(self, df_home, df_away, metrics_home, metrics_away, weights):
+    def calculate_power_rank(self, df, metrics, weights):
         """
         This function calculates the power rank for each team based on the transformed data.
         :param df_home: A dataframe containing transformed home data
@@ -127,25 +123,15 @@ class StatsCalculator:
 
                     metric_value = row[metric]
 
-                    # Check if metric_value is NaN (missing) and replace it with a default value (e.g., 0)
-                    if pd.isna(metric_value):
-                        metric_value = 0  # Replace NaN with 0 or any other appropriate default value
-
-                    power_rank += weight * metric_value
+                    try:
+                        power_rank += weight * metric_value
+                    except TypeError as e:
+                        print(f"Error multiplying for metric '{metric}' with value '{metric_value}' and weight '{weight}'")
+                        raise e  # Re-raise the error to stop execution and see the traceback
                 return power_rank
 
             # Calculate power rank for home and away data
-            df_home.loc[:, 'power_rank'] = df_home.apply(lambda row: compute_power_rank(row, metrics_home), axis=1)
-            df_away.loc[:, 'power_rank'] = df_away.apply(lambda row: compute_power_rank(row, metrics_away), axis=1)
-
-            # Remove prefixes from column names
-            df_home.columns = df_home.columns.str.replace('ranks_home_', '')
-            df_away.columns = df_away.columns.str.replace('ranks_away_', '')
-            df_home.columns = df_home.columns.str.replace('home_', '')
-            df_away.columns = df_away.columns.str.replace('away_', '')
-
-            # Concatenate home and away dataframes to create a single dataframe
-            df = pd.concat([df_home, df_away], ignore_index=True)
+            df.loc[:, 'power_rank'] = df.apply(lambda row: compute_power_rank(row, metrics), axis=1)
 
             # Ensure update_date is in datetime format
             df['update_date'] = pd.to_datetime(df['update_date'])
@@ -281,28 +267,48 @@ class StatsCalculator:
         """
         processed_games_df = self.load_and_process_data()
         reload(scripts.constants)
-        columns_to_filter = [col.strip() for col in self.CONSTANTS]
+        columns_to_filter = [col.strip() for col in self.CONSTANTS if not col.startswith('odds.')]
+        columns_to_filter.extend(['id', 'update_date', 'name'])  # Add 'id' and 'name' to the columns
+
+        processed_games_df = processed_games_df[columns_to_filter]
+
+        # Rearrange columns to place 'id' and 'name' at the beginning
+        columns_ordered = ['id', 'update_date', 'name'] + [col for col in columns_to_filter if col not in ['id', 'update_date', 'name']]
+        processed_games_df = processed_games_df[columns_ordered]
 
         if processed_games_df is not None:
             # Transform data
-            df_home, df_away = self.transform_data(processed_games_df, columns_to_filter)
+            # df_home, df_away = self.transform_data(processed_games_df, columns_to_filter)
 
-            if df_home is not None and df_away is not None:
-                # Calculate power rank
-                metrics_home = [metric for metric in columns_to_filter if metric.startswith('ranks_home_')]
-                metrics_away = [metric for metric in columns_to_filter if metric.startswith('ranks_away_')]
-                feature_importances = self.LOADED_MODEL.best_estimator_.feature_importances_
-                weights = dict(zip(columns_to_filter, feature_importances))
-                df = self.calculate_power_rank(df_home, df_away, metrics_home, metrics_away, weights)
+            # Calculate power rank
+            feature_importances = self.LOADED_MODEL.best_estimator_.feature_importances_
+            feature_names = [col for col in self.CONSTANTS]
 
-                if df is not None:
-                    normalized_df = self.normalize_data(df)
-                    # Insert aggregated data into MongoDB
-                    self.insert_aggregated_data_into_database(normalized_df)
+            # Create a dictionary to store the modified feature names and their importances
+            modified_importances = {}
+
+            for name, importance in zip(feature_names, feature_importances):
+                # Strip _difference and _ratio from the feature names
+                modified_name = name.replace('_difference', '').replace('_ratio', '')
+
+                # If the modified name already exists in the dictionary, average the importances
+                if modified_name in modified_importances:
+                    modified_importances[modified_name] = (modified_importances[modified_name] + importance) / 2
                 else:
-                    logging.error("Error in calculating power rank. Exiting script.")
+                    modified_importances[modified_name] = importance
+
+            weights = modified_importances  # Directly use the modified_importances dictionary as weights
+
+            # Exclude 'id' and 'name' from the power rank calculations
+            columns_for_power_rank = [col for col in columns_to_filter if col not in ['id', 'name', 'update_date']]
+            df = self.calculate_power_rank(processed_games_df, columns_for_power_rank, weights)
+
+            if df is not None:
+                normalized_df = self.normalize_data(df)
+                # Insert aggregated data into MongoDB
+                self.insert_aggregated_data_into_database(normalized_df)
             else:
-                logging.error("Error in data transformation. Exiting script.")
+                logging.error("Error in calculating power rank. Exiting script.")
         else:
             logging.error("Error in data loading and processing. Exiting script.")
 

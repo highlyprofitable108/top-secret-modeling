@@ -232,18 +232,31 @@ class WeightedStatsAvg:
         :return: Calculated weight.
         """
         weeks_since_game = days // 7  # Convert days to weeks
-        if weeks_since_game == 0:  # Within the first week
+
+        # Within the first week: No decay
+        if weeks_since_game == 0:
             return 1.0
-        elif weeks_since_game == 1:  # After 1 week
+
+        # After 1 week: Gentle decay for recent performances
+        elif weeks_since_game <= 4:
+            lambda_val = 0.0025
+
+        # Up to 6 weeks: Slightly more aggressive decay as the data starts to age
+        elif weeks_since_game <= 6:
             lambda_val = 0.005
-        elif weeks_since_game <= 6:  # Up to 6 weeks
+
+        # Up to 18 weeks: More aggressive decay for older data
+        elif weeks_since_game <= 18:
             lambda_val = 0.01
-        elif weeks_since_game <= 18:  # Up to 18 weeks
+
+        # Up to 40 weeks: Even more aggressive decay as the data becomes less relevant
+        elif weeks_since_game <= 40:
+            lambda_val = 0.015
+
+        # Beyond 40 weeks: Most aggressive decay for very old data
+        else:
             lambda_val = 0.02
-        elif weeks_since_game <= 40:  # Up to 40 weeks
-            lambda_val = 0.03
-        else:  # Beyond 40 weeks
-            lambda_val = 0.04
+
         return np.exp(-lambda_val * 7 * weeks_since_game)  # Decay based on total weeks
 
     def calculate_weights_using_exponential_decay(self, df):
@@ -264,17 +277,17 @@ class WeightedStatsAvg:
         :param feature_columns: List of feature columns.
         :return: DataFrames for home and away data.
         """
-        metrics_home = [metric for metric in feature_columns if metric.startswith('statistics_home')]
-        metrics_away = [metric for metric in feature_columns if metric.startswith('statistics_away')]
-        df_home = df[['summary_home.id', 'summary_home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
+        metrics_home = [metric for metric in feature_columns if metric.startswith('statistics.home')]
+        metrics_away = [metric for metric in feature_columns if metric.startswith('statistics.away')]
+        df_home = df[['summary.home.id', 'summary.home.name', 'game_date', 'days_since_game', 'weight'] + metrics_home]
         df_home = df_home.rename(columns={
-            'summary_home.id': 'id',
-            'summary_home.name': 'name'
+            'summary.home.id': 'id',
+            'summary.home.name': 'name'
         })
-        df_away = df[['summary_away.id', 'summary_away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
+        df_away = df[['summary.away.id', 'summary.away.name', 'game_date', 'days_since_game', 'weight'] + metrics_away]
         df_away = df_away.rename(columns={
-            'summary_away.id': 'id',
-            'summary_away.name': 'name'
+            'summary.away.id': 'id',
+            'summary.away.name': 'name'
         })
         return df_home, df_away
 
@@ -289,7 +302,6 @@ class WeightedStatsAvg:
         """
         try:
             logging.info("Starting data transformation...")
-
             processed_teams_df = self.remove_duplicates_from_teams(processed_teams_df)
             processed_df = self.convert_time_strings_to_minutes(processed_df)
             processed_df = self.process_game_dates(processed_df)
@@ -510,17 +522,30 @@ class WeightedStatsAvg:
         for _, game in games_df.iterrows():
             game_data = {
                 'scheduled': game.get('scheduled'),
-                'home': game['summary']['home'],
-                'away': game['summary']['away'],
                 'odds': game['summary'].get('odds', {})
             }
 
             # Convert game['scheduled'] to a tz-naive datetime object
             game_scheduled_naive = parse(game['scheduled']).replace(tzinfo=None)
 
-            # Fetch rank data for home and away teams
-            game_data['ranks_home'] = self.get_team_rank(game['summary']['home']['id'], ranks_df, game_scheduled_naive)
-            game_data['ranks_away'] = self.get_team_rank(game['summary']['away']['id'], ranks_df, game_scheduled_naive)
+            # Fetch rank data for teams A and B
+            ranks_team_A = self.get_team_rank(game['summary']['home']['id'], ranks_df, game_scheduled_naive)
+            ranks_team_B = self.get_team_rank(game['summary']['away']['id'], ranks_df, game_scheduled_naive)
+
+            # Ensure ranks_team_A and ranks_team_B are not None before proceeding
+            if ranks_team_A is not None and ranks_team_B is not None:
+                # Calculate differences and ratios for each metric
+                for metric in ranks_team_A.keys():
+                    if metric not in ['id', 'update_date']:  # Exclude non-metric columns
+                        value_A = ranks_team_A[metric]
+                        value_B = ranks_team_B[metric]
+
+                        # Ensure the values are numbers before performing arithmetic operations
+                        if isinstance(value_A, (int, float)) and isinstance(value_B, (int, float)):
+                            diff_key = f"{metric}_difference"
+                            ratio_key = f"{metric}_ratio"
+                            game_data[diff_key] = value_A - value_B
+                            game_data[ratio_key] = value_A / value_B if value_B != 0 else 0
 
             pre_game_data_list.append(game_data)
 
