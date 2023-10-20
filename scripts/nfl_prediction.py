@@ -55,7 +55,7 @@ class NFLPredictor:
     def get_team_a_data(self, df):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
         # Filter the DataFrame based on the team name and the date condition
-        filtered_df = df[(df['name'] == self.away_team) & (df['update_date'] < self.date)]
+        filtered_df = df[(df['name'] == self.away_team) & (df['update_date'] <= self.date)]
 
         # Get the index of the row with the most recent update_date
         idx = filtered_df['update_date'].idxmax()
@@ -73,6 +73,17 @@ class NFLPredictor:
 
         # Return the row with the most recent update_date
         return df.loc[[idx]]
+
+    def get_standard_deviation(self, df):
+        """Fetches the standard deviation for each column in the provided DataFrame."""
+        # Exclude non-numeric columns
+        numeric_df = df.select_dtypes(include=[np.number])
+
+        # Compute the standard deviation for each numeric column
+        standard_deviation_df = numeric_df.std().to_frame().transpose()
+
+        # Return the standard deviation DataFrame
+        return standard_deviation_df
 
     def rename_columns(self, data, prefix):
         """Renames columns with a specified prefix."""
@@ -95,7 +106,7 @@ class NFLPredictor:
         merged_data[columns_to_filter] = self.LOADED_SCALER.transform(merged_data[columns_to_filter])
         return merged_data
 
-    def monte_carlo_simulation(self, df, num_simulations=2500):
+    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=2500):
         print(df.head)
         print("Starting Monte Carlo Simulation...")
 
@@ -105,24 +116,18 @@ class NFLPredictor:
             for _ in range(num_simulations):
                 sampled_df = df.copy()
                 for column in sampled_df.columns:
-                    if column + '_stddev' in sampled_df.columns:
+                    base_column = column.replace('_difference', '').replace('_ratio', '')
+                    if base_column in standard_deviation_df.columns:
                         mean_value = df[column].iloc[0]
-                        stddev_value = df[column + '_stddev'].iloc[0]
+                        stddev_value = standard_deviation_df[base_column].iloc[0]
                         sampled_value = np.random.normal(mean_value, stddev_value)
                         sampled_df[column] = sampled_value
 
-                # TODO: Get updated list excluding NULLs
-
-                # Filter columns and scale numeric features
-                reload(scripts.constants)
-
-                columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, sampled_df.columns) and col.strip() != 'odds_spread']
-
-                sampled_df = sampled_df[columns_to_filter]
                 modified_df = sampled_df.dropna(axis=1, how='any')
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
 
                 prediction = self.LOADED_MODEL.predict(scaled_df)
+
                 simulation_results.append(prediction[0])
 
                 pbar.update(1)  # Increment tqdm progress bar
@@ -132,7 +137,7 @@ class NFLPredictor:
 
         # After obtaining simulation_results
         kernel = gaussian_kde(simulation_results)
-        most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
+        most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]+2.7
 
         print("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
@@ -178,7 +183,7 @@ class NFLPredictor:
             f.write(full_html)
 
         # Calculate the rounded most likely outcome
-        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2) * (-1)
+        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2)
 
         # Format the rounded most likely outcome with a leading + sign for positive values
         if rounded_most_likely_outcome > 0:
@@ -224,6 +229,7 @@ class NFLPredictor:
         # Ensure ranks_team_A and ranks_team_B are not None before proceeding
         home_team_data = self.get_team_a_data(df)
         away_team_data = self.get_team_b_data(df)
+        standard_deviation_data = self.get_standard_deviation(df)
 
         # Extract unique base column names from the features list
         base_column_names = set(col.rsplit('_', 1)[0] for col in features)
@@ -231,8 +237,10 @@ class NFLPredictor:
         # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
         home_features = home_team_data[list(base_column_names.intersection(home_team_data.columns))]
         away_features = away_team_data[list(base_column_names.intersection(away_team_data.columns))]
+        std_features = standard_deviation_data[list(base_column_names.intersection(standard_deviation_data.columns))]
         home_features = home_features.reset_index(drop=True)
         away_features = away_features.reset_index(drop=True)
+        std_features = std_features.reset_index(drop=True)
 
         # Initialize an empty DataFrame for the results
         game_prediction_df = pd.DataFrame()
@@ -243,20 +251,21 @@ class NFLPredictor:
                 game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
             else:
                 game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
+                [col + "_difference"]
 
         # Handle potential division by zero issues (if needed)
         game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
         # Run Monte Carlo simulations
         print("\nRunning Simulations...")
-        simulation_results, most_likely_outcome = self.monte_carlo_simulation(merged_data)
+        simulation_results, most_likely_outcome = self.monte_carlo_simulation(game_prediction_df, std_features)
 
         # Analyze simulation results
         print("Analyzing Simulation Results...")
         range_of_outcomes, standard_deviation = self.analyze_simulation_results(simulation_results)
 
         # Calculate the rounded most likely outcome
-        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2) * (-1)
+        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2)
 
         # Format the rounded most likely outcome with a leading + sign for positive values
         if rounded_most_likely_outcome > 0:
@@ -264,17 +273,17 @@ class NFLPredictor:
         else:
             formatted_most_likely_outcome = f"{rounded_most_likely_outcome:.2f}"
 
+        # User-friendly output
+        print("\nPrediction Results:")
+        print(f"Based on our model, the expected scoring differential for {self.home_team} against {self.away_team} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
+        print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")
+        print(f"The standard deviation of the scoring differentials is approximately {standard_deviation:.2f} points.\n")
+        print(f"The projected spread on this game should be {self.home_team} {formatted_most_likely_outcome}.\n")
+
         # Redirect standard output to capture the print statements
         old_stdout = sys.stdout
         new_stdout = io.StringIO()
         sys.stdout = new_stdout
-
-        # User-friendly output
-        print("\nPrediction Results:")
-        print(f"Based on our model, the expected scoring differential for {home_team_alias} against {away_team_alias} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
-        print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")         
-        print(f"The standard deviation of the scoring differentials is approximately {standard_deviation:.2f} points.\n")
-        print(f"The projected spread on this game should be {home_team_alias} {formatted_most_likely_outcome}.\n")
 
         # Capture the printed statements
         output = new_stdout.getvalue()
@@ -287,6 +296,6 @@ class NFLPredictor:
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor("Cardinals", "Titans", '2019-11-22')
+    predictor = NFLPredictor("Jaguars", "Giants", '2022-11-22')
     predictor.main()
     # Call other methods of the predictor as needed
