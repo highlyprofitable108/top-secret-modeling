@@ -103,8 +103,7 @@ class NFLDataAnalyzer:
             logging.info("Generating EDA report")
 
             # Paths to save the generated plots
-            feature_importance_path = self.plot_feature_importance(df)
-            heatmap_path = self.plot_interactive_correlation_heatmap(df)
+            feature_importance_path, heatmap_path = self.plot_feature_importance(df)
             # histogram_path = self.plot_interactive_histograms(df)
             # boxplot_path = self.plot_boxplots(df)
             descriptive_stats_path = self.generate_descriptive_statistics(df)
@@ -137,8 +136,11 @@ class NFLDataAnalyzer:
             # Visualize feature importance
             feature_importance_path = self.visualize_feature_importance(feature_importance_df)
 
+            # Create Heat Map
+            heatmap_path = self.plot_interactive_correlation_heatmap(df, importances)
+
             logging.info(f"Best model score: {model.best_score_}")
-            return feature_importance_path
+            return feature_importance_path, heatmap_path
 
         except Exception as e:
             logging.error(f"Error generating feature importance plot: {e}")
@@ -193,9 +195,19 @@ class NFLDataAnalyzer:
         return feature_importance_path
 
     # ENHANCE AND OPTIMIZE EDA OUTPUTS
-    def plot_interactive_correlation_heatmap(self, df):
+    def plot_interactive_correlation_heatmap(self, df, importances):
         """Plots an interactive correlation heatmap using Plotly."""
         try:
+            # If df has more than 50 columns, select only the 50 most important ones
+            if df.shape[1] > 50:
+                X = df.drop(columns=[self.TARGET_VARIABLE])
+
+                # Get the top 50 features based on importance
+                top_50_features = X.columns[importances.argsort()[-50:]]
+
+                # Filter df to only include these top 50 features
+                df = df[top_50_features]
+
             corr = df.corr()
 
             # Using Plotly to create an interactive heatmap

@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 if (!selectedColumns[category]) {
                     selectedColumns[category] = [];
                 }
-                selectedColumns[category].push(column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+                selectedColumns[category].push(column.replace(/_/g, ' ').replace(/Totals\./i, '').replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
             }
         });
 

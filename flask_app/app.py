@@ -43,7 +43,7 @@ def get_active_constants():
     for constant in active_constants:
         constant = constant.replace(' Difference', '').replace(' Ratio', '')
         category = constant.split('.')[0]
-        
+
         categories[category].append(constant)
 
     # Sorting the constants within each category
