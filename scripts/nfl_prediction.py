@@ -52,9 +52,27 @@ class NFLPredictor:
             # Handle the error appropriately or return None values
             return None, None
 
-    def get_team_data(self, alias, df):
+    def get_team_a_data(self, df):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
-        return df[df['name'] == alias]
+        # Filter the DataFrame based on the team name and the date condition
+        filtered_df = df[(df['name'] == self.away_team) & (df['update_date'] < self.date)]
+
+        # Get the index of the row with the most recent update_date
+        idx = filtered_df['update_date'].idxmax()
+
+        # Return the row with the most recent update_date
+        return df.loc[[idx]]
+
+    def get_team_b_data(self, df):
+        """Fetches data for a specific team based on the alias from the provided DataFrame."""
+        # Filter the DataFrame based on the team name and the date condition
+        filtered_df = df[(df['name'] == self.home_team) & (df['update_date'] < self.date)]
+
+        # Get the index of the row with the most recent update_date
+        idx = filtered_df['update_date'].idxmax()
+
+        # Return the row with the most recent update_date
+        return df.loc[[idx]]
 
     def rename_columns(self, data, prefix):
         """Renames columns with a specified prefix."""
@@ -62,10 +80,6 @@ class NFLPredictor:
         columns_to_rename = [col.replace('ranks_home_', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('ranks_home_')]
         rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
         return data.rename(columns=rename_dict)
-
-    def merge_data(self, home_data, away_data, home_data_stddev, away_data_stddev):
-        """Merges data and standard deviation data for both home and away teams."""
-        return pd.concat([home_data, home_data_stddev, away_data, away_data_stddev], axis=1)
 
     def filter_and_scale_data(self, merged_data):
         """Filters the merged data using the feature columns and scales the numeric features."""
@@ -197,26 +211,41 @@ class NFLPredictor:
             print("Invalid opponent team alias. Please enter a valid team alias from the list above.")
             away_team_alias = input("Enter away team alias: ")
         """
+        reload(scripts.constants)
 
-        home_team_alias = self.home_team
-        away_team_alias = self.away_team
+        features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
+
+        # Create a dictionary with column names as keys and arithmetic operations as values
+        feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
 
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
-        home_team_data = self.get_team_data(home_team_alias, df)
-        away_team_data = self.get_team_data(away_team_alias, df)
+        # Ensure ranks_team_A and ranks_team_B are not None before proceeding
+        home_team_data = self.get_team_a_data(df)
+        away_team_data = self.get_team_b_data(df)
 
-        # Rename columns and merge data
-        home_team_data = self.rename_columns(home_team_data.reset_index(drop=True), "ranks_home_")
-        away_team_data = self.rename_columns(away_team_data.reset_index(drop=True), "ranks_away_")
+        # Extract unique base column names from the features list
+        base_column_names = set(col.rsplit('_', 1)[0] for col in features)
 
-        # Identify and rename standard deviation columns
-        home_team_data_stddev = home_team_data.filter(like='stddev').rename(columns=lambda x: "ranks_home_" + x)
-        away_team_data_stddev = away_team_data.filter(like='stddev').rename(columns=lambda x: "ranks_away_" + x)
+        # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
+        home_features = home_team_data[list(base_column_names.intersection(home_team_data.columns))]
+        away_features = away_team_data[list(base_column_names.intersection(away_team_data.columns))]
+        home_features = home_features.reset_index(drop=True)
+        away_features = away_features.reset_index(drop=True)
 
-        # Create matchup
-        merged_data = self.merge_data(home_team_data, away_team_data, home_team_data_stddev, away_team_data_stddev)
+        # Initialize an empty DataFrame for the results
+        game_prediction_df = pd.DataFrame()
+
+        # Iterate over the columns using the dictionary
+        for col, operation in feature_operations.items():
+            if operation == "difference":
+                game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
+            else:
+                game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
+
+        # Handle potential division by zero issues (if needed)
+        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
         # Run Monte Carlo simulations
         print("\nRunning Simulations...")
@@ -258,6 +287,6 @@ class NFLPredictor:
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor("Cardinals", "Titans", datetime.today().strftime('%Y-%m-%d'))
+    predictor = NFLPredictor("Cardinals", "Titans", '2019-11-22')
     predictor.main()
     # Call other methods of the predictor as needed
