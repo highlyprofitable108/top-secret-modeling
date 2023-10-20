@@ -6,6 +6,7 @@ config = ConfigManager()
 PAGE_SIZE = 20
 TARGET_VARIABLE = config.get_constant('TARGET_VARIABLE')
 
+
 def display_columns(columns, page):
     """Displays the columns with indices to the user."""
     start_index = page * PAGE_SIZE
@@ -38,13 +39,7 @@ def generate_constants_file(selected_columns):
         file.write("COLUMNS_TO_KEEP = [\n")
         file.write(f'    "{TARGET_VARIABLE}",\n')
         for col in selected_columns:
-            col = col.replace(' ', '.')
-            if 'efficiency' not in col and 'summary' not in col and '_first_downs.' not in col and '_interceptions.' not in col and '_touchdowns.' not in col:
-                # Split the column name at each period and join with '.totals.' at the last split
-                parts = col.rsplit('.', 1)
-                col = '.totals.'.join(parts)
-            file.write(f'    "ranks_home_{col}",\n')
-            file.write(f'    "ranks_away_{col}",\n')
+            file.write(f'    "{col}",\n')
         file.write("]\n")
 
 

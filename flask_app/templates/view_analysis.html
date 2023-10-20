@@ -49,70 +49,77 @@
             <div id="customPowerRanksContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'team_power_rank.html' %}
 
-                <a href="/view_power_ranks" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/view_power_ranks" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
             <div id="interactiveHeatmapContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card heatmap-card">
                 {% include 'interactive_heatmap.html' %}
 
-                <a href="/interactive_heatmap" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/interactive_heatmap" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
             <div id="featureImportanceContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'feature_importance.html' %}
 
-                <a href="/feature_importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/feature_importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
             <div id="dataQualityReportContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'data_quality_report.html' %}
 
-                <a href="/data_quality_report" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/data_quality_report" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
             <div id="descriptiveStatisticsContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'descriptive_statistics.html' %}
 
-                <a href="/descriptive_statistics" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/descriptive_statistics" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
         </div>
 
 
         <!-- EXPLANATION SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
-            <h3 class="text-2xl font-bold mb-4 text-gray-800">How to Interpret the Reports:</h3>
+            <h3 class="text-2xl font-bold mb-4 text-gray-800">Reviewing Reports:</h3>
+            <!-- Calculation Method Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Why Differences and Ratios?</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have two boxes of crayons. If you want to know how many more crayons one box has than the other, you subtract (this is a difference). But if you want to know how many times bigger one box is than the other, you divide (this is a ratio).</p>
+                <p class="bg-gray-300 p-4 rounded">In data analysis, differences are used to measure the absolute change between two values, which can be useful to understand the scale of change. Ratios, on the other hand, provide a relative measure, indicating how many times one value is compared to another. This can be particularly useful when comparing values of different scales or when looking for proportional changes.</p>
+            </div>
 
             <!-- Power Ranks Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">1. Power Ranks:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Power Ranks:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic toy box. In this box, there are many toy teams. Some teams can jump really high, some can run super fast, and some are great at playing catch. You get to choose which skills are the most fun for you. Based on the skills you choose, the magic box arranges the toy teams in a line. The teams that are best at the skills you like are at the front, and the ones that are not so good are at the back. This report shows you that special line-up of teams!</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The power ranks provide a comprehensive ranking of teams based on the performance metrics selected by the user. These metrics can range from scoring differentials to possession times and other game-related statistics. The ranking is influenced by the importance of each metric as chosen by the user. Additionally, recent games have more weight, ensuring that the ranking reflects the current form of the teams. After considering all these factors, the ranks are normalized and presented in a bar chart for visualization.</p>
             </div>
 
             <!-- Interactive Heatmap Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">2. Interactive Heatmap:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Interactive Heatmap:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a colorful puzzle. The colors show if two pieces (or features) like to play together or not.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The heatmap visualizes the correlation between different features. High positive or negative correlation indicates related features. Avoid multicollinearity by not selecting features that are highly correlated.</p>
+                <p class="bg-yellow-200 p-4 rounded italic font-normal text-xs">Important Note: For the puzzle to load quickly, we only use up to 50 pieces. If you have more than 10 pieces, it's best to download and look at the puzzle on your own computer for the best view.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The heatmap visualizes the correlation between different features. High positive or negative correlation indicates related features. Avoid multicollinearity by not selecting features that are highly correlated. For optimal performance and clarity, especially with datasets having more than 50 columns, we recommend downloading the heatmap and reviewing it locally.</p>
             </div>
 
             <!-- Feature Importance Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">3. Feature Importance:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Importance:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report tells us which toys (or features) are the most fun to play with when predicting something.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report ranks features based on their importance in predicting the target variable. Features with higher scores impact the model's predictions more. Prioritize these features in your model.</p>
             </div>
 
             <!-- Data Quality Report Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">4. Data Quality Report:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Data Quality Report:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a toy inspector. It checks if any toys (or data) are broken or missing.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report provides insights into data quality, highlighting missing values, outliers, and potential errors. Ensure data cleanliness and address identified issues for better model accuracy.</p>
             </div>
 
             <!-- Descriptive Statistics Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">5. Descriptive Statistics:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Descriptive Statistics:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report is like a storybook. It tells us about the main characters (or data) and their adventures (or patterns).</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report summarizes the central tendency, dispersion, and shape of the dataset's distribution. Use this information for understanding and consider techniques like normalization or transformation if needed.</p>
             </div>

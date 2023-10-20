@@ -34,7 +34,7 @@ class DataProcessing:
             for column in df.columns:
                 if isinstance(df[column][0], dict):
                     flattened_df = pd.json_normalize(df[column])
-                    flattened_df.columns = [f"{column}_{subcolumn}" for subcolumn in flattened_df.columns]
+                    flattened_df.columns = [f"{column}.{subcolumn}" for subcolumn in flattened_df.columns]
                     dataframes.append(flattened_df)
                 else:
                     dataframes.append(df[[column]])

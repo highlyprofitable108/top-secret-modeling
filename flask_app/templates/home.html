@@ -46,14 +46,14 @@
                         <li class="mb-2">
                             <span class="font-bold">{{ category.replace('_', ' ').title() }}:</span>
                             <span>
-                                {% for constant in constants %}
-                                    {% if "efficiency" in constant %}
-                                        {{ constant.split('.')[-2].replace('_', ' ').title() }} {{ constant.split('.')[-1].replace('_', ' ').title() }}
-                                    {% else %}
-                                        {{ constant.split('.')[-1].replace('_', ' ').title() }}
-                                    {% endif %}
-                                    {% if not loop.last %},{% endif %}
-                                {% endfor %}
+                              {% for constant in constants %}
+                                  {% set processed_constant = ' '.join(constant.split('.')[1:]) %}
+                                  {% set processed_constant = processed_constant.replace('totals ', '') %}
+                                  {% set processed_constant = processed_constant.replace('_difference', '') %}
+                                  {% set processed_constant = processed_constant.replace('_ratio', '') %}
+                                  {% set processed_constant = processed_constant.replace('_', ' ').title() %}
+                                  {{ processed_constant }}{% if not loop.last %}, {% endif %}
+                              {% endfor %}
                             </span>
                         </li>
                     {% endfor %}
@@ -61,8 +61,9 @@
             {% else %}
                 <p>None</p>
             {% endif %}
-        </div>
-      </div>   
+        </div>      
+      </div>
+
     
       <section class="mb-10">
         <h2 class="text-2xl font-bold mb-4">About Us</h2>
