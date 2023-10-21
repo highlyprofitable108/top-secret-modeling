@@ -150,6 +150,10 @@ class NFLPredictor:
         logging.info("Starting Monte Carlo Simulation...")
 
         simulation_results = []
+        
+        # List to store sampled_df for each iteration
+        sampled_data_list = []
+
         start_time = time.time()
         with tqdm(total=num_simulations, ncols=100) as pbar:  # Initialize tqdm with total number of simulations
             for _ in range(num_simulations):
@@ -161,6 +165,9 @@ class NFLPredictor:
                         stddev_value = standard_deviation_df[base_column].iloc[0]
                         sampled_value = np.random.normal(mean_value, stddev_value)
                         sampled_df[column] = sampled_value
+
+                # Append sampled_df to the list
+                sampled_data_list.append(sampled_df)
 
                 modified_df = sampled_df.dropna(axis=1, how='any')
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
@@ -180,6 +187,11 @@ class NFLPredictor:
         # After obtaining simulation_results
         kernel = gaussian_kde(simulation_results)
         most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
+
+        # Save simulation_results to a CSV file
+        combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)
+        combined_sampled_data.to_csv('combined_sampled_data.csv', index=False)
+        pd.DataFrame(simulation_results, columns=['Simulation_Result']).to_csv('simulation_results.csv', index=False)
 
         logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
@@ -208,6 +220,9 @@ class NFLPredictor:
 
         # Filter the results based on the calculated bounds
         filtered_results = [result for result in simulation_results if lower_bound_value <= result <= upper_bound_value]
+
+        # Save filtered_results to a CSV file
+        pd.DataFrame(filtered_results, columns=['Filtered_Result']).to_csv('filtered_results.csv', index=False)
 
         # Calculate the range of outcomes based on the filtered results
         range_of_outcomes = (min(filtered_results), max(filtered_results))
