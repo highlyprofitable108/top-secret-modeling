@@ -185,7 +185,7 @@ def sim_runner():
             date_input -= timedelta(days=1)
 
         if home_team is not None and away_team is not None:
-            nfl_sim = NFLPredictor(home_team, away_team, date)
+            nfl_sim = NFLPredictor(home_team, away_team, date_input)
             nfl_sim.main()
 
             return render_template('simulator_results.html')

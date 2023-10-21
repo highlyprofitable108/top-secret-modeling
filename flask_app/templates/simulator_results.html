@@ -38,24 +38,24 @@
             
             <!-- Tab Buttons -->
             <div class="flex space-x-4 mb-4">
-                <button onclick="showTab('powerRanksContent')" class="tab-button w-1/2 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Power Ranks for Sim Date</button>
+            <!--     <button onclick="showTab('powerRanksContent')" class="tab-button w-1/2 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Power Ranks for Sim Date</button>-->
                 <button onclick="showTab('simResultsContent')" class="tab-button w-1/2 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Sim Results Distribution</button>
             </div>
 
-            <!-- Tab Contents -->
-            <div id="powerRanksContent" class="tab-content hidden mt-4">
+            <!-- Tab Contents 
+             <div id="powerRanksContent" class="tab-content hidden mt-4">
                 {% include 'team_power_rank_sim.html' %}
 
                 <div id="powerRanksTable"></div>
-                <a href="/view_power_ranks_sim" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/view_power_ranks_sim" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
 
-            </div>
+            </div> -->
 
             <div id="simResultsContent" class="tab-content hidden mt-4">
                 {% include 'simulation_distribution.html' %}
 
                 <div id="simResultsTable"></div>
-                <a href="/simulation_distribution" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Click to open in new window</a>
+                <a href="/simulation_distribution" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
             </div>
         </div>
 
@@ -64,14 +64,14 @@
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">How to Interpret the Reports:</h3>
 
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+            <!-- <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">1. Power Ranks Based on Sim Date Requested:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a special calendar. On this calendar, you can pick any day you like. Once you pick a day, your magic toy box will show you which toy teams were the best on that day. Maybe on some days, the team that can jump really high is the best, and on other days, the team that can run super fast is the best. This report shows you the best toy teams for the day you picked!</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The power ranks based on the sim date requested provide a snapshot of team rankings on a specific date. This allows users to see how teams were performing at any point in the season. The ranking considers various performance metrics up to the selected date, ensuring that the ranking is reflective of the teams' form up to that point. The ranks are then visualized in a bar chart for easy interpretation.</p>
-            </div>            
+            </div> -->      
 
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">2. Simulator Scoring Distribution and Projected Spread:</h4>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Simulator Scoring Distribution and Projected Spread:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you and your friends are guessing how many candies are in a jar. Some guess too many, some guess too few. The simulator is like a super-smart friend who makes a lot of guesses really quickly. Then, it shows you the most common guess and how sure it is about that guess. This report shows you that special guess about the candies (or in this case, the game score)!</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The simulator scoring distribution provides insights into the possible outcomes of a game based on historical data and current team form. It runs thousands of simulations to predict the most likely outcome and the range of possible scores. The projected spread indicates the difference in scores between the two teams, giving users an idea of which team is favored to win and by how much. The results are visualized in a histogram for easy understanding.</p>
             </div>
