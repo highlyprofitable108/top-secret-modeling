@@ -104,7 +104,7 @@ class NFLPredictor:
         condition = df['update_date'] <= self.date
 
         # Filter the DataFrame based on the team name and the date condition
-        filtered_df = df[(df['name'] == team) & condition]
+        filtered_df = df[(df['name'].str.lower() == team.lower()) & condition]
 
         # Get the index of the row with the most recent update_date
         idx = filtered_df['update_date'].idxmax()
@@ -220,36 +220,57 @@ class NFLPredictor:
 
         return range_of_outcomes, standard_deviation, confidence_interval
 
+    def analysis_explanation(self, range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation):
+        explanation = """
+            Let's imagine we're trying to guess how many candies are in a big jar!
+
+            We think there might be between {low_guess:.2f} and {high_guess:.2f} candies.
+            We're pretty sure (like, 95% sure!) that the number of candies is between {low_confidence:.2f} and {high_confidence:.2f}.
+            Our best guess is that there are {most_likely:.2f} candies in the jar.
+            Our guesses are kind of {spread_out}. That number is {std_dev:.2f}.
+
+            Now, let's see if we're right!
+        """.format(
+            low_guess=range_of_outcomes[0],
+            high_guess=range_of_outcomes[1],
+            low_confidence=confidence_interval[0],
+            high_confidence=confidence_interval[1],
+            most_likely=most_likely_outcome,
+            spread_out="all over the place" if standard_deviation > 2 else "close together",
+            std_dev=standard_deviation
+        )
+        return explanation
+
     def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
         """
         Visualizes the simulation results using a histogram and calculates 
         the rounded most likely outcome.
-
-        Parameters:
-        - simulation_results: List of results from the Monte Carlo simulation.
-        - most_likely_outcome: The most probable outcome from the simulation.
-        - output: Additional output to be included in the saved HTML.
-        - bins: Number of bins for the histogram. Default is 50.
-
-        Returns:
-        - formatted_most_likely_outcome: The rounded and formatted most likely outcome.
         """
 
         # Plot using Plotly
         fig = go.Figure()
-        fig.add_histogram(x=simulation_results, name='Simulation Results', nbinsx=bins)
+        fig.add_trace(go.Histogram(x=simulation_results, name='Simulation Results', nbinsx=bins))
         fig.add_shape(type="line", x0=most_likely_outcome, x1=most_likely_outcome, y0=0, y1=1, yref='paper', line=dict(color="Red"))
         fig.update_layout(title="Monte Carlo Simulation Results", xaxis_title="Target Value", yaxis_title="Density")
-        fig.show()
 
-        # Convert the Matplotlib figure to HTML
-        html_string = mpld3.fig_to_html(plt.gcf())
+        # Convert the Plotly figure to HTML
+        plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+        # Format the output for better readability
+        formatted_output = f"""
+        <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h2>Simulation Summary:</h2>
+            <pre style="font-size: 16px; color: #333;">{output}</pre>
+        </div>
+        """
+
+        # Combine the formatted output and the Plotly HTML
+        full_html = plotly_html_string + formatted_output
 
         # Path to save the visualization as an HTML file
         feature_importance_path = os.path.join(self.template_dir, 'simulation_distribution.html')
 
-        # Include the captured statements above the graph and save to file
-        full_html = f"<div><pre>{output}</pre></div>" + html_string
+        # Save the combined HTML
         try:
             with open(feature_importance_path, "w") as f:
                 f.write(full_html)
@@ -287,17 +308,30 @@ class NFLPredictor:
         self.logger.info("Analyzing Simulation Results...")
         range_of_outcomes, standard_deviation, confidence_interval = self.analyze_simulation_results(simulation_results)
 
+        # Create a buffer to capture log messages
+        log_capture_buffer = io.StringIO()
+
+        # Set up the logger to write to the buffer
+        log_handler = logging.StreamHandler(log_capture_buffer)
+        log_handler.setLevel(logging.INFO)
+        self.logger.addHandler(log_handler)
+
         # User-friendly output
         self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
         self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
         self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
         self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
 
+        # Retrieve the log messages from the buffer
+        log_contents = log_capture_buffer.getvalue()
+        explanation = self.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
+        combined_output = log_contents + "\n\n" + explanation
+
         # Visualize simulation results
-        self.visualize_simulation_results(simulation_results, most_likely_outcome, "")
+        self.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor("Panthers", "Dolphins", '2022-11-22')
+    predictor = NFLPredictor("Dolphins", "Panthers", '2022-11-22')
     predictor.main()
     # Call other methods of the predictor as needed
