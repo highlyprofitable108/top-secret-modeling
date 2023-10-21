@@ -1,23 +1,35 @@
+# Standard library imports
+import io
+import os
+import sys
+import time
+from datetime import datetime
+from importlib import reload
+
+# Third-party imports
+import joblib
+import mpld3
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from scipy.stats import gaussian_kde, t
+from pymongo import MongoClient
+from tqdm import tqdm
+
+# Local application imports
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 import scripts.constants
-import io
-import os
-import sys
-import joblib
-from pymongo import MongoClient
-import mpld3
-import time
-import random
-from datetime import datetime
-import seaborn as sns
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from importlib import reload
-from scipy.stats import mode, gaussian_kde
+
+# Set up logging
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+HOME_FIELD_ADJUST = -2.7
 
 
 class NFLPredictor:
@@ -33,8 +45,18 @@ class NFLPredictor:
         self.template_dir = self.config.get_config('paths', 'template_dir')
         self.MONGO_URI = self.config.get_config('database', 'mongo_uri')
         self.DATABASE_NAME = self.config.get_config('database', 'database_name')
-        self.client = MongoClient(self.MONGO_URI)
-        self.db = self.client[self.DATABASE_NAME]
+
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO)
+
+        try:
+            self.client = MongoClient(self.MONGO_URI)
+            self.db = self.client[self.DATABASE_NAME]
+        except Exception as e:
+            logging.error(f"Error connecting to MongoDB: {e}")
+            raise
+
         self.home_team = home_team
         self.away_team = away_team
         self.date = date
@@ -48,25 +70,41 @@ class NFLPredictor:
             scaler = joblib.load(os.path.join(self.model_dir, 'data_scaler.pkl'))
             return model, scaler
         except FileNotFoundError as e:
-            print(f"Error loading files: {e}")
-            # Handle the error appropriately or return None values
+            logging.error(f"Error loading files: {e}")
             return None, None
 
-    def get_team_a_data(self, df):
+    def prepare_data(self, df, features):
+        """Prepare data for simulation."""
+        # Create a dictionary with column names as keys and arithmetic operations as values
+        feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
+
+        # Extract unique base column names from the features list
+        base_column_names = set(col.rsplit('_', 1)[0] for col in features)
+
+        # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
+        home_features = self.get_team_data(df, self.home_team)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
+        away_features = self.get_team_data(df, self.away_team)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
+
+        # Initialize an empty DataFrame for the results
+        game_prediction_df = pd.DataFrame()
+
+        # Iterate over the columns using the dictionary
+        for col, operation in feature_operations.items():
+            if operation == "difference":
+                game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
+            else:
+                game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
+
+        # Handle potential division by zero issues
+        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        return game_prediction_df
+
+    def get_team_data(self, df, team):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
+        condition = df['update_date'] <= self.date
+
         # Filter the DataFrame based on the team name and the date condition
-        filtered_df = df[(df['name'] == self.away_team) & (df['update_date'] <= self.date)]
-
-        # Get the index of the row with the most recent update_date
-        idx = filtered_df['update_date'].idxmax()
-
-        # Return the row with the most recent update_date
-        return df.loc[[idx]]
-
-    def get_team_b_data(self, df):
-        """Fetches data for a specific team based on the alias from the provided DataFrame."""
-        # Filter the DataFrame based on the team name and the date condition
-        filtered_df = df[(df['name'] == self.home_team) & (df['update_date'] < self.date)]
+        filtered_df = df[(df['name'] == team) & condition]
 
         # Get the index of the row with the most recent update_date
         idx = filtered_df['update_date'].idxmax()
@@ -96,19 +134,20 @@ class NFLPredictor:
         """Filters the merged data using the feature columns and scales the numeric features."""
         # Reload constants
         reload(scripts.constants)
+
         # Filter the DataFrame
-        merged_data = df[df['update_date'] == self.date]
+        filtered_data = merged_data[merged_data['update_date'] == self.date]
 
         # Filter columns with stripping whitespaces and exclude 'scoring_differential'
-        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, merged_data.columns) and col.strip() != 'scoring_differential']
+        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, filtered_data.columns) and col.strip() != 'scoring_differential']
 
-        merged_data = merged_data[columns_to_filter]
-        merged_data[columns_to_filter] = self.LOADED_SCALER.transform(merged_data[columns_to_filter])
-        return merged_data
+        filtered_data = filtered_data[columns_to_filter]
+        filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
+        return filtered_data
 
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=2500):
-        print(df.head)
-        print("Starting Monte Carlo Simulation...")
+        logging.info(df.head())
+        logging.info("Starting Monte Carlo Simulation...")
 
         simulation_results = []
         start_time = time.time()
@@ -126,9 +165,12 @@ class NFLPredictor:
                 modified_df = sampled_df.dropna(axis=1, how='any')
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
 
-                prediction = self.LOADED_MODEL.predict(scaled_df)
-
-                simulation_results.append(prediction[0])
+                try:
+                    prediction = self.LOADED_MODEL.predict(scaled_df)
+                    adjusted_prediction = prediction[0] + HOME_FIELD_ADJUST
+                    simulation_results.append(adjusted_prediction)
+                except Exception as e:
+                    logging.error(f"Error during prediction: {e}")
 
                 pbar.update(1)  # Increment tqdm progress bar
                 if time.time() - start_time > 10:
@@ -137,21 +179,35 @@ class NFLPredictor:
 
         # After obtaining simulation_results
         kernel = gaussian_kde(simulation_results)
-        most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]+2.7
+        most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
 
-        print("Monte Carlo Simulation Completed!")
+        logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
 
+    def compute_confidence_interval(self, data, confidence=0.95):
+        """Compute the confidence interval for a given dataset."""
+        a = 1.0 * np.array(data)
+        n = len(a)
+        m, se = np.mean(a), np.std(a)/np.sqrt(n)
+        h = se * t.ppf((1 + confidence) / 2., n-1)
+        return m-h, m+h
+
     def analyze_simulation_results(self, simulation_results):
-        """Analyzes the simulation results to compute the range of outcomes, standard deviation, and the most likely outcome."""
+        """
+        Analyzes the simulation results to compute the range of outcomes, 
+        standard deviation, and the most likely outcome.
+        """
 
-        # Sort the simulation results
-        sorted_results = sorted(simulation_results)
+        # Constants to define the bounds for filtering the results
+        LOWER_PERCENTILE = 0.1
+        UPPER_PERCENTILE = 0.9
 
-        # Filter out the extreme x% of results on either end (keeping central y%)
-        lower_bound = int(0.1 * len(sorted_results))
-        upper_bound = int(0.9 * len(sorted_results))
-        filtered_results = sorted_results[lower_bound:upper_bound]
+        # Calculate the lower and upper bounds based on percentiles
+        lower_bound_value = np.percentile(simulation_results, LOWER_PERCENTILE * 100)
+        upper_bound_value = np.percentile(simulation_results, UPPER_PERCENTILE * 100)
+
+        # Filter the results based on the calculated bounds
+        filtered_results = [result for result in simulation_results if lower_bound_value <= result <= upper_bound_value]
 
         # Calculate the range of outcomes based on the filtered results
         range_of_outcomes = (min(filtered_results), max(filtered_results))
@@ -159,28 +215,47 @@ class NFLPredictor:
         # Calculate the standard deviation based on the filtered results
         standard_deviation = np.std(filtered_results)
 
-        return range_of_outcomes, standard_deviation
+        # Calculate confidence intervals
+        confidence_interval = self.compute_confidence_interval(simulation_results)
 
-    def visualize_simulation_results(self, simulation_results, most_likely_outcome, output):
-        """Visualizes the simulation results using a histogram and calculates the rounded most likely outcome."""
+        return range_of_outcomes, standard_deviation, confidence_interval
 
-        # Plot the histogram of the simulation results using seaborn
-        plt.figure(figsize=(10, 6))
-        sns.histplot(simulation_results, bins=50, kde=True, color='blue')
-        plt.axvline(most_likely_outcome, color='red', linestyle='--')
-        plt.title("Monte Carlo Simulation Results")
-        plt.xlabel("Scoring Differential")
-        plt.ylabel("Density")
-        plt.grid()
+    def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
+        """
+        Visualizes the simulation results using a histogram and calculates 
+        the rounded most likely outcome.
 
-        # Convert the Matplotlib figure to HTML and save it
-        feature_importance_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+        Parameters:
+        - simulation_results: List of results from the Monte Carlo simulation.
+        - most_likely_outcome: The most probable outcome from the simulation.
+        - output: Additional output to be included in the saved HTML.
+        - bins: Number of bins for the histogram. Default is 50.
+
+        Returns:
+        - formatted_most_likely_outcome: The rounded and formatted most likely outcome.
+        """
+
+        # Plot using Plotly
+        fig = go.Figure()
+        fig.add_histogram(x=simulation_results, name='Simulation Results', nbinsx=bins)
+        fig.add_shape(type="line", x0=most_likely_outcome, x1=most_likely_outcome, y0=0, y1=1, yref='paper', line=dict(color="Red"))
+        fig.update_layout(title="Monte Carlo Simulation Results", xaxis_title="Target Value", yaxis_title="Density")
+        fig.show()
+
+        # Convert the Matplotlib figure to HTML
         html_string = mpld3.fig_to_html(plt.gcf())
 
-        # Include the captured statements above the graph
+        # Path to save the visualization as an HTML file
+        feature_importance_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+
+        # Include the captured statements above the graph and save to file
         full_html = f"<div><pre>{output}</pre></div>" + html_string
-        with open(feature_importance_path, "w") as f:
-            f.write(full_html)
+        try:
+            with open(feature_importance_path, "w") as f:
+                f.write(full_html)
+        except IOError as e:
+            # Handle potential file write issues
+            print(f"Error writing to file: {e}")
 
         # Calculate the rounded most likely outcome
         rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2)
@@ -194,108 +269,35 @@ class NFLPredictor:
         return formatted_most_likely_outcome
 
     def main(self):
-        """Predicts the scoring differential using Monte Carlo simulation and visualizes the results."""
-        """
-        # Fetch the teams collection to create a mapping of team_alias to team_id
-        teams_df = self.database_operations.fetch_data_from_mongodb('teams')
-        team_alias_to_id = dict(zip(teams_df['alias'], teams_df['id']))
+        """Predicts the target value using Monte Carlo simulation and visualizes the results."""
+        self.logger.info("Starting prediction process...")
 
-        print("Available Team Aliases:")
-        aliases = list(team_alias_to_id.keys())
-        for i in range(0, len(aliases), 6):
-            print("\t".join(aliases[i:i+6]))
-
-        # Prompt user for input
-        home_team_alias = input("Enter home team alias: ")
-        while home_team_alias not in team_alias_to_id:
-            print("Invalid team alias. Please enter a valid team alias from the list above.")
-            home_team_alias = input("Enter home team alias: ")
-
-        away_team_alias = input("Enter away team alias: ")
-        while away_team_alias not in team_alias_to_id:
-            print("Invalid opponent team alias. Please enter a valid team alias from the list above.")
-            away_team_alias = input("Enter away team alias: ")
-        """
         reload(scripts.constants)
-
         features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
-
-        # Create a dictionary with column names as keys and arithmetic operations as values
-        feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
 
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
-
-        # Ensure ranks_team_A and ranks_team_B are not None before proceeding
-        home_team_data = self.get_team_a_data(df)
-        away_team_data = self.get_team_b_data(df)
-        standard_deviation_data = self.get_standard_deviation(df)
-
-        # Extract unique base column names from the features list
-        base_column_names = set(col.rsplit('_', 1)[0] for col in features)
-
-        # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
-        home_features = home_team_data[list(base_column_names.intersection(home_team_data.columns))]
-        away_features = away_team_data[list(base_column_names.intersection(away_team_data.columns))]
-        std_features = standard_deviation_data[list(base_column_names.intersection(standard_deviation_data.columns))]
-        home_features = home_features.reset_index(drop=True)
-        away_features = away_features.reset_index(drop=True)
-        std_features = std_features.reset_index(drop=True)
-
-        # Initialize an empty DataFrame for the results
-        game_prediction_df = pd.DataFrame()
-
-        # Iterate over the columns using the dictionary
-        for col, operation in feature_operations.items():
-            if operation == "difference":
-                game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
-            else:
-                game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
-                [col + "_difference"]
-
-        # Handle potential division by zero issues (if needed)
-        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        game_prediction_df = self.prepare_data(df, features)
 
         # Run Monte Carlo simulations
-        print("\nRunning Simulations...")
-        simulation_results, most_likely_outcome = self.monte_carlo_simulation(game_prediction_df, std_features)
+        self.logger.info("Running Simulations...")
+        simulation_results, most_likely_outcome = self.monte_carlo_simulation(game_prediction_df, self.get_standard_deviation(df))
 
         # Analyze simulation results
-        print("Analyzing Simulation Results...")
-        range_of_outcomes, standard_deviation = self.analyze_simulation_results(simulation_results)
-
-        # Calculate the rounded most likely outcome
-        rounded_most_likely_outcome = (round(most_likely_outcome * 2) / 2)
-
-        # Format the rounded most likely outcome with a leading + sign for positive values
-        if rounded_most_likely_outcome > 0:
-            formatted_most_likely_outcome = f"+{rounded_most_likely_outcome:.2f}"
-        else:
-            formatted_most_likely_outcome = f"{rounded_most_likely_outcome:.2f}"
+        self.logger.info("Analyzing Simulation Results...")
+        range_of_outcomes, standard_deviation, confidence_interval = self.analyze_simulation_results(simulation_results)
 
         # User-friendly output
-        print("\nPrediction Results:")
-        print(f"Based on our model, the expected scoring differential for {self.home_team} against {self.away_team} is between {range_of_outcomes[0]:.2f} and {range_of_outcomes[1]:.2f} points.")
-        print(f"The most likely scoring differential is approximately {most_likely_outcome:.2f} points.")
-        print(f"The standard deviation of the scoring differentials is approximately {standard_deviation:.2f} points.\n")
-        print(f"The projected spread on this game should be {self.home_team} {formatted_most_likely_outcome}.\n")
-
-        # Redirect standard output to capture the print statements
-        old_stdout = sys.stdout
-        new_stdout = io.StringIO()
-        sys.stdout = new_stdout
-
-        # Capture the printed statements
-        output = new_stdout.getvalue()
-
-        # Reset standard output
-        sys.stdout = old_stdout
+        self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
+        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
+        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
+        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
 
         # Visualize simulation results
-        self.visualize_simulation_results(simulation_results, most_likely_outcome, output)
+        self.visualize_simulation_results(simulation_results, most_likely_outcome, "")
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor("Jaguars", "Giants", '2022-11-22')
+    predictor = NFLPredictor("Panthers", "Dolphins", '2022-11-22')
     predictor.main()
     # Call other methods of the predictor as needed
