@@ -5,13 +5,14 @@ import pandas as pd
 from tqdm import tqdm
 from scipy.stats import gaussian_kde, t
 
+
 class Modeling:
     def __init__(self, loaded_model, loaded_scaler, home_field_adjust):
         self.LOADED_MODEL = loaded_model
         self.LOADED_SCALER = loaded_scaler
         self.HOME_FIELD_ADJUST = home_field_adjust
 
-    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=250):
+    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=5000):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
 
