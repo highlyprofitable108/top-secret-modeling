@@ -1,23 +1,14 @@
 # Standard library imports
 import io
 import os
-import sys
-import time
 from datetime import datetime, timedelta
 from importlib import reload
 
 # Third-party imports
 import joblib
-import mpld3
-
 import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-from scipy.stats import gaussian_kde, t
+from multiprocessing import Pool
 from pymongo import MongoClient
-from tqdm import tqdm
 
 
 # Local application imports
@@ -156,6 +147,7 @@ class NFLPredictor:
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
         all_actual_results = []
+        params_list = []
 
         # Loop over each game in the historical data
         for _, row in historical_df.iterrows():
@@ -163,6 +155,17 @@ class NFLPredictor:
             self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
 
             game_prediction_df = self.data_processing.prepare_data(df, features, self.home_team, self.away_team, self.date)
+            params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
+
+        # Use Pool to run simulations in parallel
+        with Pool() as pool:
+            results = pool.map(run_simulation, params_list)
+        pool.close()
+        pool.join()
+
+        # Process these results in a separate loop:
+        for idx, (simulation_results, most_likely_outcome) in enumerate(results):
+            row = historical_df.iloc[idx]
 
             # Run Monte Carlo simulations
             self.logger.info(f"Running Simulations for {self.home_team} vs {self.away_team} on {self.date}...")
@@ -207,6 +210,11 @@ class NFLPredictor:
         self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
         self.logger.info(f"Average Expected Value: {average_ev:.2f}%")
         self.logger.info(f"Actual Results: ${actual_value:.2f}")
+
+
+def run_simulation(params):
+    game_prediction_df, standard_deviation, model = params
+    return model.monte_carlo_simulation(game_prediction_df, standard_deviation)
 
 
 if __name__ == "__main__":
