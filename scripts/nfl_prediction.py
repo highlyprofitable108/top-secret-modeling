@@ -131,7 +131,7 @@ class NFLPredictor:
         # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
         home_features = self.get_team_data(df, self.home_team)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
         away_features = self.get_team_data(df, self.away_team)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
-
+        print(home_features)
         # Initialize an empty DataFrame for the results
         game_prediction_df = pd.DataFrame()
 
@@ -155,7 +155,7 @@ class NFLPredictor:
 
         # Filter the DataFrame based on the team name and the date condition
         filtered_df = df[(df['name'].str.lower() == team.lower()) & condition]
-
+        print(filtered_df.columns)
         # Get the index of the row with the most recent update_date
         idx = filtered_df['update_date'].idxmax()
 
@@ -195,7 +195,7 @@ class NFLPredictor:
         filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
         return filtered_data
 
-    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=50):
+    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=2500):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
 
@@ -371,12 +371,11 @@ class NFLPredictor:
     def evaluate_and_recommend(self, simulation_results, historical_df):
         historical_df = historical_df.reset_index(drop=True)
         correct_recommendations = 0
-        correct_bets = 0
         total_bets = 0
         total_ev = 0
 
         # Create a DataFrame to store the results
-        results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Away Team', 'Spread Odds', 'Actual Difference', 'Predicted Difference', 'Actual Covered', 'Recommended Bet', 'Bet Outcome', 'Expected Value'])
+        results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Home Points', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Away Points', 'Recommended Bet', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Expected Value'])
 
         for idx, row in historical_df.iterrows():
             actual_home_points = row['summary.home.points']
@@ -386,20 +385,25 @@ class NFLPredictor:
             spread_odds = row['summary.odds.spread']
             date = row['scheduled']
 
-            actual_difference = actual_home_points - actual_away_points
+            actual_difference = (actual_home_points + spread_odds) - actual_away_points
             predicted_difference = simulation_results[idx]
 
-            # Determine who covered based on spread odds
-            if actual_difference > spread_odds:
+            # Determine who actually covered based on spread odds
+            if actual_difference < 0:
+                actual_covered = "away"
+            elif actual_difference > 0:
                 actual_covered = "home"
             else:
-                actual_covered = "away"
+                actual_covered = "push"
 
             # Recommendation based on model
-            if predicted_difference > spread_odds:
+            reccommendation_calc = spread_odds - predicted_difference
+            if reccommendation_calc < 0:
+                recommended_bet = "away"
+            elif reccommendation_calc > 0:
                 recommended_bet = "home"
             else:
-                recommended_bet = "away"
+                recommended_bet = "push"  # or any default recommendation
 
             # Calculate expected value (simplified)
             probability = simulation_results.count(predicted_difference) / len(simulation_results)
@@ -409,23 +413,26 @@ class NFLPredictor:
             # Check historical performance
             if recommended_bet == actual_covered:
                 correct_recommendations += 1
-                correct_bets += 1
+                total_bets += 1
                 bet_outcome = "Win"
+            elif recommended_bet == "push" or actual_covered == "push":
+                bet_outcome = "Push"
             else:
+                total_bets += 1
                 bet_outcome = "Loss"
-
-            total_bets += 1
 
             # Append to results DataFrame
             new_row = pd.Series({
                 'Date': date,
                 'Home Team': home_team,
+                'Home Points': actual_home_points,
+                'Vegas Odds': spread_odds,
+                'Modeling Odds': predicted_difference,
                 'Away Team': away_team,
-                'Spread Odds': spread_odds,
-                'Actual Difference': actual_difference,
-                'Predicted Difference': predicted_difference,
-                'Actual Covered': actual_covered,
+                'Away Points': actual_away_points,
                 'Recommended Bet': recommended_bet,
+                'Result with Spread': actual_difference,
+                'Actual Covered': actual_covered,
                 'Bet Outcome': bet_outcome,
                 'Expected Value': ev
             })
@@ -436,10 +443,9 @@ class NFLPredictor:
         results_df.to_csv('betting_recommendation_results.csv', index=False)
 
         recommendation_accuracy = correct_recommendations / total_bets * 100
-        win_rate = (correct_bets / total_bets) * 100
         average_ev = total_ev / total_bets
 
-        return recommendation_accuracy, average_ev, win_rate
+        return recommendation_accuracy, average_ev
 
     def main(self):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
@@ -451,7 +457,7 @@ class NFLPredictor:
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
-        historical_df = self.get_historical_data(random_subset=60)
+        historical_df = self.get_historical_data()
 
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
@@ -474,7 +480,7 @@ class NFLPredictor:
 
             # Store simulation results and actual results for evaluation
             all_simulation_results.append(most_likely_outcome)
-            actual_difference = row['summary.home.points'] - row['summary.away.points']
+            actual_difference = (row['summary.home.points'] - row['summary.away.points'])*(-1)
             all_actual_results.append(actual_difference)
 
             # Create a buffer to capture log messages
@@ -503,9 +509,8 @@ class NFLPredictor:
         self.compare_simulated_to_actual(all_simulation_results, all_actual_results)
 
         # Evaluate the betting recommendation and expected value
-        recommendation_accuracy, average_ev, win_rate = self.evaluate_and_recommend(all_simulation_results, historical_df)
+        recommendation_accuracy, average_ev = self.evaluate_and_recommend(all_simulation_results, historical_df)
         self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
-        self.logger.info(f"Win Rate of Recommended Bet: {win_rate:.2f}%")
         self.logger.info(f"Average Expected Value: ${average_ev:.2f}")
 
 
