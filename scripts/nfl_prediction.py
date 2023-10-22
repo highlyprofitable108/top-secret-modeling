@@ -3,7 +3,7 @@ import io
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from importlib import reload
 
 # Third-party imports
@@ -73,7 +73,10 @@ class NFLPredictor:
         self.home_team = home_team
         self.away_team = away_team
         # Convert the date to a datetime object and store only the "yyyy-mm-dd" part
-        self.date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%d')
+        if isinstance(date, str):
+            self.date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%d')
+        else:
+            self.date = date.strftime('%Y-%m-%d')
 
     def load_model_and_scaler(self):
         try:
@@ -84,7 +87,7 @@ class NFLPredictor:
             logging.error(f"Error loading files: {e}")
             return None, None
 
-    def get_historical_data(self, random_subset=None):
+    def get_historical_data(self, random_subset=None, get_current=True, adhoc=False):
         """
         Prepare historical data for simulations.
 
@@ -94,7 +97,7 @@ class NFLPredictor:
         df = self.database_operations.fetch_data_from_mongodb('games')
         historical_df = self.data_processing.flatten_and_merge_data(df)
 
-        columns_to_check = [col for col in historical_df.columns if col.startswith('summary.')]
+        columns_to_check = [col for col in historical_df.columns if col.startswith('summary.odds.spread')]
         historical_df = historical_df.dropna(subset=columns_to_check, how='any')
 
         # Extract necessary columns
@@ -114,9 +117,21 @@ class NFLPredictor:
 
         game_data = historical_df[columns_to_extract]
 
+        # Convert the 'scheduled' column to datetime format and strip time information
+        game_data['scheduled'] = pd.to_datetime(game_data['scheduled']).dt.date
+
+        # If get_current is True, filter games for the next week
+        if get_current:
+            today = datetime.now().date()
+            one_week_from_now = today + timedelta(days=6)
+            game_data = game_data[(game_data['scheduled'] >= today) & (game_data['scheduled'] <= one_week_from_now)]
+
         # If random_subset is specified, fetch a random subset of games
-        if random_subset:
+        elif random_subset:
             game_data = game_data.sample(n=random_subset)
+
+        elif adhoc:
+            print("NEED TO DEVELOP STILL")
 
         return game_data
 
@@ -375,7 +390,7 @@ class NFLPredictor:
         total_ev = 0
 
         # Create a DataFrame to store the results
-        results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Home Points', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Away Points', 'Recommended Bet', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Expected Value'])
+        results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Home Points', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Away Points', 'Recommended Bet', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Expected Value (%)', 'Actual Value ($)'])
 
         for idx, row in historical_df.iterrows():
             actual_home_points = row['summary.home.points']
@@ -385,16 +400,40 @@ class NFLPredictor:
             spread_odds = row['summary.odds.spread']
             date = row['scheduled']
 
-            actual_difference = (actual_home_points + spread_odds) - actual_away_points
             predicted_difference = simulation_results[idx]
 
-            # Determine who actually covered based on spread odds
-            if actual_difference < 0:
-                actual_covered = "away"
-            elif actual_difference > 0:
-                actual_covered = "home"
+            # Check if the game has actual results or if it's a future game
+            if pd.isna(actual_home_points) or pd.isna(actual_away_points):
+                # Future game
+                actual_covered = ""
+                bet_outcome = ""
+                actual_value = np.nan
+                actual_difference = np.nan
             else:
-                actual_covered = "push"
+                # Past game with actual results
+                actual_difference = (actual_home_points + spread_odds) - actual_away_points
+
+                # Determine who actually covered based on spread odds
+                if actual_difference < 0:
+                    actual_covered = "away"
+                elif actual_difference > 0:
+                    actual_covered = "home"
+                else:
+                    actual_covered = "push"
+
+                # Check historical performance
+                if recommended_bet == actual_covered:
+                    correct_recommendations += 1
+                    total_bets += 1
+                    bet_outcome = "Win"
+                    actual_value = 100  # Profit from a winning bet
+                elif recommended_bet == "push" or actual_covered == "push":
+                    bet_outcome = "Push"
+                    actual_value = 0  # No profit, no loss from a push
+                else:
+                    total_bets += 1
+                    bet_outcome = "Loss"
+                    actual_value = -110  # Loss from a losing bet
 
             # Recommendation based on model
             reccommendation_calc = spread_odds - predicted_difference
@@ -405,21 +444,39 @@ class NFLPredictor:
             else:
                 recommended_bet = "push"  # or any default recommendation
 
-            # Calculate expected value (simplified)
-            probability = simulation_results.count(predicted_difference) / len(simulation_results)
-            ev = (probability * 100) - ((1 - probability) * 110)  # Adjusted for $110 bet to win $100
-            total_ev += ev
+            # Calculate the model's implied probability
+            if recommended_bet == "home":
+                model_probability = 1 / (1 + 10 ** (predicted_difference / 10))
+            else:
+                model_probability = 1 / (1 + 10 ** (-predicted_difference / 10))
+
+            # Calculate the Vegas implied probability
+            if recommended_bet == "home":
+                vegas_probability = 1 / (1 + 10 ** (spread_odds / 10))
+            else:
+                vegas_probability = 1 / (1 + 10 ** (-spread_odds / 10))
+
+            # Calculate expected value (adjusted for model vs. Vegas odds)
+            ev_fraction = model_probability - vegas_probability  # This is the EV as a fraction of the bet
+
+            # Express EV as a percentage of the bet
+            ev_percentage = ev_fraction * 100
+
+            total_ev += ev_percentage
 
             # Check historical performance
             if recommended_bet == actual_covered:
                 correct_recommendations += 1
                 total_bets += 1
                 bet_outcome = "Win"
+                actual_value = 100  # Profit from a winning bet
             elif recommended_bet == "push" or actual_covered == "push":
                 bet_outcome = "Push"
+                actual_value = 0  # No profit, no loss from a push
             else:
                 total_bets += 1
                 bet_outcome = "Loss"
+                actual_value = -110  # Loss from a losing bet
 
             # Append to results DataFrame
             new_row = pd.Series({
@@ -434,18 +491,26 @@ class NFLPredictor:
                 'Result with Spread': actual_difference,
                 'Actual Covered': actual_covered,
                 'Bet Outcome': bet_outcome,
-                'Expected Value': ev
+                'Expected Value (%)': ev_percentage,
+                'Actual Value ($)': actual_value
             })
 
             results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
 
+        # Round all values in the DataFrame to 2 decimals
+        results_df = results_df.round(2)
+
         # Save results to CSV
         results_df.to_csv('betting_recommendation_results.csv', index=False)
 
+        # Calculate the total actual value from all bets
+        total_actual_value = results_df['Actual Value ($)'].sum()
+
         recommendation_accuracy = correct_recommendations / total_bets * 100
         average_ev = total_ev / total_bets
+        average_ev_percent = (average_ev / 110) * 100
 
-        return recommendation_accuracy, average_ev
+        return recommendation_accuracy, average_ev_percent, total_actual_value
 
     def main(self):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
@@ -457,7 +522,7 @@ class NFLPredictor:
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
-        historical_df = self.get_historical_data()
+        historical_df = self.get_historical_data(random_subset=60)
 
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
@@ -509,9 +574,10 @@ class NFLPredictor:
         self.compare_simulated_to_actual(all_simulation_results, all_actual_results)
 
         # Evaluate the betting recommendation and expected value
-        recommendation_accuracy, average_ev = self.evaluate_and_recommend(all_simulation_results, historical_df)
+        recommendation_accuracy, average_ev, actual_value = self.evaluate_and_recommend(all_simulation_results, historical_df)
         self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
-        self.logger.info(f"Average Expected Value: ${average_ev:.2f}")
+        self.logger.info(f"Average Expected Value: {average_ev:.2f}%")
+        self.logger.info(f"Actual Results: ${actual_value:.2f}")
 
 
 if __name__ == "__main__":

@@ -316,5 +316,8 @@ class StatsCalculator:
 
 
 if __name__ == "__main__":
+    print("starting")
     nfl_stats = StatsCalculator()
     nfl_stats.main()
+    print("done")
+

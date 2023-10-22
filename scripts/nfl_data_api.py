@@ -53,4 +53,8 @@ def fetch_nfl_data(year: int, season_type: str) -> dict:
 
 if __name__ == "__main__":
     # Example usage:
-    fetch_nfl_data(2022, "REG")
+    fetch_nfl_data(2017, "POS")
+    fetch_nfl_data(2016, "REG")
+    fetch_nfl_data(2016, "POS")
+    fetch_nfl_data(2015, "REG")
+    fetch_nfl_data(2015, "POS")
