@@ -60,6 +60,80 @@ class DataProcessing:
             collapsed_data.append(nested_data)
         return pd.DataFrame(collapsed_data)
 
+    def rename_columns(self, data, prefix):
+        """Renames columns with a specified prefix."""
+        reload(scripts.constants)
+        columns_to_rename = [col.replace('ranks_home_', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('ranks_home_')]
+        rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
+        return data.rename(columns=rename_dict)
+
+    def filter_and_scale_data(self, merged_data, date):
+        """Filters the merged data using the feature columns and scales the numeric features."""
+        # Reload constants
+        reload(scripts.constants)
+
+        # Filter the DataFrame
+        filtered_data = merged_data[merged_data['update_date'] == date]
+
+        # Filter columns with stripping whitespaces and exclude 'scoring_differential'
+        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, filtered_data.columns) and col.strip() != 'scoring_differential']
+
+        filtered_data = filtered_data[columns_to_filter]
+        filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
+        return filtered_data
+
+    def get_team_data(self, df, team, date):
+        """Fetches data for a specific team based on the alias from the provided DataFrame."""
+        # Convert the 'update_date' column to a datetime object and extract only the "yyyy-mm-dd" part
+        df['update_date'] = pd.to_datetime(df['update_date']).dt.strftime('%Y-%m-%d')
+        condition = df['update_date'] <= date
+
+        # Filter the DataFrame based on the team name and the date condition
+        filtered_df = df[(df['name'].str.lower() == team.lower()) & condition]
+        # Get the index of the row with the most recent update_date
+        idx = filtered_df['update_date'].idxmax()
+
+        # Return the row with the most recent update_date
+        return df.loc[[idx]]
+
+    def get_standard_deviation(self, df):
+        """Fetches the standard deviation for each column in the provided DataFrame."""
+        # Exclude non-numeric columns
+        numeric_df = df.select_dtypes(include=[np.number])
+
+        # Compute the standard deviation for each numeric column
+        standard_deviation_df = numeric_df.std().to_frame().transpose()
+
+        # Return the standard deviation DataFrame
+        return standard_deviation_df
+
+    def prepare_data(self, df, features, home_team, away_team, date):
+        """Prepare data for simulation."""
+
+        # Create a dictionary with column names as keys and arithmetic operations as values
+        feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
+
+        # Extract unique base column names from the features list
+        base_column_names = set(col.rsplit('_', 1)[0] for col in features)
+
+        # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
+        home_features = self.get_team_data(df, home_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
+        away_features = self.get_team_data(df, away_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
+
+        # Initialize an empty DataFrame for the results
+        game_prediction_df = pd.DataFrame()
+
+        # Iterate over the columns using the dictionary
+        for col, operation in feature_operations.items():
+            if operation == "difference":
+                game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
+            else:
+                game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
+
+        # Handle potential division by zero issues
+        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        return game_prediction_df
+
     def cleanup_ranks(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Convert a dataframe that has ranks_* > type.stats to ranks_* > type > stats
