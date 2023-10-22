@@ -6,7 +6,7 @@ constants:
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
   CUTOFF_DATE: '2019-09-01'
-  END_DATE: '2022-11-22'
+  END_DATE: '2023-10-24'
   BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
   AWAY_PREFIX: "statistics.away."
   HOME_PREFIX: "statistics.home."
@@ -20,7 +20,7 @@ constants:
 
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
-  api_key: "pvuwb272w345p6gkkzpytjd7"
+  api_key: "cp75xcgsbn9ybrgzp3ag7jxt"
   endpoint_schedule: "/{year}/{season}/schedule.json"
   endpoint_stats: "/{game_id}/stats.json"
 

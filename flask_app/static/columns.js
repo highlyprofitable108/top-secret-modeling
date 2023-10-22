@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         .then(response => response.json())
         .then(data => {
             if (data.status === "success") {
-                // If /generate_model is successful, send a background request to /generate_power_ranks
+                // If /generate_model is successful, send a request to /generate_power_ranks
                 return fetch('/generate_power_ranks', {
                     method: 'POST'
                 });
@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 throw new Error(data.error || 'Error generating model.');
             }
         })
+        .then(response => response.json())
         .then(() => {
             // After all fetch calls are successful, redirect to /view_analysis
             window.location.href = '/view_analysis'; 

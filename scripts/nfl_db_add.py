@@ -61,13 +61,26 @@ class DBInserter:
             logging.error(f"Invalid file path: {file_path}")
 
     def insert_game_data(self, data):
-        """Inserts game data into the database."""
+        """Inserts or updates game data in the database."""
         if data:
             games_collection = self.db['games']
             game_id = data.get('id')
             existing_game = games_collection.find_one({'id': game_id})
+            
+            # If the game doesn't exist in the collection, insert it
             if existing_game is None:
                 games_collection.insert_one(data)
+            else:
+                # Check if any fields have changed
+                has_changes = False
+                for key, value in data.items():
+                    if existing_game.get(key) != value:
+                        has_changes = True
+                        break
+
+                # If there are changes, update the existing entry
+                if has_changes:
+                    games_collection.update_one({'id': game_id}, {'$set': data})
 
     def insert_team_data(self, data):
         teams_collection = self.db['teams']
@@ -193,21 +206,35 @@ class DBInserter:
         }
 
     def _update_game_odds(self, game, games_collection, spread, total):
-        home_points = game['summary']['home']['points']
-        away_points = game['summary']['away']['points']
+        game_date = datetime.strptime(game['scheduled'].split('T')[0], '%Y-%m-%d').date()
+        current_date = datetime.now().date()
+        days_difference = (game_date - current_date).days
 
-        covered = "Push" if (home_points + spread) - away_points == 0 else ("Yes" if (home_points + spread) - away_points > 0 else "No")
-        total_value = "Push" if home_points + away_points == total else ("Over" if home_points + away_points > total else "Under")
+        # If the game is in the future or within the next 6 days, only update spread and total
+        if days_difference >= 0 and days_difference <= 6:
+            games_collection.update_one(
+                {'_id': game['_id']},
+                {'$set': {
+                    'summary.odds.spread': spread,
+                    'summary.odds.total': total
+                }}
+            )
+        else:
+            home_points = game['summary']['home']['points']
+            away_points = game['summary']['away']['points']
 
-        games_collection.update_one(
-            {'_id': game['_id']},
-            {'$set': {
-                'summary.odds.spread': spread,
-                'summary.odds.total': total,
-                'summary.odds.covered': covered,
-                'summary.odds.total_value': total_value
-            }}
-        )
+            covered = "Push" if (home_points + spread) - away_points == 0 else ("Yes" if (home_points + spread) - away_points > 0 else "No")
+            total_value = "Push" if home_points + away_points == total else ("Over" if home_points + away_points > total else "Under")
+
+            games_collection.update_one(
+                {'_id': game['_id']},
+                {'$set': {
+                    'summary.odds.spread': spread,
+                    'summary.odds.total': total,
+                    'summary.odds.covered': covered,
+                    'summary.odds.total_value': total_value
+                }}
+            )
 
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""
