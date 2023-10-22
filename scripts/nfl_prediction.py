@@ -19,6 +19,7 @@ from scipy.stats import gaussian_kde, t
 from pymongo import MongoClient
 from tqdm import tqdm
 
+
 # Local application imports
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
@@ -33,7 +34,7 @@ HOME_FIELD_ADJUST = -2.7
 
 
 class NFLPredictor:
-    def __init__(self, home_team, away_team, date):
+    def __init__(self):
         # Configuration and Database Connection
         self.config = ConfigManager()
         self.data_processing = DataProcessing()
@@ -57,12 +58,22 @@ class NFLPredictor:
             logging.error(f"Error connecting to MongoDB: {e}")
             raise
 
-        self.home_team = home_team
-        self.away_team = away_team
-        self.date = date
-
         # Loading the pre-trained model and the data scaler
         self.LOADED_MODEL, self.LOADED_SCALER = self.load_model_and_scaler()
+
+    def set_game_details(self, home_team, away_team, date):
+        """Set the game details for the current simulation."""
+
+        # Replace "Football Team" or "Redskins" with "Commanders"
+        if home_team in ["Football Team", "Redskins"]:
+            home_team = "Commanders"
+        if away_team in ["Football Team", "Redskins"]:
+            away_team = "Commanders"
+
+        self.home_team = home_team
+        self.away_team = away_team
+        # Convert the date to a datetime object and store only the "yyyy-mm-dd" part
+        self.date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z').strftime('%Y-%m-%d')
 
     def load_model_and_scaler(self):
         try:
@@ -72,6 +83,42 @@ class NFLPredictor:
         except FileNotFoundError as e:
             logging.error(f"Error loading files: {e}")
             return None, None
+
+    def get_historical_data(self, random_subset=None):
+        """
+        Prepare historical data for simulations.
+
+        :param random_subset: Number of random games to fetch. If None, fetch all games.
+        :return: DataFrame containing game data.
+        """
+        df = self.database_operations.fetch_data_from_mongodb('games')
+        historical_df = self.data_processing.flatten_and_merge_data(df)
+
+        columns_to_check = [col for col in historical_df.columns if col.startswith('summary.')]
+        historical_df = historical_df.dropna(subset=columns_to_check, how='any')
+
+        # Extract necessary columns
+        columns_to_extract = [
+            'id',
+            'scheduled',
+            'summary.home.id',
+            'summary.home.name',
+            'summary.away.id',
+            'summary.away.name',
+            'summary.home.points',
+            'summary.away.points'
+        ]
+        # Extracting all columns under 'summary.odds'
+        odds_columns = [col for col in historical_df.columns if col.startswith('summary.odds.')]
+        columns_to_extract.extend(odds_columns)
+
+        game_data = historical_df[columns_to_extract]
+
+        # If random_subset is specified, fetch a random subset of games
+        if random_subset:
+            game_data = game_data.sample(n=random_subset)
+
+        return game_data
 
     def prepare_data(self, df, features):
         """Prepare data for simulation."""
@@ -101,6 +148,9 @@ class NFLPredictor:
 
     def get_team_data(self, df, team):
         """Fetches data for a specific team based on the alias from the provided DataFrame."""
+        # Convert the 'update_date' column to a datetime object and extract only the "yyyy-mm-dd" part
+        print(team)
+        df['update_date'] = pd.to_datetime(df['update_date']).dt.strftime('%Y-%m-%d')
         condition = df['update_date'] <= self.date
 
         # Filter the DataFrame based on the team name and the date condition
@@ -145,12 +195,12 @@ class NFLPredictor:
         filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
         return filtered_data
 
-    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=2500):
+    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=50):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
 
         simulation_results = []
-        
+
         # List to store sampled_df for each iteration
         sampled_data_list = []
 
@@ -304,6 +354,93 @@ class NFLPredictor:
 
         return formatted_most_likely_outcome
 
+    def compare_simulated_to_actual(self, simulation_results, actual_results):
+        model_covered = 0
+
+        for idx in range(len(simulation_results)):
+            actual_difference = actual_results[idx]
+            predicted_difference = simulation_results[idx]
+
+            if actual_difference > predicted_difference:
+                model_covered += 1
+
+        model_cover_rate = model_covered / len(simulation_results) * 100
+
+        return model_cover_rate
+
+    def evaluate_and_recommend(self, simulation_results, historical_df):
+        historical_df = historical_df.reset_index(drop=True)
+        correct_recommendations = 0
+        correct_bets = 0
+        total_bets = 0
+        total_ev = 0
+
+        # Create a DataFrame to store the results
+        results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Away Team', 'Spread Odds', 'Actual Difference', 'Predicted Difference', 'Actual Covered', 'Recommended Bet', 'Bet Outcome', 'Expected Value'])
+
+        for idx, row in historical_df.iterrows():
+            actual_home_points = row['summary.home.points']
+            actual_away_points = row['summary.away.points']
+            home_team = row['summary.home.name']
+            away_team = row['summary.away.name']
+            spread_odds = row['summary.odds.spread']
+            date = row['scheduled']
+
+            actual_difference = actual_home_points - actual_away_points
+            predicted_difference = simulation_results[idx]
+
+            # Determine who covered based on spread odds
+            if actual_difference > spread_odds:
+                actual_covered = "home"
+            else:
+                actual_covered = "away"
+
+            # Recommendation based on model
+            if predicted_difference > spread_odds:
+                recommended_bet = "home"
+            else:
+                recommended_bet = "away"
+
+            # Calculate expected value (simplified)
+            probability = simulation_results.count(predicted_difference) / len(simulation_results)
+            ev = (probability * 100) - ((1 - probability) * 110)  # Adjusted for $110 bet to win $100
+            total_ev += ev
+
+            # Check historical performance
+            if recommended_bet == actual_covered:
+                correct_recommendations += 1
+                correct_bets += 1
+                bet_outcome = "Win"
+            else:
+                bet_outcome = "Loss"
+
+            total_bets += 1
+
+            # Append to results DataFrame
+            new_row = pd.Series({
+                'Date': date,
+                'Home Team': home_team,
+                'Away Team': away_team,
+                'Spread Odds': spread_odds,
+                'Actual Difference': actual_difference,
+                'Predicted Difference': predicted_difference,
+                'Actual Covered': actual_covered,
+                'Recommended Bet': recommended_bet,
+                'Bet Outcome': bet_outcome,
+                'Expected Value': ev
+            })
+
+            results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
+
+        # Save results to CSV
+        results_df.to_csv('betting_recommendation_results.csv', index=False)
+
+        recommendation_accuracy = correct_recommendations / total_bets * 100
+        win_rate = (correct_bets / total_bets) * 100
+        average_ev = total_ev / total_bets
+
+        return recommendation_accuracy, average_ev, win_rate
+
     def main(self):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
         self.logger.info("Starting prediction process...")
@@ -313,40 +450,66 @@ class NFLPredictor:
 
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
-        game_prediction_df = self.prepare_data(df, features)
 
-        # Run Monte Carlo simulations
-        self.logger.info("Running Simulations...")
-        simulation_results, most_likely_outcome = self.monte_carlo_simulation(game_prediction_df, self.get_standard_deviation(df))
+        historical_df = self.get_historical_data(random_subset=60)
 
-        # Analyze simulation results
-        self.logger.info("Analyzing Simulation Results...")
-        range_of_outcomes, standard_deviation, confidence_interval = self.analyze_simulation_results(simulation_results)
+        # Lists to store simulation results and actual results for each game
+        all_simulation_results = []
+        all_actual_results = []
 
-        # Create a buffer to capture log messages
-        log_capture_buffer = io.StringIO()
+        # Loop over each game in the historical data
+        for _, row in historical_df.iterrows():
+            # Set the game details for the current simulation
+            self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
 
-        # Set up the logger to write to the buffer
-        log_handler = logging.StreamHandler(log_capture_buffer)
-        log_handler.setLevel(logging.INFO)
-        self.logger.addHandler(log_handler)
+            game_prediction_df = self.prepare_data(df, features)
 
-        # User-friendly output
-        self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
-        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
-        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
-        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
+            # Run Monte Carlo simulations
+            self.logger.info(f"Running Simulations for {self.home_team} vs {self.away_team} on {self.date}...")
+            simulation_results, most_likely_outcome = self.monte_carlo_simulation(game_prediction_df, self.get_standard_deviation(df))
 
-        # Retrieve the log messages from the buffer
-        log_contents = log_capture_buffer.getvalue()
-        explanation = self.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
-        combined_output = log_contents + "\n\n" + explanation
+            # Analyze simulation results
+            self.logger.info("Analyzing Simulation Results...")
+            range_of_outcomes, standard_deviation, confidence_interval = self.analyze_simulation_results(simulation_results)
 
-        # Visualize simulation results
-        self.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
+            # Store simulation results and actual results for evaluation
+            all_simulation_results.append(most_likely_outcome)
+            actual_difference = row['summary.home.points'] - row['summary.away.points']
+            all_actual_results.append(actual_difference)
+
+            # Create a buffer to capture log messages
+            log_capture_buffer = io.StringIO()
+
+            # Set up the logger to write to the buffer
+            log_handler = logging.StreamHandler(log_capture_buffer)
+            log_handler.setLevel(logging.INFO)
+            self.logger.addHandler(log_handler)
+
+            # User-friendly output
+            self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
+            self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
+            self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
+            self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
+
+            # Retrieve the log messages from the buffer
+            log_contents = log_capture_buffer.getvalue()
+            explanation = self.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
+            combined_output = log_contents + "\n\n" + explanation
+
+            # Visualize simulation results
+            self.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
+
+        # After the loop, compare the simulated results to the actual results
+        self.compare_simulated_to_actual(all_simulation_results, all_actual_results)
+
+        # Evaluate the betting recommendation and expected value
+        recommendation_accuracy, average_ev, win_rate = self.evaluate_and_recommend(all_simulation_results, historical_df)
+        self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
+        self.logger.info(f"Win Rate of Recommended Bet: {win_rate:.2f}%")
+        self.logger.info(f"Average Expected Value: ${average_ev:.2f}")
 
 
 if __name__ == "__main__":
-    predictor = NFLPredictor("Dolphins", "Panthers", '2022-11-22')
+    predictor = NFLPredictor()
     predictor.main()
     # Call other methods of the predictor as needed
