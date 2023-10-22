@@ -160,16 +160,10 @@ class NFLPredictor:
         # Use Pool to run simulations in parallel
         with Pool() as pool:
             results = pool.map(run_simulation, params_list)
-        pool.close()
-        pool.join()
 
         # Process these results in a separate loop:
         for idx, (simulation_results, most_likely_outcome) in enumerate(results):
             row = historical_df.iloc[idx]
-
-            # Run Monte Carlo simulations
-            self.logger.info(f"Running Simulations for {self.home_team} vs {self.away_team} on {self.date}...")
-            simulation_results, most_likely_outcome = self.model.monte_carlo_simulation(game_prediction_df, self.data_processing.get_standard_deviation(df))
 
             # Analyze simulation results
             self.logger.info("Analyzing Simulation Results...")

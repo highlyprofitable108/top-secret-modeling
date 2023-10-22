@@ -12,7 +12,7 @@ class Modeling:
         self.LOADED_SCALER = loaded_scaler
         self.HOME_FIELD_ADJUST = home_field_adjust
 
-    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=5000):
+    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
 
