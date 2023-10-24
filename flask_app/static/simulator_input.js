@@ -1,22 +1,29 @@
 function showLoadingSpinner() {
+    const customMatchupsRadio = document.getElementById('customMatchupsRadio');
+    if (customMatchupsRadio.checked) {
+        const homeTeamSelects = document.querySelectorAll('[name^="homeTeam"]');
+        const awayTeamSelects = document.querySelectorAll('[name^="awayTeam"]');
+        let isAllSelected = true;
+
+        homeTeamSelects.forEach(select => {
+            if (!select.value) isAllSelected = false;
+        });
+        awayTeamSelects.forEach(select => {
+            if (!select.value) isAllSelected = false;
+        });
+
+        if (!isAllSelected) {
+            alert('Please fill out all fields before submitting.');
+            return false; // Do not show the spinner
+        }
+    }
     document.getElementById('loading-spinner').style.display = 'block';
+    return true; // Show the spinner
 }
 
 document.querySelector('form').addEventListener('submit', function(e) {
-    const homeTeamSelects = document.querySelectorAll('[name^="homeTeam"]');
-    const awayTeamSelects = document.querySelectorAll('[name^="awayTeam"]');
-    let isAllSelected = true;
-
-    homeTeamSelects.forEach(select => {
-        if (!select.value) isAllSelected = false;
-    });
-    awayTeamSelects.forEach(select => {
-        if (!select.value) isAllSelected = false;
-    });
-
-    if (!isAllSelected) {
-        e.preventDefault();
-        alert('Please fill out all fields before submitting.');
+    if (!showLoadingSpinner()) {
+        e.preventDefault(); // Prevent form submission if showLoadingSpinner returns false
     }
 });
 

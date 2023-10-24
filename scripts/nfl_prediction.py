@@ -1,4 +1,4 @@
-nsl# Standard library imports
+# Standard library imports
 import io
 import os
 from datetime import datetime, timedelta
@@ -34,6 +34,8 @@ class NFLPredictor:
         self.database_operations = DatabaseOperations()
 
         # Constants
+        self.features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
+
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
 
@@ -60,6 +62,7 @@ class NFLPredictor:
 
     def set_game_details(self, home_team, away_team, date):
         """Set the game details for the current simulation."""
+        self.logger.info(f"Setting game details for {self.home_team} vs {self.away_team} on {self.date}")
 
         # Replace "Football Team" or "Redskins" with "Commanders"
         if home_team in ["Football Team", "Redskins"]:
@@ -84,7 +87,7 @@ class NFLPredictor:
             logging.error(f"Error loading files: {e}")
             return None, None
 
-    def get_historical_data(self, random_subset=None, get_current=True, adhoc=False):
+    def get_historical_data(self, random_subset=None, get_current=False, adhoc=False, date=None):
         """
         Prepare historical data for simulations.
 
@@ -132,17 +135,20 @@ class NFLPredictor:
 
         return game_data
 
-    def main(self):
+    def simulate_games(self, num_simulations=1000, random_subset=None, date=None, get_current=False, adhoc=False, matchups=None):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
         self.logger.info("Starting prediction process...")
-
         reload(scripts.constants)
-        features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
 
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
-        historical_df = self.get_historical_data(random_subset=60)
+        if adhoc and matchups:
+            # If it's an adhoc simulation with custom matchups, prepare the historical_df accordingly
+            historical_df = pd.DataFrame(matchups, columns=['summary.home.name', 'summary.away.name'])
+            historical_df['scheduled'] = date
+        else:
+            historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
 
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
@@ -154,12 +160,14 @@ class NFLPredictor:
             # Set the game details for the current simulation
             self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
 
-            game_prediction_df = self.data_processing.prepare_data(df, features, self.home_team, self.away_team, self.date)
+            game_prediction_df = self.data_processing.prepare_data(df, self.features, self.home_team, self.away_team, self.date)
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
 
-        # Use Pool to run simulations in parallel
-        with Pool() as pool:
-            results = pool.map(run_simulation, params_list)
+        # With Pool() as pool:
+        #     results = pool.map(run_simulation, params_list, num_simulations)
+
+        # For now, run simulations sequentially:
+        results = [run_simulation(param, num_simulations) for param in params_list]
 
         # Process these results in a separate loop:
         for idx, (simulation_results, most_likely_outcome) in enumerate(results):
@@ -206,12 +214,17 @@ class NFLPredictor:
         self.logger.info(f"Actual Results: ${actual_value:.2f}")
 
 
-def run_simulation(params):
+def run_simulation(params, num_simulations):
     game_prediction_df, standard_deviation, model = params
-    return model.monte_carlo_simulation(game_prediction_df, standard_deviation)
+    return model.monte_carlo_simulation(game_prediction_df, standard_deviation, num_simulations)
 
 
 if __name__ == "__main__":
     predictor = NFLPredictor()
-    predictor.main()
+    num_simulations = 1000
+    random_subset = None
+    date = None
+    get_current = False
+    adhoc = False
+    predictor.main(num_simulations, random_subset, date, get_current, adhoc)
     # Call other methods of the predictor as needed
