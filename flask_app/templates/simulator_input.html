@@ -1,108 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-      <!-- Tailwind CSS -->
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
-      <!-- Google Fonts -->
-      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-      <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
-      <title>Top Secret Modeling</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
+    <title>Top Secret Modeling</title>
   </head>
   <body>
     {% include 'header.html' %}
 
     <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
         <h3 class="text-2xl font-bold mb-4 text-gray-800">NFL Game Simulator</h3>
+        <p class="text-red-600 mb-4">Warning: Computation time is roughly 5000 sims per minute (times the number of games simmed).</p>
         <form action="/sim_runner" method="post">
+            <!-- Action Selection -->
+            <div class="mb-4">
+                <label class="block text-gray-700">Select an action:</label>
+                <input type="radio" id="randomHistorical" name="action" value="randomHistorical" required> Randomly pick historical games (max 500 games)<br>
+                <input type="radio" id="nextWeek" name="action" value="nextWeek"> Grab data from the next week of NFL schedule<br>
+                <input type="radio" id="customMatchupsRadio" name="action" value="customMatchups"> Create custom matchups (max 16 matchups)<br>
+            </div>
+
+            <!-- Simulation Iterations -->
+            <div class="mb-4">
+                <label for="simIterations" class="block text-gray-700">Number of Sim Iterations (max 10000):</label>
+                <input id="simIterations" name="simIterations" type="number" min="1" max="10000" class="form-input mt-1 block w-full" required>
+            </div>
+
+            <!-- Date Selection -->
             <div class="mb-4">
                 <label for="date" class="block text-gray-700">Select a date:</label>
-                <input id="date" min="2021-01-01" name="date" type="date" class="form-input mt-1 block w-full"/>
+                <input id="date" min="2016-01-01" max="{{ current_date }}" name="date" type="date" class="form-input mt-1 block w-full" required>
                 <span class="tooltiptext">Choose the date for which you want to simulate the game.</span>
             </div>
-            <div class="mb-4">
-                <label for="homeTeam" class="block text-gray-700">Select a home team:</label>
-                <select id="homeTeam" name="homeTeam" class="form-select mt-1 block w-full">
-                    <option value="Cardinals">ARI</option>
-                    <option value="Falcons">ATL</option>
-                    <option value="Ravens">BAL</option>
-                    <option value="Bills">BUF</option>
-                    <option value="Panthers">CAR</option>
-                    <option value="Bears">CHI</option>
-                    <option value="Bengals">CIN</option>
-                    <option value="Browns">CLE</option>
-                    <option value="Cowboys">DAL</option>
-                    <option value="Broncos">DEN</option>
-                    <option value="Lions">DET</option>
-                    <option value="Packer">GB</option>
-                    <option value="Texans">HOU</option>
-                    <option value="Colts">IND</option>
-                    <option value="Jaguars">JAC</option>
-                    <option value="Chiefs">KC</option>
-                    <option value="Rams">LAR</option>
-                    <option value="Chargers">LAC</option>
-                    <option value="Raiders">LV</option>
-                    <option value="Dolphins">MIA</option>
-                    <option value="Vikings">MIN</option>
-                    <option value="Patriots">NE</option>
-                    <option value="Saints">NO</option>
-                    <option value="Giants">NYG</option>
-                    <option value="Jets">NYJ</option>
-                    <option value="Raiders">OAK</option>
-                    <option value="Eagles">PHI</option>
-                    <option value="Steelers">PIT</option>
-                    <option value="Seahawks">SEA</option>
-                    <option value="49ers">SF</option>
-                    <option value="Buccaneers">TB</option>
-                    <option value="Titans">TEN</option>
-                    <option value="Commanders">WAS</option>
-                </select>
-                <span class="tooltiptext">The team that will be playing on their home ground.</span>
+
+            <!-- Number of Random Historical Games Selection -->
+            <div id="randomHistoricalGamesSection" style="display: none;" class="mb-4">
+                <label for="numRandomGames" class="block text-gray-700">Number of Random Historical Games:</label>
+                <input id="numRandomGames" name="numRandomGames" type="number" min="1" max="500" class="form-input mt-1 block w-full">
             </div>
-        
-            <div class="mb-4">
-                <label for="awayTeam" class="block text-gray-700">Select an away team:</label>
-                <select id="awayTeam" name="awayTeam" class="form-select mt-1 block w-full">
-                    <option value="Cardinals">ARI</option>
-                    <option value="Falcons">ATL</option>
-                    <option value="Ravens">BAL</option>
-                    <option value="Bills">BUF</option>
-                    <option value="Panthers">CAR</option>
-                    <option value="Bears">CHI</option>
-                    <option value="Bengals">CIN</option>
-                    <option value="Browns">CLE</option>
-                    <option value="Cowboys">DAL</option>
-                    <option value="Broncos">DEN</option>
-                    <option value="Lions">DET</option>
-                    <option value="Packer">GB</option>
-                    <option value="Texans">HOU</option>
-                    <option value="Colts">IND</option>
-                    <option value="Jaguars">JAC</option>
-                    <option value="Chiefs">KC</option>
-                    <option value="Rams">LAR</option>
-                    <option value="Chargers">LAC</option>
-                    <option value="Raiders">LV</option>
-                    <option value="Dolphins">MIA</option>
-                    <option value="Vikings">MIN</option>
-                    <option value="Patriots">NE</option>
-                    <option value="Saints">NO</option>
-                    <option value="Giants">NYG</option>
-                    <option value="Jets">NYJ</option>
-                    <option value="Raiders">OAK</option>
-                    <option value="Eagles">PHI</option>
-                    <option value="Steelers">PIT</option>
-                    <option value="Seahawks">SEA</option>
-                    <option value="49ers">SF</option>
-                    <option value="Buccaneers">TB</option>
-                    <option value="Titans">TEN</option>
-                    <option value="Commanders">WAS</option>
-                </select>
-                <span class="tooltiptext">The team that will be playing away from their home ground.</span>
+
+             <!-- Custom Matchups Section -->
+             <div id="customMatchupsSection" style="display: none;">
+                <h4 class="text-xl font-bold mb-2 text-gray-800">Custom Matchups</h4>
+                <p class="mb-4 text-gray-700">Select teams for up to 16 matchups:</p>
+                {% for i in range(1, 17) %}
+                <div class="mb-4">
+                    <label class="block text-gray-700">Matchup {{ i }}:</label>
+                    <select name="homeTeam{{ i }}" class="form-select mt-1 block w-48 inline-block">
+                        <option value="Cardinals">ARI</option>
+                        <option value="Falcons">ATL</option>
+                        <option value="Ravens">BAL</option>
+                        <option value="Bills">BUF</option>
+                        <option value="Panthers">CAR</option>
+                        <option value="Bears">CHI</option>
+                        <option value="Bengals">CIN</option>
+                        <option value="Browns">CLE</option>
+                        <option value="Cowboys">DAL</option>
+                        <option value="Broncos">DEN</option>
+                        <option value="Lions">DET</option>
+                        <option value="Packer">GB</option>
+                        <option value="Texans">HOU</option>
+                        <option value="Colts">IND</option>
+                        <option value="Jaguars">JAC</option>
+                        <option value="Chiefs">KC</option>
+                        <option value="Rams">LAR</option>
+                        <option value="Chargers">LAC</option>
+                        <option value="Raiders">LV</option>
+                        <option value="Dolphins">MIA</option>
+                        <option value="Vikings">MIN</option>
+                        <option value="Patriots">NE</option>
+                        <option value="Saints">NO</option>
+                        <option value="Giants">NYG</option>
+                        <option value="Jets">NYJ</option>
+                        <option value="Eagles">PHI</option>
+                        <option value="Steelers">PIT</option>
+                        <option value="Seahawks">SEA</option>
+                        <option value="49ers">SF</option>
+                        <option value="Buccaneers">TB</option>
+                        <option value="Titans">TEN</option>
+                        <option value="Commanders">WAS</option>
+                    </select>
+                    vs
+                    <select name="awayTeam{{ i }}" class="form-select mt-1 block w-48 inline-block">
+                        <option value="Cardinals">ARI</option>
+                        <option value="Falcons">ATL</option>
+                        <option value="Ravens">BAL</option>
+                        <option value="Bills">BUF</option>
+                        <option value="Panthers">CAR</option>
+                        <option value="Bears">CHI</option>
+                        <option value="Bengals">CIN</option>
+                        <option value="Browns">CLE</option>
+                        <option value="Cowboys">DAL</option>
+                        <option value="Broncos">DEN</option>
+                        <option value="Lions">DET</option>
+                        <option value="Packer">GB</option>
+                        <option value="Texans">HOU</option>
+                        <option value="Colts">IND</option>
+                        <option value="Jaguars">JAC</option>
+                        <option value="Chiefs">KC</option>
+                        <option value="Rams">LAR</option>
+                        <option value="Chargers">LAC</option>
+                        <option value="Raiders">LV</option>
+                        <option value="Dolphins">MIA</option>
+                        <option value="Vikings">MIN</option>
+                        <option value="Patriots">NE</option>
+                        <option value="Saints">NO</option>
+                        <option value="Giants">NYG</option>
+                        <option value="Jets">NYJ</option>
+                        <option value="Eagles">PHI</option>
+                        <option value="Steelers">PIT</option>
+                        <option value="Seahawks">SEA</option>
+                        <option value="49ers">SF</option>
+                        <option value="Buccaneers">TB</option>
+                        <option value="Titans">TEN</option>
+                        <option value="Commanders">WAS</option>
+                    </select>
+                </div>
+                {% endfor %}
             </div>
-            
+
             <div class="mb-4">
                 <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded transform z-50" onclick="showLoadingSpinner();">Simulate Game</button>
             </div>
@@ -113,7 +136,7 @@
             </div>            
 
         </form>
-
+        
         <div class="team-container">
             <h2>Available Team Aliases:</h2>
             <div class="teams">
@@ -137,3 +160,4 @@
 
     </body>
 </html>
+

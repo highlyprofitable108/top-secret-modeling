@@ -169,12 +169,13 @@ def generate_power_ranks():
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
     try:
-        # Retrieve parameters from the POST request if available
-        home_team = request.form.get('homeTeam', None)
-        away_team = request.form.get('awayTeam', None)
-
-        # Given date
+        # Retrieve parameters from the POST request
+        action = request.form.get('action')
+        num_simulations = int(request.form.get('simIterations'))
         date_input = request.form.get('date')
+        random_subset = int(request.form.get('numRandomGames', 0))
+
+        # Convert date string to datetime object
         if not date_input:
             date_input = datetime.today()
         elif isinstance(date_input, str):
@@ -184,14 +185,26 @@ def sim_runner():
         while date_input.weekday() != 1:  # 1 represents Tuesday
             date_input -= timedelta(days=1)
 
-        if home_team is not None and away_team is not None:
-            nfl_sim = NFLPredictor()
-            nfl_sim.main()
+        # Initialize the NFLPredictor
+        nfl_sim = NFLPredictor()
 
-            return render_template('simulator_results.html')
+        # Handle different actions
+        if action == "randomHistorical":
+            # Call the main function with the appropriate parameters
+            nfl_sim.main(num_simulations=num_simulations, random_subset=random_subset, date=date_input)
+        elif action == "nextWeek":
+            nfl_sim.main(num_simulations=num_simulations, get_current=True, date=date_input)
+        elif action == "customMatchups":
+            matchups = []
+            for i in range(1, 17):  # Assuming max 16 matchups
+                home_team = request.form.get(f'homeTeam{i}')
+                away_team = request.form.get(f'awayTeam{i}')
+                if home_team and away_team:
+                    matchups.append((home_team, away_team))
+            nfl_sim.main(num_simulations=num_simulations, adhoc=True, matchups=matchups, date=date_input)
 
-        # If successful, return a success message
-        return jsonify(status="success"), 200
+        return render_template('simulator_results.html')
+
     except Exception as e:
         # If there is an error, return an error message
         return jsonify(error=str(e)), 500
