@@ -11,7 +11,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import os
 import importlib
-import pandas as pd
+import logging
+
+# Set up logging at the top of your app.py
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
@@ -169,12 +173,29 @@ def generate_power_ranks():
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
     try:
-        # Retrieve parameters from the POST request if available
-        home_team = request.form.get('homeTeam', None)
-        away_team = request.form.get('awayTeam', None)
+        # Retrieve parameters from the POST request
+        action = request.form.get('action')
+        logger.info(f"Action: {action}")
 
-        # Given date
+        # Handle num_simulations with default value of 1000
+        simIterations = request.form.get('simIterations')
+        num_simulations = int(simIterations) if simIterations else 1000
+        logger.info(f"Number of Simulations: {num_simulations}")
+
+        # Handle date_input with default value of today
         date_input = request.form.get('date')
+        if not date_input:
+            date_input = datetime.today()
+        elif isinstance(date_input, str):
+            date_input = datetime.strptime(date_input, '%Y-%m-%d')
+        logger.info(f"Date Input: {date_input}")
+
+        # Handle random_subset with default value of 0
+        numRandomGames = request.form.get('numRandomGames', 0)
+        random_subset = int(numRandomGames) if numRandomGames else 0
+        logger.info(f"Random Subset: {random_subset}")
+
+        # Convert date string to datetime object
         if not date_input:
             date_input = datetime.today()
         elif isinstance(date_input, str):
@@ -184,16 +205,31 @@ def sim_runner():
         while date_input.weekday() != 1:  # 1 represents Tuesday
             date_input -= timedelta(days=1)
 
-        if home_team is not None and away_team is not None:
-            nfl_sim = NFLPredictor()
-            nfl_sim.main()
+        # Initialize the NFLPredictor
+        nfl_sim = NFLPredictor()
 
-            return render_template('simulator_results.html')
+        # Handle different actions
+        if action == "randomHistorical":
+            logger.info("Handling randomHistorical action")
+            nfl_sim.simulate_games(num_simulations=num_simulations, random_subset=random_subset, date=date_input)
+        elif action == "nextWeek":
+            logger.info("Handling nextWeek action")
+            nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, get_current=True)
+        elif action == "customMatchups":
+            logger.info("Handling customMatchups action")
+            matchups = []
+            for i in range(1, 17):  # Assuming max 16 matchups
+                home_team = request.form.get(f'homeTeam{i}')
+                away_team = request.form.get(f'awayTeam{i}')
+                if home_team and away_team:
+                    matchups.append((home_team, away_team))
+            nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
 
-        # If successful, return a success message
-        return jsonify(status="success"), 200
+        return render_template('simulator_results.html')
+
     except Exception as e:
-        # If there is an error, return an error message
+        # If there is an error, log it and return an error message
+        logger.error(f"Error in sim_runner: {e}")
         return jsonify(error=str(e)), 500
 
 

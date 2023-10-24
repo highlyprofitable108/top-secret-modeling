@@ -34,6 +34,8 @@ class NFLPredictor:
         self.database_operations = DatabaseOperations()
 
         # Constants
+        self.features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
+
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
 
@@ -60,6 +62,7 @@ class NFLPredictor:
 
     def set_game_details(self, home_team, away_team, date):
         """Set the game details for the current simulation."""
+        self.logger.info(f"Setting game details for {home_team} vs {away_team} on {date}")
 
         # Replace "Football Team" or "Redskins" with "Commanders"
         if home_team in ["Football Team", "Redskins"]:
@@ -84,7 +87,7 @@ class NFLPredictor:
             logging.error(f"Error loading files: {e}")
             return None, None
 
-    def get_historical_data(self, random_subset=None, get_current=True, adhoc=False):
+    def get_historical_data(self, random_subset=None, get_current=False, adhoc=False, date=None):
         """
         Prepare historical data for simulations.
 
@@ -132,17 +135,42 @@ class NFLPredictor:
 
         return game_data
 
-    def main(self):
+    def simulate_games(self, num_simulations=1000, random_subset=None, date=None, get_current=False, adhoc=False, matchups=None):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
         self.logger.info("Starting prediction process...")
-
         reload(scripts.constants)
-        features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
 
         # Fetch data only for the selected teams from the weekly_ranks collection
         df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
 
-        historical_df = self.get_historical_data(random_subset=60)
+        if adhoc and matchups:
+            # Filter out matchups where both teams are "None" or None
+            valid_matchups = [(home, away) for home, away in matchups if home not in [None, "None"] and away not in [None, "None"]]
+
+            # If it's an adhoc simulation with custom matchups, prepare the historical_df accordingly
+            historical_df = pd.DataFrame(valid_matchups, columns=['summary.home.name', 'summary.away.name'])
+            historical_df['scheduled'] = date
+
+            columns_to_enable = [
+                'id',
+                'summary.home.id',
+                'summary.away.id',
+                'summary.home.points',
+                'summary.away.points',
+                'summary.odds.spread'
+            ]
+
+            # Create a new DataFrame with the desired columns set to None
+            df_none = pd.DataFrame(columns=columns_to_enable)
+            for column in columns_to_enable:
+                df_none[column] = None
+
+            # Update the historical_df with the new DataFrame
+            historical_df = historical_df.combine_first(df_none)
+        else:
+            historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
+
+        print(historical_df)
 
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
@@ -154,22 +182,20 @@ class NFLPredictor:
             # Set the game details for the current simulation
             self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
 
-            game_prediction_df = self.data_processing.prepare_data(df, features, self.home_team, self.away_team, self.date)
+            game_prediction_df = self.data_processing.prepare_data(df, self.features, self.home_team, self.away_team, self.date)
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
 
-        # Use Pool to run simulations in parallel
         with Pool() as pool:
-            results = pool.map(run_simulation, params_list)
-        pool.close()
-        pool.join()
+            # Create a list of arguments to pass to run_simulation
+            args_list = [(param, num_simulations) for param in params_list]
+            results = pool.map(run_simulation_wrapper, args_list)
+
+        # For now, run simulations sequentially:
+        # results = [run_simulation(param, num_simulations) for param in params_list]
 
         # Process these results in a separate loop:
         for idx, (simulation_results, most_likely_outcome) in enumerate(results):
             row = historical_df.iloc[idx]
-
-            # Run Monte Carlo simulations
-            self.logger.info(f"Running Simulations for {self.home_team} vs {self.away_team} on {self.date}...")
-            simulation_results, most_likely_outcome = self.model.monte_carlo_simulation(game_prediction_df, self.data_processing.get_standard_deviation(df))
 
             # Analyze simulation results
             self.logger.info("Analyzing Simulation Results...")
@@ -177,7 +203,11 @@ class NFLPredictor:
 
             # Store simulation results and actual results for evaluation
             all_simulation_results.append(most_likely_outcome)
-            actual_difference = (row['summary.home.points'] - row['summary.away.points'])*(-1)
+
+            if row['summary.home.points'] is not None and row['summary.away.points'] is not None:
+                actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1)
+            else:
+                actual_difference = None
             all_actual_results.append(actual_difference)
 
             # Create a buffer to capture log messages
@@ -202,8 +232,21 @@ class NFLPredictor:
             # Visualize simulation results
             self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
 
-        # After the loop, compare the simulated results to the actual results
-        self.visualization.compare_simulated_to_actual(all_simulation_results, all_actual_results)
+        # Check if all_actual_results has data
+        if all_actual_results:
+            # Identify indices of rows that have None in all_actual_results
+            indices_with_none = [i for i, result in enumerate(all_actual_results) if result is None]
+
+            # Drop rows with None values from all_actual_results
+            all_actual_results = [result for i, result in enumerate(all_actual_results) if i not in indices_with_none]
+
+            # Drop corresponding rows from all_simulation_results
+            sims_with_results = [result for i, result in enumerate(all_simulation_results) if i not in indices_with_none]
+
+            # Only run this if all_actual_results still has data after dropping rows with None values
+            if all_actual_results:
+                # After the loop, compare the simulated results to the actual results
+                self.visualization.compare_simulated_to_actual(sims_with_results, all_actual_results)
 
         # Evaluate the betting recommendation and expected value
         recommendation_accuracy, average_ev, actual_value = self.visualization.evaluate_and_recommend(all_simulation_results, historical_df)
@@ -212,12 +255,17 @@ class NFLPredictor:
         self.logger.info(f"Actual Results: ${actual_value:.2f}")
 
 
-def run_simulation(params):
+
+def run_simulation_wrapper(args):
+    return run_simulation(*args)
+
+
+def run_simulation(params, num_simulations):
     game_prediction_df, standard_deviation, model = params
-    return model.monte_carlo_simulation(game_prediction_df, standard_deviation)
+    return model.monte_carlo_simulation(game_prediction_df, standard_deviation, num_simulations)
 
 
 if __name__ == "__main__":
     predictor = NFLPredictor()
-    predictor.main()
+    predictor.simulate_games(1000, 0)
     # Call other methods of the predictor as needed

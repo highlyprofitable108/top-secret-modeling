@@ -5,7 +5,7 @@ constants:
   TARGET_VARIABLE: "odds.spread"
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
-  CUTOFF_DATE: '2019-09-01'
+  CUTOFF_DATE: '2018-09-01'
   END_DATE: '2023-10-24'
   BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
   AWAY_PREFIX: "statistics.away."
