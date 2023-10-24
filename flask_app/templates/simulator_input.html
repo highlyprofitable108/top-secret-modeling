@@ -68,6 +68,7 @@
                     <div class="mb-4">
                         <label class="block text-gray-700">Matchup {{ i }}:</label>
                         <select name="homeTeam{{ i }}" class="form-select mt-1 block w-48 inline-block">
+                            <option value="None"></option>
                             <option value="Cardinals">ARI</option>
                             <option value="Falcons">ATL</option>
                             <option value="Ravens">BAL</option>
@@ -79,7 +80,7 @@
                             <option value="Cowboys">DAL</option>
                             <option value="Broncos">DEN</option>
                             <option value="Lions">DET</option>
-                            <option value="Packer">GB</option>
+                            <option value="Packers">GB</option>
                             <option value="Texans">HOU</option>
                             <option value="Colts">IND</option>
                             <option value="Jaguars">JAC</option>
@@ -103,6 +104,7 @@
                         </select>
                         vs
                         <select name="awayTeam{{ i }}" class="form-select mt-1 block w-48 inline-block">
+                            <option value="None"></option>
                             <option value="Cardinals">ARI</option>
                             <option value="Falcons">ATL</option>
                             <option value="Ravens">BAL</option>
@@ -114,7 +116,7 @@
                             <option value="Cowboys">DAL</option>
                             <option value="Broncos">DEN</option>
                             <option value="Lions">DET</option>
-                            <option value="Packer">GB</option>
+                            <option value="Packers">GB</option>
                             <option value="Texans">HOU</option>
                             <option value="Colts">IND</option>
                             <option value="Jaguars">JAC</option>
@@ -145,17 +147,6 @@
                 </div>        
 
             </form>
-        </div>
-        <div class="team-container">
-            <h2>Available Team Aliases:</h2>
-            <div class="teams">
-                <div>ARI</div> <div>ATL</div> <div>BAL</div> <div>BUF</div> <div>CAR</div> <div>CHI</div>
-                <div>CIN</div> <div>CLE</div> <div>DAL</div> <div>DEN</div> <div>DET</div> <div>GB</div>
-                <div>HOU</div> <div>IND</div> <div>JAC</div> <div>KC</div> <div>LA</div> <div>LAC</div>
-                <div>MIA</div> <div>MIN</div> <div>NE</div> <div>NO</div> <div>NYG</div> <div>NYJ</div>
-                <div>PHI</div> <div>PIT</div> <div>SEA</div> <div>SF</div> <div>TB</div> <div>TEN</div>
-                <div>WAS</div>
-            </div>
         </div>
 
         <!-- Bootstrap JS and dependencies -->
