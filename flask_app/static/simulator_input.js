@@ -33,32 +33,32 @@ function validateForm() {
         let selectedTeams = [];
 
         homeTeamSelects.forEach(select => {
-            if (!select.value) isAllSelected = false;
+            if (!select.value || select.value === 'None' || select.value === 'Null') isAllSelected = false;
             if (selectedTeams.includes(select.value)) {
                 alert('Each team can only be selected once.');
                 isAllSelected = false;
-            } else {
+            } else if (select.value && select.value !== 'None' && select.value !== 'Null') {
                 selectedTeams.push(select.value);
             }
         });
 
         awayTeamSelects.forEach(select => {
-            if (!select.value) isAllSelected = false;
+            if (!select.value || select.value === 'None' || select.value === 'Null') isAllSelected = false;
             if (selectedTeams.includes(select.value)) {
                 alert('Each team can only be selected once.');
                 isAllSelected = false;
-            } else {
+            } else if (select.value && select.value !== 'None' && select.value !== 'Null') {
                 selectedTeams.push(select.value);
             }
         });
 
         if (!isAllSelected) {
-            alert('Please fill out all fields before submitting.');
-            return false;
+            return true;
         }
     }
 
     return true;
+
 }
 
 document.querySelector('form').addEventListener('submit', function(e) {
@@ -142,10 +142,25 @@ document.addEventListener('DOMContentLoaded', function() {
 function showLoadingSpinner() {
     const numIterations = document.getElementById('simIterations').value || 1000; // Default to 1 if not provided
     const randomHistoricalRadio = document.getElementById('randomHistorical');
+    const customMatchupsRadio = document.getElementById('customMatchupsRadio');
     let randomSubset = 16; // Default value
 
     if (randomHistoricalRadio.checked) {
         randomSubset = document.getElementById('numRandomGames').value || 1; // Default to 1 if not provided
+    }
+
+    if (customMatchupsRadio.checked) {
+        let matchupCount = 0;
+        for (let i = 1; i <= 16; i++) {
+            const homeTeam = document.querySelector(`[name="homeTeam${i}"]`).value;
+            const awayTeam = document.querySelector(`[name="awayTeam${i}"]`).value;
+            
+            // Check if both home and away teams are selected and they are not 'None'
+            if (homeTeam && awayTeam && homeTeam !== 'None' && awayTeam !== 'None') {
+                matchupCount++;
+            }
+        }
+        randomSubset = matchupCount; // Set the randomSubset to the count of manual matchups
     }
 
     // Calculate timeRequired based on the formula

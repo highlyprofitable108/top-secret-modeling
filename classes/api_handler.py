@@ -1,7 +1,9 @@
 import requests
 import logging
+from datetime import datetime, timedelta
 import time
 import json
+import os
 from classes.config_manager import ConfigManager
 
 HEADERS = {
@@ -57,13 +59,32 @@ class APIHandler:
             json.dump(response.json(), file)
         print("Data saved to game_schedule.json")
 
-        # Extract all game_id values and store them in a list
-        game_ids = [game['id'] for week in data.get('weeks', []) for game in week.get('games', [])]
+        # Extract all game_id values and their corresponding scheduled dates and store them in a dictionary
+        game_id_schedule_map = {game['id']: game['scheduled'] for week in data.get('weeks', []) for game in week.get('games', [])}
 
         # Loop through the game_ids list and call fetch_game_statistics for each game_id
         time.sleep(2)
-        for game_id in game_ids:
-            self.fetch_game_statistics(game_id)
+
+        current_date = datetime.utcnow().date()  # Get the current date in UTC
+        thirty_days_ago = current_date - timedelta(days=30)  # Calculate the date 30 days ago
+
+        for game_id, scheduled in game_id_schedule_map.items():
+            game_file_path = f"{self.json_dir}/game_stats_{game_id}.json"
+
+            # Always download if the file doesn't exist
+            should_download = not os.path.exists(game_file_path)
+
+            # If the file exists, check the "scheduled" date in the JSON
+            if not should_download:
+                scheduled_date = datetime.fromisoformat(scheduled).date()
+                if thirty_days_ago <= scheduled_date <= current_date:  # Check if the scheduled date is within the past 30 days up to the current date
+                    print("Recent game, downloading....")
+                    should_download = True
+
+            if should_download:
+                self.fetch_game_statistics(game_id)
+            else:
+                print("Archived game. Skipping....")
 
     def fetch_game_statistics(self, game_id):
         """
@@ -76,11 +97,11 @@ class APIHandler:
         Returns:
             dict: The JSON response from the API.
         """
-        endpoint = f"{self.base_url}/{game_id}/statistics.json?api_key={self.api_key}"
-        response = requests.get(endpoint, headers=HEADERS)
-
         # Incorporate game_id into the filename to ensure uniqueness
         file_path = f"{self.json_dir}/game_stats_{game_id}.json"
+
+        endpoint = f"{self.base_url}/{game_id}/statistics.json?api_key={self.api_key}"
+        response = requests.get(endpoint, headers=HEADERS)
 
         with open(file_path, 'w') as file:
             json.dump(response.json(), file)

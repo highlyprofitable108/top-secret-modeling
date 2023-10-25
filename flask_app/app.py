@@ -7,7 +7,7 @@ from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
 import importlib
@@ -77,9 +77,23 @@ def columns():
         formatted_column = rest.replace('_', ' ').title()
         categorized_columns[prefix_display].append((formatted_column, column))
 
+    # Define the order for the key categories
+    key_categories = ["Passing", "Rushing", "Receiving", "Summary", "Efficiency", "Defense"]
+
+    # Order the categorized_columns dictionary based on the key categories
+    ordered_categorized_columns = OrderedDict()
+    for key in key_categories:
+        if key in categorized_columns:
+            ordered_categorized_columns[key] = categorized_columns[key]
+            del categorized_columns[key]
+
+    # Add the remaining categories in alphabetical order
+    for key in sorted(categorized_columns.keys()):
+        ordered_categorized_columns[key] = categorized_columns[key]
+
     active_constants = get_active_constants()
 
-    return render_template('columns.html', categorized_columns=categorized_columns, active_constants=active_constants)
+    return render_template('columns.html', ordered_categorized_columns=ordered_categorized_columns, active_constants=active_constants)
 
 
 @app.route('/get_model_update_time')

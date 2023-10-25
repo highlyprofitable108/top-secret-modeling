@@ -21,6 +21,12 @@
             <h3 class="text-2xl font-bold mb-4 text-gray-800">NFL Game Simulator</h3>
             <p class="text-red-600 mb-4">Warning: Computation time is roughly 5000 sims per minute (times the number of games simmed).</p>
             <form action="/sim_runner" method="post">
+                <div id="loading-spinner" style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
+                    <div class="loader" style="margin: 0 auto 10px auto;"></div>
+                    <p style="color: white; font-size: 16px;">Running sims. This process can take some time. Please do not close or refresh the page.</p>
+                    <div id="countdown-timer" style="color: white; font-size: 16px; margin-top: 10px;"></div>
+                </div>
+
                 <!-- Action Selection -->
                 <div class="mb-4">
                     <label class="block text-gray-700">Select an action:</label>
@@ -143,8 +149,9 @@
                 </div>
 
                 <div class="mb-4">
-                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded transform z-50" onclick="showLoadingSpinner();">Simulate Game</button>
+                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Simulate Game</button>
                 </div>        
+
 
             </form>
         </div>
@@ -155,12 +162,6 @@
         <script src="{{ url_for('static', filename='simulator_input.js') }}"></script>
         
         {% include 'footer.html' %}
-    </div>
-
-    <div id="loading-spinner" style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-        <div class="loader" style="margin: 0 auto 10px auto;"></div>
-        <p style="color: white; font-size: 16px;">Running sims. This process can take some time. Please do not close or refresh the page.</p>
-        <div id="countdown-timer" style="color: white; font-size: 16px; margin-top: 10px;"></div>
     </div>
 
     <!-- Bootstrap JS and dependencies -->

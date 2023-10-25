@@ -20,7 +20,7 @@ constants:
 
 nfl_api:
   base_url: "https://api.sportradar.us/nfl/official/trial/v7/en/games"
-  api_key: "cp75xcgsbn9ybrgzp3ag7jxt"
+  api_key: "bjudbnhmwxce3bumy5qprhhe"
   endpoint_schedule: "/{year}/{season}/schedule.json"
   endpoint_stats: "/{game_id}/stats.json"
 

@@ -72,9 +72,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     function handleFormSubmission(event) {
         event.preventDefault(); // Prevent default form submission
-    
-        // Show the loading spinner
-        document.getElementById('loading-spinner').style.display = 'block';
+        
+        // Call the showLoadingSpinner function
+        showLoadingSpinner();
     
         // First, send form data to /process_columns
         fetch('/process_columns', {
@@ -124,7 +124,31 @@ document.addEventListener('DOMContentLoaded', (event) => {
             alert('An error occurred. Please try again.');
             document.getElementById('loading-spinner').style.display = 'none';
         });
-    }    
+    }
+
+    function showLoadingSpinner() {
+        // You can adjust the values here based on the specifics of column.js if needed
+        let countdown = 450;
+
+        document.getElementById('loading-spinner').style.display = 'block';
+
+        // Calculate the estimated completion time
+        let currentDate = new Date();
+        let completionDate = new Date(currentDate.getTime() + (countdown * 1000)); // Convert seconds to milliseconds
+        
+        let hours = completionDate.getHours();
+        let minutes = completionDate.getMinutes().toString().padStart(2, '0');
+        let ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        
+        let completionTime = `${hours}:${minutes} ${ampm}`;
+        
+        // Display the estimated completion time
+        document.getElementById('countdown-timer').textContent = "Estimated completion time: " + completionTime;
+
+        return true; // Show the spinner
+    }
 
     // Attach the handleFormSubmission function to the form's submit event
     form.addEventListener('submit', handleFormSubmission);
@@ -135,5 +159,30 @@ document.addEventListener('DOMContentLoaded', (event) => {
             checkbox.checked = false;
         });
         document.getElementById('selectedColumnsList').textContent = 'None';
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const columnContainers = document.querySelectorAll('.column-container');
+    const noResults = document.getElementById('noResults');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+
+        let hasResults = false;
+
+        columnContainers.forEach(container => {
+            const label = container.querySelector('label').textContent.toLowerCase();
+
+            if (label.includes(query)) {
+                container.style.display = 'flex';
+                hasResults = true;
+            } else {
+                container.style.display = 'none';
+            }
+        });
+
+        noResults.style.display = hasResults ? 'none' : 'block';
     });
 });
