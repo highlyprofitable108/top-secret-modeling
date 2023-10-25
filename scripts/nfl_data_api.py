@@ -53,6 +53,8 @@ def fetch_nfl_data(year: int, season_type: str) -> dict:
 
 if __name__ == "__main__":
     # Example usage:
+
+    # NEED TO REDO 2021 I GUESS
     fetch_nfl_data(2017, "PST")
     fetch_nfl_data(2017, "REG")
     fetch_nfl_data(2016, "PST")

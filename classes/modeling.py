@@ -1,16 +1,18 @@
+import os
 import logging
 import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.stats import gaussian_kde, t
+from scipy.stats import gaussian_kde, t, norm
 
 
 class Modeling:
-    def __init__(self, loaded_model, loaded_scaler, home_field_adjust):
+    def __init__(self, loaded_model, loaded_scaler, home_field_adjust, static_dir):
         self.LOADED_MODEL = loaded_model
         self.LOADED_SCALER = loaded_scaler
         self.HOME_FIELD_ADJUST = home_field_adjust
+        self.static_dir = static_dir
 
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
         logging.info(df.head())
@@ -55,10 +57,21 @@ class Modeling:
         kernel = gaussian_kde(simulation_results)
         most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
 
-        # Save simulation_results to a CSV file
+        # Append simulation_results to the CSV files
         combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)
-        combined_sampled_data.to_csv('combined_sampled_data.csv', index=False)
-        pd.DataFrame(simulation_results, columns=['Simulation_Result']).to_csv('simulation_results.csv', index=False)
+        combined_file_path = os.path.join(self.static_dir, 'combined_sampled_data.csv')
+        if os.path.exists(combined_file_path):
+            combined_sampled_data.to_csv(combined_file_path, mode='a', header=False, index=False)
+        else:
+            combined_sampled_data.to_csv(combined_file_path, index=False)
+
+        simulation_df = pd.DataFrame(simulation_results, columns=['Simulation_Result'])
+        simulation_file_path = os.path.join(self.static_dir, 'simulation_results.csv')
+        if os.path.exists(simulation_file_path):
+            simulation_df.to_csv(simulation_file_path, mode='a', header=False, index=False)
+        else:
+            simulation_df.to_csv(simulation_file_path, index=False)
+
 
         logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
@@ -68,7 +81,13 @@ class Modeling:
         a = 1.0 * np.array(data)
         n = len(a)
         m, se = np.mean(a), np.std(a)/np.sqrt(n)
-        h = se * t.ppf((1 + confidence) / 2., n-1)
+
+        # Use t-distribution for small sample sizes and normal distribution for larger sample sizes
+        if n < 30:
+            h = se * t.ppf((1 + confidence) / 2., n-1)
+        else:
+            h = se * norm.ppf((1 + confidence) / 2.)
+
         return m-h, m+h
 
     def analyze_simulation_results(self, simulation_results):
@@ -88,8 +107,8 @@ class Modeling:
         # Filter the results based on the calculated bounds
         filtered_results = [result for result in simulation_results if lower_bound_value <= result <= upper_bound_value]
 
-        # Save filtered_results to a CSV file
-        pd.DataFrame(filtered_results, columns=['Filtered_Result']).to_csv('filtered_results.csv', index=False)
+        # Save raw simulation results to a CSV file
+        pd.DataFrame(simulation_results, columns=['Simulation_Result']).to_csv(os.path.join(self.static_dir, 'simulation_results.csv'), index=False)
 
         # Calculate the range of outcomes based on the filtered results
         range_of_outcomes = (min(filtered_results), max(filtered_results))

@@ -354,12 +354,12 @@ class WeightedStatsAvg:
 
     def normalize_power_rank(self, df):
         """
-        Filters out rows where the 'name' column has values 'NFC' or 'AFC'.
+        Filters out rows where the 'name' column has values from the Pro Bowl.
 
         :param df: DataFrame containing the power rank and other details for each team
         :return: DataFrame after normalization
         """
-        return df[df['name'].isin(['NFC', 'AFC']) == False].copy()
+        return df[df['name'].isin(['NFC', 'AFC', 'Team Irvin', 'Team Rie']) == False].copy()
 
     def calculate_weighted_metrics(self, df, cleaned_metrics):
         """

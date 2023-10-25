@@ -24,6 +24,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 HOME_FIELD_ADJUST = -2.7
+BREAK_EVEN_PROBABILITY = 0.5238  # 52.38% implied probability to break even
 
 
 class NFLPredictor:
@@ -38,16 +39,23 @@ class NFLPredictor:
 
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
-
+        self.static_dir = self.config.get_config('paths', 'static_dir')
         self.template_dir = self.config.get_config('paths', 'template_dir')
-        self.visualization = Visualization(self.template_dir)
+
+        self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
+        self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
+
+        self.CUTOFF_DATE = self.config.get_config('constants', 'CUTOFF_DATE')
 
         self.MONGO_URI = self.config.get_config('database', 'mongo_uri')
         self.DATABASE_NAME = self.config.get_config('database', 'database_name')
 
-        # Initialize logger
+        # Set up the logger
         self.logger = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.INFO)
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        self.logger.addHandler(handler)
 
         try:
             self.client = MongoClient(self.MONGO_URI)
@@ -58,7 +66,14 @@ class NFLPredictor:
 
         # Loading the pre-trained model and the data scaler
         self.LOADED_MODEL, self.LOADED_SCALER = self.load_model_and_scaler()
-        self.model = Modeling(self.LOADED_MODEL, self.LOADED_SCALER, HOME_FIELD_ADJUST)
+        self.model = Modeling(self.LOADED_MODEL, self.LOADED_SCALER, HOME_FIELD_ADJUST, self.static_dir)
+
+    def file_cleanup(self):  # your method signature
+        # Delete the existing CSV files if they exist
+        for filename in ['combined_sampled_data.csv', 'simulation_results.csv']:
+            file_path = os.path.join(self.static_dir, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
     def set_game_details(self, home_team, away_team, date):
         """Set the game details for the current simulation."""
@@ -96,6 +111,12 @@ class NFLPredictor:
         """
         df = self.database_operations.fetch_data_from_mongodb('games')
         historical_df = self.data_processing.flatten_and_merge_data(df)
+
+        # Convert the 'scheduled' column to datetime format
+        historical_df['scheduled'] = pd.to_datetime(historical_df['scheduled'])
+
+        # Filter out games scheduled before "09-01-2015"
+        historical_df = historical_df[historical_df['scheduled'] >= self.CUTOFF_DATE]
 
         columns_to_check = [col for col in historical_df.columns if col.startswith('summary.odds.spread')]
         historical_df = historical_df.dropna(subset=columns_to_check, how='any')
@@ -135,6 +156,34 @@ class NFLPredictor:
 
         return game_data
 
+    def analyze_and_log_results(self, simulation_results, most_likely_outcome):
+        # Analyze simulation results
+        self.logger.info("Analyzing Simulation Results...")
+        range_of_outcomes, standard_deviation, confidence_interval = self.model.analyze_simulation_results(simulation_results)
+
+        # Create a buffer to capture log messages
+        log_capture_buffer = io.StringIO()
+
+        # Set up the logger to write to the buffer
+        log_handler = logging.StreamHandler(log_capture_buffer)
+        log_handler.setLevel(logging.INFO)
+        self.logger.addHandler(log_handler)
+
+        # User-friendly output
+        self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
+        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
+        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
+        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
+
+        # Retrieve the log messages from the buffer
+        log_contents = log_capture_buffer.getvalue()
+        # explanation = self.model.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
+        combined_output = log_contents
+
+        # self.logger.info(explanation)
+
+        return combined_output
+
     def simulate_games(self, num_simulations=1000, random_subset=None, date=None, get_current=False, adhoc=False, matchups=None):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
         self.logger.info("Starting prediction process...")
@@ -170,67 +219,45 @@ class NFLPredictor:
         else:
             historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
 
-        print(historical_df)
-
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
         all_actual_results = []
         params_list = []
 
-        # Loop over each game in the historical data
-        for _, row in historical_df.iterrows():
-            # Set the game details for the current simulation
-            self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
+        self.file_cleanup()
 
+        # Prepare data for each game
+        for _, row in historical_df.iterrows():
+            self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
             game_prediction_df = self.data_processing.prepare_data(df, self.features, self.home_team, self.away_team, self.date)
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
 
         with Pool() as pool:
-            # Create a list of arguments to pass to run_simulation
             args_list = [(param, num_simulations) for param in params_list]
             results = pool.map(run_simulation_wrapper, args_list)
 
-        # For now, run simulations sequentially:
-        # results = [run_simulation(param, num_simulations) for param in params_list]
+        combined_output = ""
 
-        # Process these results in a separate loop:
+        # Process results for each game
         for idx, (simulation_results, most_likely_outcome) in enumerate(results):
-            row = historical_df.iloc[idx]
+            output = self.analyze_and_log_results(simulation_results, most_likely_outcome)
+            combined_output += output
 
-            # Analyze simulation results
-            self.logger.info("Analyzing Simulation Results...")
-            range_of_outcomes, standard_deviation, confidence_interval = self.model.analyze_simulation_results(simulation_results)
+            perceived_value_for_game = BREAK_EVEN_PROBABILITY
+            value_opportunity = self.visualization.visualize_value_opportunity(simulation_results, perceived_value_for_game)
+            self.logger.info(f"Value Opportunity for {self.home_team} vs {self.away_team}: {value_opportunity:.2f}")
 
             # Store simulation results and actual results for evaluation
-            all_simulation_results.append(most_likely_outcome)
-
+            all_simulation_results.append(simulation_results)
+            row = historical_df.iloc[idx]
             if row['summary.home.points'] is not None and row['summary.away.points'] is not None:
                 actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1)
             else:
                 actual_difference = None
             all_actual_results.append(actual_difference)
 
-            # Create a buffer to capture log messages
-            log_capture_buffer = io.StringIO()
-
-            # Set up the logger to write to the buffer
-            log_handler = logging.StreamHandler(log_capture_buffer)
-            log_handler.setLevel(logging.INFO)
-            self.logger.addHandler(log_handler)
-
-            # User-friendly output
-            self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
-            self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
-            self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
-            self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
-
-            # Retrieve the log messages from the buffer
-            log_contents = log_capture_buffer.getvalue()
-            explanation = self.model.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
-            combined_output = log_contents + "\n\n" + explanation
-
-            # Visualize simulation results
-            self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
+        # Visualize simulation results
+        self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
 
         # Check if all_actual_results has data
         if all_actual_results:
@@ -255,7 +282,6 @@ class NFLPredictor:
         self.logger.info(f"Actual Results: ${actual_value:.2f}")
 
 
-
 def run_simulation_wrapper(args):
     return run_simulation(*args)
 
@@ -267,5 +293,5 @@ def run_simulation(params, num_simulations):
 
 if __name__ == "__main__":
     predictor = NFLPredictor()
-    predictor.simulate_games(1000, 0)
+    # predictor.simulate_games(100, 8)
     # Call other methods of the predictor as needed
