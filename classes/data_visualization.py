@@ -1,12 +1,14 @@
 import os
+import scipy.stats
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
 
 class Visualization:
-    def __init__(self, template_dir):
+    def __init__(self, template_dir, target_variable):
         self.template_dir = template_dir
+        self.TARGET_VARIABLE = "summary." + target_variable
 
     def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
         """
@@ -19,6 +21,21 @@ class Visualization:
         fig.add_trace(go.Histogram(x=simulation_results, name='Simulation Results', nbinsx=bins))
         fig.add_shape(type="line", x0=most_likely_outcome, x1=most_likely_outcome, y0=0, y1=1, yref='paper', line=dict(color="Red"))
         fig.update_layout(title="Monte Carlo Simulation Results", xaxis_title="Target Value", yaxis_title="Density")
+
+        # Calculate the median prediction
+        median_margin = np.median(simulation_results)
+        # Calculate the expected value
+        expected_value = np.mean(simulation_results)
+        # Calculate the 95% confidence interval
+        confidence_level = 0.95
+        sigma = np.std(simulation_results)
+        confidence_interval = scipy.stats.norm.interval(confidence_level, loc=expected_value, scale=sigma/np.sqrt(len(simulation_results)))
+
+        # Add lines for median, expected value, and confidence interval
+        fig.add_shape(type="line", x0=median_margin, x1=median_margin, y0=0, y1=1, yref='paper', line=dict(color="Blue", dash="dash"), name="Median")
+        fig.add_shape(type="line", x0=expected_value, x1=expected_value, y0=0, y1=1, yref='paper', line=dict(color="Purple", dash="dot"), name="Expected Value")
+        fig.add_shape(type="line", x0=confidence_interval[0], x1=confidence_interval[0], y0=0, y1=1, yref='paper', line=dict(color="Green", dash="longdash"), name="Lower CI Bound")
+        fig.add_shape(type="line", x0=confidence_interval[1], x1=confidence_interval[1], y0=0, y1=1, yref='paper', line=dict(color="Red", dash="longdash"), name="Upper CI Bound")
 
         # Convert the Plotly figure to HTML
         plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
@@ -35,11 +52,11 @@ class Visualization:
         full_html = plotly_html_string + formatted_output
 
         # Path to save the visualization as an HTML file
-        feature_importance_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+        simulation_path = os.path.join(self.template_dir, 'simulation_distribution.html')
 
         # Save the combined HTML
         try:
-            with open(feature_importance_path, "w") as f:
+            with open(simulation_path, "w") as f:
                 f.write(full_html)
         except IOError as e:
             # Handle potential file write issues
@@ -63,7 +80,7 @@ class Visualization:
             actual_difference = actual_results[idx]
             predicted_difference = simulation_results[idx]
 
-            if actual_difference > predicted_difference:
+            if actual_difference > np.mean(predicted_difference):
                 model_covered += 1
 
         model_cover_rate = model_covered / len(simulation_results) * 100
@@ -84,7 +101,7 @@ class Visualization:
             actual_away_points = row['summary.away.points']
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
-            spread_odds = row['summary.odds.spread']
+            spread_odds = row[self.TARGET_VARIABLE]
             date = row['scheduled']
 
             predicted_difference = simulation_results[idx]
@@ -111,7 +128,7 @@ class Visualization:
                     recommended_bet = "push"
 
                 # Recommendation based on model
-                reccommendation_calc = spread_odds - predicted_difference
+                reccommendation_calc = spread_odds - np.mean(predicted_difference)
                 if reccommendation_calc < 0:
                     recommended_bet = "away"
                 elif reccommendation_calc > 0:
@@ -135,9 +152,9 @@ class Visualization:
 
                 # Calculate the model's implied probability
                 if recommended_bet == "home":
-                    model_probability = 1 / (1 + 10 ** (predicted_difference / 10))
+                    model_probability = 1 / (1 + 10 ** (np.mean(predicted_difference) / 10))
                 elif recommended_bet == "away":
-                    model_probability = 1 / (1 + 10 ** (-predicted_difference / 10))
+                    model_probability = 1 / (1 + 10 ** (-np.mean(predicted_difference) / 10))
                 else:
                     model_probability = None
 
@@ -162,7 +179,7 @@ class Visualization:
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': spread_odds,
-                'Modeling Odds': predicted_difference,
+                'Modeling Odds': np.mean(predicted_difference),
                 'Away Team': away_team,
                 'Recommended Bet': recommended_bet,
                 'Expected Value (%)': ev_percentage,
@@ -179,8 +196,21 @@ class Visualization:
         # Round all values in the DataFrame to 2 decimals
         results_df = results_df.round(2)
 
+        # Define paths to save the results
+        # csv_path = os.path.join(self.template_dir, 'betting_recommendation_results.csv')
+        html_path = os.path.join(self.template_dir, 'betting_recommendation_results.html')
+
         # Save results to CSV
-        results_df.to_csv('betting_recommendation_results.csv', index=False)
+        # try:
+        #     results_df.to_csv(csv_path, index=False)
+        # except IOError as e:
+        #     print(f"Error writing to CSV file: {e}")
+
+        # Save results to HTML
+        try:
+            results_df.to_html(html_path, index=False, classes='table table-striped')
+        except IOError as e:
+            print(f"Error writing to HTML file: {e}")
 
         recommendation_accuracy = 0
         average_ev_percent = 0
@@ -195,3 +225,31 @@ class Visualization:
             average_ev_percent = (average_ev / 110) * 100  # Adjust 110 if your standard bet amount is different
 
         return recommendation_accuracy, average_ev_percent, total_actual_value
+
+    def visualize_value_opportunity(self, simulation_results, perceived_value):
+        # Calculate the expected value
+        expected_value = np.mean(simulation_results)
+        value_opportunity = expected_value - perceived_value
+
+        # Plot using Plotly
+        fig = go.Figure()
+        fig.add_trace(go.Histogram(x=simulation_results, name='Simulation Results'))
+        fig.add_shape(type="line", x0=perceived_value, x1=perceived_value, y0=0, y1=1, yref='paper', line=dict(color="Yellow"), name="Perceived Value")
+        fig.add_shape(type="line", x0=expected_value, x1=expected_value, y0=0, y1=1, yref='paper', line=dict(color="Purple", dash="dot"), name="Expected Value")
+        fig.update_layout(title="Model vs Perceived Value", xaxis_title="Value", yaxis_title="Density")
+
+        # Convert the Plotly figure to HTML
+        plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+        # Path to save the visualization as an HTML file
+        value_opportunity_path = os.path.join(self.template_dir, 'value_opportunity_distribution.html')
+
+        # Save the combined HTML
+        try:
+            with open(value_opportunity_path, "w") as f:
+                f.write(plotly_html_string)
+        except IOError as e:
+            # Handle potential file write issues
+            print(f"Error writing to file: {e}")
+
+        return value_opportunity

@@ -27,7 +27,6 @@ database_operations = DatabaseOperations()
 data_processing = DataProcessing()
 analyzer = NFLDataAnalyzer()
 nfl_model = NFLModel()
-nfl_power_ranks = StatsCalculator()
 
 # Fetch configurations using ConfigManager
 data_dir = config.get_config('paths', 'data_dir')
@@ -175,6 +174,7 @@ def generate_model():
 @app.route('/generate_power_ranks', methods=['POST'])
 def generate_power_ranks():
     try:
+        nfl_power_ranks = StatsCalculator()
         nfl_power_ranks.main()
 
         # If successful, return a success message
@@ -287,14 +287,24 @@ def simulator_results():
     return render_template('simulator_results.html')
 
 
-@app.route('/simulation_distribution')
-def simulation_distribution():
-    return render_template('simulation_distribution.html')
-
-
 @app.route('/view_power_ranks_sim')
 def view_power_ranks_sim():
     return render_template('team_power_rank_sim.html')
+
+
+@app.route('/view_simulation_distribution')
+def view_simulation_distribution():
+    return render_template('simulation_distribution.html')
+
+
+@app.route('/view_value_opportunity_distribution')
+def view_value_opportunity_distribution():
+    return render_template('value_opportunity_distribution.html')
+
+
+@app.route('/view_betting_recommendation_results')
+def view_betting_recommendation_results():
+    return render_template('betting_recommendation_results.html')
 
 
 if __name__ == "__main__":

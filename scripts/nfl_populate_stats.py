@@ -22,6 +22,8 @@ class StatsCalculator:
 
         Initializes configuration settings, constants, class instances, and loads a pre-trained machine learning model.
         """
+        reload(scripts.constants)
+
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
@@ -267,7 +269,6 @@ class StatsCalculator:
         """
         processed_games_df = self.load_and_process_data()
 
-        reload(scripts.constants)
         columns_to_filter = [col.replace('_difference', '').replace('_ratio', '').strip() for col in self.CONSTANTS if not col.startswith('odds.')]
         columns_to_filter.extend(['id', 'update_date', 'name'])  # Add 'id' and 'name' to the columns
 
@@ -316,8 +317,5 @@ class StatsCalculator:
 
 
 if __name__ == "__main__":
-    print("starting")
     nfl_stats = StatsCalculator()
     nfl_stats.main()
-    print("done")
-

@@ -66,7 +66,7 @@ class DBInserter:
             games_collection = self.db['games']
             game_id = data.get('id')
             existing_game = games_collection.find_one({'id': game_id})
-            
+
             # If the game doesn't exist in the collection, insert it
             if existing_game is None:
                 games_collection.insert_one(data)
@@ -121,33 +121,25 @@ class DBInserter:
                 reader = csv.reader(file)
                 next(reader)  # skip header row
                 for row in reader:
-                    date, home_team, away_team, spread, total = self.add_odds_data(row)
-                    self.update_odds_in_mongodb(date, home_team, away_team, spread, total)
+                    date, home_team, away_team, spread_open, spread_close, total_open, total_close, neutral, playoff = self.add_odds_data(row)
+                    self.update_odds_in_mongodb(date, home_team, away_team, spread_open, spread_close, total_open, total_close)
 
     def add_odds_data(self, row):
         """Processes a row from the CSV and inserts it into the 'games' collection."""
         # Extract data from the row
-        date = row[1]
-        location = row[3]
-        team_e = row[4]
-        try:
-            spread = float(row[5])
-        except ValueError:
-            spread = 0.0  # set spread to 0 if it can't be converted to float
-        total = float(row[8].split(' ')[1])
+        date = row[0]
+        home_team = row[1]
+        away_team = row[2]
+        spread_open = float(row[8])
+        spread_close = float(row[9])
+        total_open = float(row[10])
+        total_close = float(row[11])
+        neutral = True if row[7] == "1" else False  # Assuming 1 for neutral and 0 for non-neutral
+        playoff = True if row[6] == "1" else False  # Assuming 1 for playoff and 0 for non-playoff
 
-        # Determine home and away teams based on the location
-        if location in ['@', 'N']:
-            home_team = team_e
-            away_team = row[7]
-        else:
-            home_team = row[7]
-            away_team = team_e
-            spread *= -1  # invert the spread
+        return date, home_team, away_team, spread_open, spread_close, total_open, total_close, neutral, playoff
 
-        return date, home_team, away_team, spread, total
-
-    def update_odds_in_mongodb(self, date, home_team, away_team, spread, total):
+    def update_odds_in_mongodb(self, date, home_team, away_team, spread_open, spread_close, total_open, total_close):
         """Updates the 'games' collection in MongoDB with odds data."""
         games_collection = self.db['games']
 
@@ -164,13 +156,13 @@ class DBInserter:
         game = games_collection.find_one(query)
 
         if game:
-            self._update_game_odds(game, games_collection, spread, total)
+            self._update_game_odds(game, games_collection, spread_open, spread_close, total_open, total_close)
         else:
             logging.warning(f"No match found for date: {date_str}, home_team: {home_team_main}, away_team: {away_team_main}")
 
     def _convert_date_format(self, date):
         try:
-            date_obj = datetime.strptime(date, '%b %d, %Y')
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
             return date_obj.strftime('%Y-%m-%d')
         except ValueError:
             logging.error(f"Invalid date format: {date}")
@@ -205,36 +197,46 @@ class DBInserter:
             ]
         }
 
-    def _update_game_odds(self, game, games_collection, spread, total):
+    def _update_game_odds(self, game, games_collection, spread_open, spread_close, total_open, total_close):
         game_date = datetime.strptime(game['scheduled'].split('T')[0], '%Y-%m-%d').date()
         current_date = datetime.now().date()
         days_difference = (game_date - current_date).days
 
+        logging.info(f"Updating odds for game on {game_date} between {game['summary']['home']['name']} and {game['summary']['away']['name']}")
+
         # If the game is in the future or within the next 6 days, only update spread and total
         if days_difference >= 0 and days_difference <= 6:
+            logging.info(f"Updating future game odds: spread_open={spread_open}, spread_close={spread_close}, total_open={total_open}, total_close={total_close}")
             games_collection.update_one(
                 {'_id': game['_id']},
                 {'$set': {
-                    'summary.odds.spread': spread,
-                    'summary.odds.total': total
+                    'summary.odds.spread_open': spread_open,
+                    'summary.odds.spread_close': spread_close,
+                    'summary.odds.total_open': total_open,
+                    'summary.odds.total_close': total_close
                 }}
             )
         else:
             home_points = game['summary']['home']['points']
             away_points = game['summary']['away']['points']
 
-            covered = "Push" if (home_points + spread) - away_points == 0 else ("Yes" if (home_points + spread) - away_points > 0 else "No")
-            total_value = "Push" if home_points + away_points == total else ("Over" if home_points + away_points > total else "Under")
+            covered = "Push" if (home_points + spread_close) - away_points == 0 else ("Yes" if (home_points + spread_close) - away_points > 0 else "No")
+            total_value = "Push" if home_points + away_points == total_close else ("Over" if home_points + away_points > total_close else "Under")
+
+            logging.info(f"Updating past game odds: spread_open={spread_open}, spread_close={spread_close}, total_open={total_open}, total_close={total_close}, covered={covered}, total_value={total_value}")
 
             games_collection.update_one(
                 {'_id': game['_id']},
                 {'$set': {
-                    'summary.odds.spread': spread,
-                    'summary.odds.total': total,
+                    'summary.odds.spread_open': spread_open,
+                    'summary.odds.spread_close': spread_close,
+                    'summary.odds.total_open': total_open,
+                    'summary.odds.total_close': total_close,
                     'summary.odds.covered': covered,
                     'summary.odds.total_value': total_value
                 }}
             )
+
 
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""
