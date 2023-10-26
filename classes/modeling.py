@@ -5,10 +5,13 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from scipy.stats import gaussian_kde, t, norm
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+
 
 
 class Modeling:
-    def __init__(self, loaded_model, loaded_scaler, home_field_adjust, static_dir):
+    def __init__(self, loaded_model=None, loaded_scaler=None, home_field_adjust=2.7, static_dir=None):
         self.LOADED_MODEL = loaded_model
         self.LOADED_SCALER = loaded_scaler
         self.HOME_FIELD_ADJUST = home_field_adjust
@@ -71,7 +74,6 @@ class Modeling:
             simulation_df.to_csv(simulation_file_path, mode='a', header=False, index=False)
         else:
             simulation_df.to_csv(simulation_file_path, index=False)
-
 
         logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
@@ -141,3 +143,27 @@ class Modeling:
             std_dev=standard_deviation
         )
         return explanation
+
+    def train_model(self, X, y, model_type, grid_search_params):
+        """Train a model based on the EDA settings in the configuration."""
+        eda_type = model_type
+        if eda_type == "random_forest":
+            return self.train_random_forest(X, y, grid_search_params)
+        # Add other model training methods here as needed
+        else:
+            raise ValueError(f"The EDA type '{eda_type}' specified in the config is not supported.")
+
+    def train_random_forest(self, X, y, grid_search_params):
+        """Train a RandomForestRegressor with hyperparameter tuning."""
+        param_grid = grid_search_params
+        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3, verbose=1)
+        model.fit(X, y)
+        return model
+
+    def identify_top_features(self, X, y, importances):
+        """Identify the top features based on importance and correlation."""
+        correlations = X.corrwith(y).abs()
+        top_20_percent = int(np.ceil(0.20 * len(importances)))
+        top_importance_features = X.columns[importances.argsort()[-top_20_percent:]]
+        top_correlation_features = correlations.nlargest(top_20_percent).index.tolist()
+        return top_importance_features, top_correlation_features

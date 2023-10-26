@@ -2,15 +2,15 @@ import os
 import logging
 
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV
 from importlib import reload
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
+from classes.data_visualization import Visualization
 from classes.database_operations import DatabaseOperations
 import scripts.constants
 
@@ -27,6 +27,7 @@ class NFLDataAnalyzer:
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
+        self.modeling = Modeling()
 
         # Fetch constants using ConfigManager
         self.TWO_YEARS_IN_DAYS = self.config.get_constant('TWO_YEARS_IN_DAYS')
@@ -46,6 +47,7 @@ class NFLDataAnalyzer:
 
         self.model_type = self.config.get_model_settings('model_type')
         self.grid_search_params = self.config.get_model_settings('grid_search')
+        self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
 
     def load_and_process_data(self, collection_name):
         """Loads and processes data from the specified MongoDB collection."""
@@ -106,8 +108,8 @@ class NFLDataAnalyzer:
             feature_importance_path, heatmap_path = self.plot_feature_importance(df)
             # histogram_path = self.plot_interactive_histograms(df)
             # boxplot_path = self.plot_boxplots(df)
-            descriptive_stats_path = self.generate_descriptive_statistics(df)
-            data_quality_report_path = self.generate_data_quality_report(df)
+            descriptive_stats_path = self.visualization.generate_descriptive_statistics(df)
+            data_quality_report_path = self.visualization.generate_data_quality_report(df)
 
             return heatmap_path, feature_importance_path, descriptive_stats_path, data_quality_report_path
 
@@ -122,22 +124,22 @@ class NFLDataAnalyzer:
             y = df[self.TARGET_VARIABLE]
 
             # Train the model
-            model = self.train_model(X, y)
+            model = self.modeling.train_model(X, y, self.model_type, self.grid_search_params)
 
             # Extract and standardize feature importances
             importances = model.best_estimator_.feature_importances_ / model.best_estimator_.feature_importances_.sum()
 
             # Identify top features based on importance and correlation
-            top_importance_features, top_correlation_features = self.identify_top_features(X, y, importances)
+            top_importance_features, top_correlation_features = self.modeling.identify_top_features(X, y, importances)
 
             # Create a DataFrame for feature importance visualization
             feature_importance_df = self.prepare_feature_importance_df(X.columns, importances, top_importance_features, top_correlation_features)
 
             # Visualize feature importance
-            feature_importance_path = self.visualize_feature_importance(feature_importance_df)
+            feature_importance_path = self.visualization.visualize_feature_importance(feature_importance_df)
 
             # Create Heat Map
-            heatmap_path = self.plot_interactive_correlation_heatmap(df, importances)
+            heatmap_path = self.visualization.plot_interactive_correlation_heatmap(df, importances)
 
             logging.info(f"Best model score: {model.best_score_}")
             return feature_importance_path, heatmap_path
@@ -145,30 +147,6 @@ class NFLDataAnalyzer:
         except Exception as e:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
-
-    def train_model(self, X, y):
-        """Train a model based on the EDA settings in the configuration."""
-        eda_type = self.model_type
-        if eda_type == "random_forest":
-            return self.train_random_forest(X, y)
-        # Add other model training methods here as needed
-        else:
-            raise ValueError(f"The EDA type '{eda_type}' specified in the config is not supported.")
-
-    def train_random_forest(self, X, y):
-        """Train a RandomForestRegressor with hyperparameter tuning."""
-        param_grid = self.grid_search_params
-        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3, verbose=2)
-        model.fit(X, y)
-        return model
-
-    def identify_top_features(self, X, y, importances):
-        """Identify the top features based on importance and correlation."""
-        correlations = X.corrwith(y).abs()
-        top_20_percent = int(np.ceil(0.20 * len(importances)))
-        top_importance_features = X.columns[importances.argsort()[-top_20_percent:]]
-        top_correlation_features = correlations.nlargest(top_20_percent).index.tolist()
-        return top_importance_features, top_correlation_features
 
     def prepare_feature_importance_df(self, feature_names, importances, top_importance_features, top_correlation_features):
         """Prepare a DataFrame for feature importance visualization."""
@@ -186,147 +164,6 @@ class NFLDataAnalyzer:
         feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(determine_color)
         return feature_importance_df.sort_values(by='Importance', ascending=False)
 
-    def visualize_feature_importance(self, feature_importance_df):
-        """Visualize feature importance using Plotly."""
-        fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
-                     color='Highlight', color_discrete_map={'Important': 'red', 'Related to Target': 'blue', 'Important and Related': 'purple', 'Just Data': 'gray'})
-        feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
-        fig.write_html(feature_importance_path)
-        return feature_importance_path
-
-    # ENHANCE AND OPTIMIZE EDA OUTPUTS
-    def plot_interactive_correlation_heatmap(self, df, importances):
-        """Plots an interactive correlation heatmap using Plotly."""
-        try:
-            # If df has more than 50 columns, select only the 50 most important ones
-            if df.shape[1] > 50:
-                X = df.drop(columns=[self.TARGET_VARIABLE])
-
-                # Get the top 50 features based on importance
-                top_50_features = X.columns[importances.argsort()[-50:]]
-
-                # Filter df to only include these top 50 features
-                df = df[top_50_features]
-
-            corr = df.corr()
-
-            # Using Plotly to create an interactive heatmap
-            fig = go.Figure(data=go.Heatmap(
-                z=corr.values,
-                x=corr.columns,
-                y=corr.columns,
-                hoverongaps=False,
-                colorscale=[[0, "red"], [0.5, "white"], [1, "blue"]],  # Setting colorscale with baseline at 0
-                zmin=-.8,  # Setting minimum value for color scale
-                zmax=.8,   # Setting maximum value for color scale
-                showscale=True,  # Display color scale bar
-            ))
-
-            # Adding annotations to the heatmap
-            annotations = []
-            for i, row in enumerate(corr.values):
-                for j, value in enumerate(row):
-                    annotations.append(
-                        {
-                            "x": corr.columns[j],
-                            "y": corr.columns[i],
-                            "font": {"color": "black"},
-                            "text": str(round(value, 2)),
-                            "xref": "x1",
-                            "yref": "y1",
-                            "showarrow": False
-                        }
-                    )
-            fig.update_layout(annotations=annotations, title='Correlation Heatmap')
-
-            heatmap_path = os.path.join(self.template_dir, 'interactive_heatmap.html')
-            fig.write_html(heatmap_path)
-
-            return heatmap_path
-        except Exception as e:
-            logging.error(f"Error generating interactive correlation heatmap: {e}")
-            return None
-
-    def plot_interactive_histograms(self, df):
-        """Plots interactive histograms for each numerical column using Plotly."""
-        histograms_dir = os.path.join(self.template_dir, 'interactive_histograms')
-        os.makedirs(histograms_dir, exist_ok=True)
-
-        for col in df.select_dtypes(include=['float64', 'int64']).columns:
-            fig = px.histogram(df, x=col, title=f'Histogram of {col}', nbins=30)
-            fig.write_html(os.path.join(histograms_dir, f'{col}_histogram.html'))
-
-        return histograms_dir
-
-    def plot_boxplots(self, df):
-        """Plots box plots for each numerical column in the dataframe."""
-        try:
-            # Create a directory to store all boxplot plots
-            boxplots_dir = os.path.join(self.static_dir, 'boxplots')
-            os.makedirs(boxplots_dir, exist_ok=True)
-
-            # Loop through each numerical column and create a boxplot
-            for col in df.select_dtypes(include=['float64', 'int64']).columns:
-                fig = px.box(df, y=col, title=f'Boxplot of {col}')
-                fig.write_html(os.path.join(boxplots_dir, f'{col}_boxplot.html'))
-
-            logging.info("Boxplots generated successfully")
-            return boxplots_dir
-
-        except Exception as e:
-            logging.error(f"Error generating boxplots: {e}")
-            return None
-
-    def generate_descriptive_statistics(self, df):
-        """Generates descriptive statistics for each column in the dataframe and saves it as an HTML file."""
-        try:
-            # Generating descriptive statistics
-            descriptive_stats = df.describe(include='all')
-
-            # Transposing the DataFrame
-            descriptive_stats = descriptive_stats.transpose()
-
-            # Saving the descriptive statistics to an HTML file
-            descriptive_stats_path = os.path.join(self.template_dir, 'descriptive_statistics.html')
-            descriptive_stats.to_html(descriptive_stats_path, classes='table table-bordered', justify='center')
-
-            return descriptive_stats_path
-        except Exception as e:
-            logging.error(f"Error generating descriptive statistics: {e}")
-            return None
-
-    def generate_data_quality_report(self, df):
-        """Generates a data quality report for the dataframe and saves it as an HTML file."""
-        try:
-            # Initializing an empty dictionary to store data quality metrics
-            data_quality_report = {}
-
-            # Checking for missing values
-            data_quality_report['missing_values'] = df.isnull().sum()
-
-            # Checking for duplicate rows
-            data_quality_report['duplicate_rows'] = df.duplicated().sum()
-
-            # Checking data types of each column
-            data_quality_report['data_types'] = df.dtypes
-
-            # Checking for outliers using Z-score
-            from scipy.stats import zscore
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            data_quality_report['outliers'] = df[numeric_cols].apply(lambda x: np.abs(zscore(x)) > 3).sum()
-
-            # Converting the dictionary to a DataFrame
-            data_quality_df = pd.DataFrame(data_quality_report)
-
-            # Saving the data quality report to an HTML file
-            data_quality_report_path = os.path.join(self.template_dir, 'data_quality_report.html')
-            data_quality_df.to_html(data_quality_report_path, classes='table table-bordered', justify='center')
-
-            return data_quality_report_path
-        except Exception as e:
-            logging.error(f"Error generating data quality report: {e}")
-            return None
-
     def main(self):
         """Main method to load data and generate EDA report."""
         try:
@@ -340,5 +177,5 @@ class NFLDataAnalyzer:
             return None, None
 
 
-# analyzer = NFLDataAnalyzer()
-# analyzer.main()
+analyzer = NFLDataAnalyzer()
+analyzer.main()
