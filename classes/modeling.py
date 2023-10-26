@@ -5,11 +5,47 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from scipy.stats import gaussian_kde, t, norm
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.base import clone
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
+# Ensemble Classes
+class SimpleAveragingEnsemble:
+    def __init__(self, models):
+        self.models = models
 
+    def predict(self, X):
+        predictions = [model.predict(X) for model in self.models]
+        return sum(predictions) / len(self.models)
+
+
+class StackingEnsemble:
+    def __init__(self, base_models, meta_model):
+        self.base_models = base_models
+        self.meta_model = meta_model
+
+    def predict(self, X):
+        meta_features = np.column_stack([model.predict(X) for model in self.base_models])
+        return self.meta_model.predict(meta_features)
+
+
+class WeightedAveragingEnsemble:
+    def __init__(self, models, weights):
+        self.models = models
+        self.weights = weights
+
+    def predict(self, X):
+        predictions = [model.predict(X) for model in self.models]
+        weighted_predictions = sum(w * p for w, p in zip(self.weights, predictions))
+        return weighted_predictions
+
+
+# Modeling class
 class Modeling:
     def __init__(self, loaded_model=None, loaded_scaler=None, home_field_adjust=2.7, static_dir=None):
         self.LOADED_MODEL = loaded_model
@@ -17,6 +53,7 @@ class Modeling:
         self.HOME_FIELD_ADJUST = home_field_adjust
         self.static_dir = static_dir
 
+    # Utility Methods
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
@@ -144,22 +181,6 @@ class Modeling:
         )
         return explanation
 
-    def train_model(self, X, y, model_type, grid_search_params):
-        """Train a model based on the EDA settings in the configuration."""
-        eda_type = model_type
-        if eda_type == "random_forest":
-            return self.train_random_forest(X, y, grid_search_params)
-        # Add other model training methods here as needed
-        else:
-            raise ValueError(f"The EDA type '{eda_type}' specified in the config is not supported.")
-
-    def train_random_forest(self, X, y, grid_search_params):
-        """Train a RandomForestRegressor with hyperparameter tuning."""
-        param_grid = grid_search_params
-        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=3, verbose=1)
-        model.fit(X, y)
-        return model
-
     def identify_top_features(self, X, y, importances):
         """Identify the top features based on importance and correlation."""
         correlations = X.corrwith(y).abs()
@@ -167,3 +188,162 @@ class Modeling:
         top_importance_features = X.columns[importances.argsort()[-top_20_percent:]]
         top_correlation_features = correlations.nlargest(top_20_percent).index.tolist()
         return top_importance_features, top_correlation_features
+
+    # Model Training
+    def train_model(self, X, y, model_type, grid_search_params=None):
+        logging.info(f"Training model of type: {model_type}")
+
+        if model_type == "random_forest":
+            return self.train_random_forest(X, y, grid_search_params)
+        elif model_type == "linear_regression":
+            return self.train_linear_regression(X, y)
+        elif model_type == "svm":
+            return self.train_svm(X, y, grid_search_params)
+        elif model_type == "gradient_boosting":
+            return self.train_gradient_boosting(X, y, grid_search_params)
+        elif model_type == "simple_averaging_ensemble":
+            models = [
+                self.train_random_forest(X, y, grid_search_params),
+                self.train_linear_regression(X, y),
+                self.train_svm(X, y, grid_search_params),
+                self.train_gradient_boosting(X, y, grid_search_params)
+            ]
+            return SimpleAveragingEnsemble(models)
+        elif model_type == "stacking_ensemble":
+            base_models = [
+                self.train_random_forest(X, y, grid_search_params),
+                self.train_linear_regression(X, y),
+                self.train_svm(X, y, grid_search_params)
+            ]
+            meta_model = GradientBoostingRegressor()
+            base_models, trained_meta_model = self.train_stacking_ensemble(base_models, meta_model, X, y)
+            return StackingEnsemble(base_models, trained_meta_model)
+        elif model_type == "weighted_averaging_ensemble":
+            # Split the data into training and validation sets for model performance evaluation
+            X_train_sub, X_val, y_train_sub, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            # Train models on the subset of the training data
+            model1 = self.train_random_forest(X_train_sub, y_train_sub, grid_search_params)
+            model2 = self.train_linear_regression(X_train_sub, y_train_sub)
+            model3 = self.train_svm(X_train_sub, y_train_sub, grid_search_params)
+            model4 = self.train_gradient_boosting(X_train_sub, y_train_sub, grid_search_params)
+
+            # Evaluate models on the validation set
+            models = [model1, model2, model3, model4]
+            model_errors = [mean_squared_error(y_val, model.predict(X_val)) for model in models]
+
+            # Calculate weights inversely proportional to errors (models with lower error get higher weight)
+            weights = [1/error for error in model_errors]
+            normalized_weights = [weight/sum(weights) for weight in weights]
+
+            return WeightedAveragingEnsemble(models, normalized_weights)
+        else:
+            raise ValueError(f"The model type '{model_type}' specified is not supported.")
+
+    def train_random_forest(self, X, y, grid_search_params):
+        """Train a RandomForestRegressor with hyperparameter tuning."""
+        logging.info("Training RandomForestRegressor with hyperparameter tuning...")
+        if not grid_search_params:
+            grid_search_params = {
+                'n_estimators': [100], 
+                'max_depth': [None, 10],
+            }
+        model = GridSearchCV(RandomForestRegressor(random_state=108), grid_search_params, cv=3, verbose=2)
+        model.fit(X, y)
+        return model
+
+    def train_linear_regression(self, X, y):
+        """Train a Linear Regression model."""
+        logging.info("Training Linear Regression model...")
+        model = LinearRegression()
+        model.fit(X, y)
+        return model
+
+    def train_svm(self, X, y, grid_search_params):
+        """Train a Support Vector Machine for regression with hyperparameter tuning."""
+        logging.info("Training SVM with hyperparameter tuning...")
+        if not grid_search_params:
+            grid_search_params = {
+                'C': [0.1, 1, 10],
+                'kernel': ['linear', 'rbf'],
+            }
+        model = GridSearchCV(SVR(), grid_search_params, cv=3, verbose=2)
+        model.fit(X, y)
+        return model
+
+    def train_gradient_boosting(self, X, y, grid_search_params):
+        """Train a Gradient Boosting Regressor with hyperparameter tuning."""
+        logging.info("Training Gradient Boosting Regressor with hyperparameter tuning...")
+        if not grid_search_params:
+            grid_search_params = {
+                'n_estimators': [100, 200],
+                'learning_rate': [0.01, 0.1],
+                'max_depth': [3, 5],
+            }
+        model = GridSearchCV(GradientBoostingRegressor(random_state=108), grid_search_params, cv=3, verbose=2)
+        model.fit(X, y)
+        return model
+
+    def train_stacking_ensemble(self, base_models, meta_model, X, y):
+        """
+        Train a stacking ensemble.
+
+        :param base_models: List of base models to be trained.
+        :param meta_model: The meta model to be trained on top of the base models.
+        :param X: Features.
+        :param y: Target variable.
+        :return: Trained base models and meta model.
+        """
+        logging.info("Training stacking ensemble...")
+
+        # Train base models
+        for model in base_models:
+            model.fit(X, y)
+
+        # Get predictions from base models to be used as features for the meta model
+        meta_features = np.column_stack([model.predict(X) for model in base_models])
+
+        # Train the meta model
+        cloned_meta_model = clone(meta_model)
+        cloned_meta_model.fit(meta_features, y)
+
+        return base_models, cloned_meta_model
+    
+
+    # Evaluation Methods
+    def train_and_evaluate(self, X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns, model_type, grid_search_params=None):
+        """
+        Train and evaluate the model on test and blind test data.
+
+        :param X_train: Training features.
+        :param y_train: Training target variable.
+        :param X_test: Test features.
+        :param y_test: Test target variable.
+        :param X_blind_test: Blind test features.
+        :param y_blind_test: Blind test target variable.
+        :param feature_columns: List of feature column names.
+        :param model_type: Type of the model to be trained.
+        :param grid_search_params: Hyperparameters for GridSearchCV.
+        :return: Trained model.
+        """
+        logging.info("Training and evaluating the model...")
+
+        try:
+            # Convert numpy arrays back to dataframes to preserve feature names
+            X_train_df = pd.DataFrame(X_train, columns=feature_columns)
+
+            # Train the model using the factory method
+            model = self.train_model(X_train_df, y_train, model_type, grid_search_params)
+
+            for dataset, dataset_name in zip([(X_test, y_test), (X_blind_test, y_blind_test)], ['Test Data', 'Blind Test Data']):
+                X_df, y_data = dataset
+                y_pred = model.predict(pd.DataFrame(X_df, columns=feature_columns))
+                mae = mean_absolute_error(y_data, y_pred)
+                mse = mean_squared_error(y_data, y_pred)
+                r2 = r2_score(y_data, y_pred)
+                logging.info(f"Performance on {dataset_name}: MAE: {mae}, MSE: {mse}, R^2: {r2}")
+
+            return model
+        except Exception as e:
+            logging.error(f"Error in train_and_evaluate: {e}")
+            return None

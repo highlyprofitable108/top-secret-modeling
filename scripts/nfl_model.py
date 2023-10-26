@@ -5,10 +5,9 @@ import pandas as pd
 from importlib import reload
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 import scripts.constants
+from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
@@ -26,9 +25,11 @@ class NFLModel:
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.data_processing = DataProcessing()
+        self.modeling = Modeling()
 
         self._fetch_constants_and_configs()
 
+    # Helper Methods
     def _fetch_constants_and_configs(self):
         """
         Fetch constants and configurations from the configuration manager.
@@ -56,6 +57,7 @@ class NFLModel:
         except Exception as e:
             raise ValueError(f"Error fetching configurations: {e}")
 
+    # Data Processing Methods
     def load_and_process_data(self):
         """
         Load and preprocess data from MongoDB.
@@ -121,86 +123,6 @@ class NFLModel:
             logging.error(f"Error in preprocess_nfl_data: {e}")
             return tuple([pd.DataFrame() for _ in range(6)]) + (None, [])
 
-    def train_and_evaluate(self, X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns):
-        """
-        Train and evaluate the model on test and blind test data.
-
-        Trains the model, evaluates it on test and blind test data, and logs performance metrics.
-
-        :param X_train: Training features.
-        :param y_train: Training target variable.
-        :param X_test: Test features.
-        :param y_test: Test target variable.
-        :param X_blind_test: Blind test features.
-        :param y_blind_test: Blind test target variable.
-        :param feature_columns: List of feature column names.
-        :return: Trained model.
-        """
-        logging.info("Training and evaluating the model...")
-
-        try:
-            # Convert numpy arrays back to dataframes to preserve feature names
-            X_train_df = pd.DataFrame(X_train, columns=feature_columns)
-
-            # Train the model using the factory method
-            model = self.train_model(X_train_df, y_train)
-            model.fit(pd.DataFrame(X_train, columns=feature_columns), y_train)
-
-            for dataset, dataset_name in zip([(X_test, y_test), (X_blind_test, y_blind_test)], ['Test Data', 'Blind Test Data']):
-                X_df, y_data = dataset
-                y_pred = model.predict(pd.DataFrame(X_df, columns=feature_columns))
-                mae = mean_absolute_error(y_data, y_pred)
-                mse = mean_squared_error(y_data, y_pred)
-                r2 = r2_score(y_data, y_pred)
-                logging.info(f"Performance on {dataset_name}: MAE: {mae}, MSE: {mse}, R^2: {r2}")
-
-            return model
-        except Exception as e:
-            logging.error(f"Error in train_and_evaluate: {e}")
-            return None
-
-    def train_model(self, X, y):
-        """
-        Train a machine learning model based on specified settings.
-
-        Trains a machine learning model based on the model type defined in the configuration.
-
-        :param X: Features.
-        :param y: Target variable.
-        :return: Trained machine learning model.
-        """
-
-        logging.info(f"Training model of type: {self.model_type}")
-
-        model_type = self.model_type
-        if model_type == "random_forest":
-            return self.train_random_forest(X, y)
-        # Add other model training methods here as needed
-        else:
-            raise ValueError(f"The model type '{model_type}' specified in the config is not supported.")
-
-    def train_random_forest(self, X, y):
-        """
-        Train a RandomForestRegressor with hyperparameter tuning.
-
-        Trains a RandomForestRegressor model with hyperparameter tuning using GridSearchCV.
-
-        :param X: Features.
-        :param y: Target variable.
-        :return: Trained RandomForestRegressor model.
-        """
-        logging.info("Training RandomForestRegressor with hyperparameter tuning...")
-
-        # Figure out how to filter and input from config.yaml
-        param_grid = {
-            'n_estimators': [100], 
-            'max_depth': [None, 10],
-            # Add more hyperparameters here as required
-        }
-        model = GridSearchCV(RandomForestRegressor(random_state=108), param_grid, cv=3, verbose=2)
-        model.fit(X, y)
-        return model
-
     def main(self):
         """
         Main method for executing the model training and evaluation pipeline.
@@ -213,7 +135,7 @@ class NFLModel:
             X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(processed_df)
 
             # Train and evaluate model
-            model = self.train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns)
+            model = self.modeling.train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns, self.model_type, self.grid_search_params)
 
             joblib.dump(model, os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
             joblib.dump(scaler, os.path.join(self.model_dir, 'data_scaler.pkl'))

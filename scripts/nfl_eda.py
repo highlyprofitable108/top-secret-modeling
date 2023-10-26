@@ -3,9 +3,6 @@ import logging
 
 import pandas as pd
 from importlib import reload
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
@@ -49,15 +46,7 @@ class NFLDataAnalyzer:
         self.grid_search_params = self.config.get_model_settings('grid_search')
         self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
 
-    def load_and_process_data(self, collection_name):
-        """Loads and processes data from the specified MongoDB collection."""
-        df = self.load_data(collection_name)
-        df = self.process_data(df)
-        df = self.filter_columns(df)
-        df = self.data_processing.handle_null_values(df)
-
-        return df
-
+    # Processing Methods
     def load_data(self, collection_name):
         """Loads data from the specified MongoDB collection."""
         try:
@@ -99,6 +88,16 @@ class NFLDataAnalyzer:
             logging.error(f"Error filtering columns: {e}")
             return pd.DataFrame()
 
+    def load_and_process_data(self, collection_name):
+        """Loads and processes data from the specified MongoDB collection."""
+        df = self.load_data(collection_name)
+        df = self.process_data(df)
+        df = self.filter_columns(df)
+        df = self.data_processing.handle_null_values(df)
+
+        return df
+
+    # EDA Generation and Data Collection Methods
     def generate_eda_report(self, df):
         """Generates an EDA report with various analyses and saves it as image files."""
         try:
@@ -177,5 +176,5 @@ class NFLDataAnalyzer:
             return None, None
 
 
-analyzer = NFLDataAnalyzer()
-analyzer.main()
+# analyzer = NFLDataAnalyzer()
+# analyzer.main()
