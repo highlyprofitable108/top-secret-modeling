@@ -54,6 +54,14 @@ class Modeling:
         self.static_dir = static_dir
 
     # Utility Methods
+    def save_model(self, file_path):
+        import joblib
+        joblib.dump((self.LOADED_MODEL, self.LOADED_SCALER), file_path)
+    
+    def load_model(self, file_path):
+        import joblib
+        self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
+        
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
@@ -309,7 +317,11 @@ class Modeling:
 
         return base_models, cloned_meta_model
     
-
+    def retrain_model(self, new_data, target_column, **training_args):
+        X = new_data.drop(target_column, axis=1)
+        y = new_data[target_column]
+        self.LOADED_MODEL.fit(X, y, **training_args)
+        
     # Evaluation Methods
     def train_and_evaluate(self, X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns, model_type, grid_search_params=None):
         """
@@ -347,3 +359,12 @@ class Modeling:
         except Exception as e:
             logging.error(f"Error in train_and_evaluate: {e}")
             return None
+            
+    def evaluate_model(self, test_data, target_column):
+        from sklearn.metrics import mean_squared_error
+        X_test = test_data.drop(target_column, axis=1)
+        y_test = test_data[target_column]
+        predictions = self.LOADED_MODEL.predict(X_test)
+        mse = mean_squared_error(y_test, predictions)
+        return mse
+    
