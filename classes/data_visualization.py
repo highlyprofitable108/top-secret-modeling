@@ -1,14 +1,19 @@
 import os
+import shap
+import random
+import logging
 import scipy.stats
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
+from scipy.stats import zscore
 
 
 class Visualization:
-    def __init__(self, template_dir, target_variable):
+    def __init__(self, template_dir=None, target_variable="odd.spread_close"):
         self.template_dir = template_dir
-        self.TARGET_VARIABLE = "summary." + target_variable
+        self.TARGET_VARIABLE = target_variable
 
     def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
         """
@@ -101,7 +106,7 @@ class Visualization:
             actual_away_points = row['summary.away.points']
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
-            spread_odds = row[self.TARGET_VARIABLE]
+            spread_odds = row["summary." + self.TARGET_VARIABLE]
             date = row['scheduled']
 
             predicted_difference = simulation_results[idx]
@@ -253,3 +258,170 @@ class Visualization:
             print(f"Error writing to file: {e}")
 
         return value_opportunity
+
+    def visualize_feature_importance(self, feature_importance_df):
+        """Visualize feature importance using Plotly."""
+        fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
+                     color='Highlight', color_discrete_map={'Important': 'red', 'Related to Target': 'blue', 'Important and Related': 'purple', 'Just Data': 'gray'})
+        feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
+        fig.write_html(feature_importance_path)
+        return feature_importance_path
+
+    # ENHANCE AND OPTIMIZE EDA OUTPUTS
+    def plot_interactive_correlation_heatmap(self, df, importances):
+        """Plots an interactive correlation heatmap using Plotly."""
+        try:
+            # Save the target variable column
+            df_target = df[self.TARGET_VARIABLE].copy()
+
+            # If df has more than 50 columns, select only the 50 most important ones
+            if df.shape[1] > 50:
+                X = df.drop(columns=[self.TARGET_VARIABLE])
+
+                # Get the top 50 features based on importance
+                top_50_features = X.columns[importances.argsort()[-50:]]
+
+                # Filter df to only include these top 50 features and the target variable
+                df = df[top_50_features]
+
+                # Add the target variable back to the dataframe
+                df[self.TARGET_VARIABLE] = df_target
+
+            corr = df.corr()
+
+            # Using Plotly to create an interactive heatmap
+            fig = go.Figure(data=go.Heatmap(
+                z=corr.values,
+                x=corr.columns,
+                y=corr.columns,
+                hoverongaps=False,
+                colorscale=[[0, "red"], [0.5, "white"], [1, "blue"]],  # Setting colorscale with baseline at 0
+                zmin=-.8,  # Setting minimum value for color scale
+                zmax=.8,   # Setting maximum value for color scale
+                showscale=True,  # Display color scale bar
+            ))
+
+            # Adding annotations to the heatmap
+            annotations = []
+            for i, row in enumerate(corr.values):
+                for j, value in enumerate(row):
+                    annotations.append(
+                        {
+                            "x": corr.columns[j],
+                            "y": corr.columns[i],
+                            "font": {"color": "black"},
+                            "text": str(round(value, 2)),
+                            "xref": "x1",
+                            "yref": "y1",
+                            "showarrow": False
+                        }
+                    )
+            fig.update_layout(annotations=annotations, title='Correlation Heatmap')
+
+            heatmap_path = os.path.join(self.template_dir, 'interactive_heatmap.html')
+            fig.write_html(heatmap_path)
+
+            return heatmap_path
+        except Exception as e:
+            logging.error(f"Error generating interactive correlation heatmap: {e}")
+            return None
+
+    def plot_interactive_histograms(self, df):
+        """Plots interactive histograms for each numerical column using Plotly."""
+        histograms_dir = os.path.join(self.template_dir, 'interactive_histograms')
+        os.makedirs(histograms_dir, exist_ok=True)
+
+        for col in df.select_dtypes(include=['float64', 'int64']).columns:
+            fig = px.histogram(df, x=col, title=f'Histogram of {col}', nbins=30)
+            fig.write_html(os.path.join(histograms_dir, f'{col}_histogram.html'))
+
+        return histograms_dir
+
+    def plot_boxplots(self, df):
+        """Plots box plots for each numerical column in the dataframe."""
+        try:
+            # Create a directory to store all boxplot plots
+            boxplots_dir = os.path.join(self.static_dir, 'boxplots')
+            os.makedirs(boxplots_dir, exist_ok=True)
+
+            # Loop through each numerical column and create a boxplot
+            for col in df.select_dtypes(include=['float64', 'int64']).columns:
+                fig = px.box(df, y=col, title=f'Boxplot of {col}')
+                fig.write_html(os.path.join(boxplots_dir, f'{col}_boxplot.html'))
+
+            logging.info("Boxplots generated successfully")
+            return boxplots_dir
+
+        except Exception as e:
+            logging.error(f"Error generating boxplots: {e}")
+            return None
+
+    def generate_descriptive_statistics(self, df):
+        """Generates descriptive statistics for each column in the dataframe and saves it as an HTML file."""
+        try:
+            # Generating descriptive statistics
+            descriptive_stats = df.describe(include='all')
+
+            # Transposing the DataFrame
+            descriptive_stats = descriptive_stats.transpose()
+
+            # Saving the descriptive statistics to an HTML file
+            descriptive_stats_path = os.path.join(self.template_dir, 'descriptive_statistics.html')
+            descriptive_stats.to_html(descriptive_stats_path, classes='table table-bordered', justify='center')
+
+            return descriptive_stats_path
+        except Exception as e:
+            logging.error(f"Error generating descriptive statistics: {e}")
+            return None
+
+    def generate_data_quality_report(self, df):
+        """Generates a data quality report for the dataframe and saves it as an HTML file."""
+        try:
+            # Initializing an empty dictionary to store data quality metrics
+            data_quality_report = {}
+
+            # Checking for missing values
+            data_quality_report['missing_values'] = df.isnull().sum()
+
+            # Checking for duplicate rows
+            data_quality_report['duplicate_rows'] = df.duplicated().sum()
+
+            # Checking data types of each column
+            data_quality_report['data_types'] = df.dtypes
+
+            # Checking for outliers using Z-score
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            data_quality_report['outliers'] = df[numeric_cols].apply(lambda x: np.abs(zscore(x)) > 3).sum()
+
+            # Converting the dictionary to a DataFrame
+            data_quality_df = pd.DataFrame(data_quality_report)
+
+            # Saving the data quality report to an HTML file
+            data_quality_report_path = os.path.join(self.template_dir, 'data_quality_report.html')
+            data_quality_df.to_html(data_quality_report_path, classes='table table-bordered', justify='center')
+
+            return data_quality_report_path
+        except Exception as e:
+            logging.error(f"Error generating data quality report: {e}")
+            return None
+
+    def visualize_shap_summary(self, shap_values, explainer, X):
+        """Visualize SHAP summary plot and save as HTML."""
+
+        # Save the SHAP summary plot as an HTML file
+        shap_summary_path = os.path.join(self.template_dir, 'shap_summary.html')
+        shap.save_html(shap_summary_path, shap.force_plot(explainer.expected_value, shap_values, X))
+
+        random_indices = random.sample(range(X.shape[0]), 20)
+
+        saved_paths = []
+
+        for idx, instance_index in enumerate(random_indices, start=1):
+            # Create a SHAP force plot for the specific instance
+            force_plot = shap.force_plot(explainer.expected_value, shap_values[instance_index], X.iloc[instance_index])
+
+            # Save the plot as an HTML file
+            force_plot_path = os.path.join(self.template_dir, f'shap_force_plot_{idx:02}.html')
+            shap.save_html(force_plot_path, force_plot)
+
+            saved_paths.append(force_plot_path)

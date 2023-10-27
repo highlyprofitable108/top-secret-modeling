@@ -9,19 +9,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         showLoadingSpinner();
 
         // Start by sending a request to /generate_analysis
-        fetch('/generate_analysis', {
+        fetch('/generate_model', {
             method: 'POST',
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                // If /generate_analysis is successful, send a request to /generate_model
-                return fetch('/generate_model', {
-                    method: 'POST'
-                });
-            } else {
-                throw new Error('Error generating analysis.');
-            }
         })
         .then(response => response.json())
         .then(data => {

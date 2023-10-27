@@ -21,3 +21,4 @@ flask_app/static/power_ranks.csv
 flask_app/templates/team_power_rank.html
 *.csv
 .gitignore
+flask_app/templates/shap*
