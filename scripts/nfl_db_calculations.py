@@ -22,7 +22,6 @@ class WeightedStatsAvg:
         # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
-        self.data_processing = DataProcessing()
 
         # Fetch configurations using ConfigManager
         try:
@@ -40,6 +39,9 @@ class WeightedStatsAvg:
             self.END_DATE = datetime.strptime(self.config.get_constant('END_DATE'), '%Y-%m-%d')
             self.CUTOFF_DATE_STR = self.config.get_constant('CUTOFF_DATE')
             self.END_DATE_STR = self.config.get_constant('END_DATE')
+            self.TARGET_VARIABLE = self.config.get_constant('TARGET_VARIABLE')
+
+            self.data_processing = DataProcessing(self.TARGET_VARIABLE)
 
             self.data_dir = self.config.get_config('paths', 'data_dir')
             self.model_dir = self.config.get_config('paths', 'model_dir')
@@ -58,6 +60,10 @@ class WeightedStatsAvg:
     def load_additional_tables(self):
         """Run the entire data processing pipeline."""
         try:
+            # Add advanced analytics
+            # Rename the games collection games_base
+
+
             # Clear existing metrics and temporary tables
             self.clear_team_metrics()
             self.clear_temp_tables()
@@ -84,7 +90,7 @@ class WeightedStatsAvg:
 
         except Exception as e:
             logging.error(f"An error occurred: {e}")
-
+    
     def clear_team_metrics(self):
         """Drop team_aggregated_metrics and pre_game_data collections if they exist."""
         if self.RANKS_DB_NAME in self.database_operations.db.list_collection_names():
@@ -510,6 +516,7 @@ class WeightedStatsAvg:
         :return: None
         """
         games_df = self.database_operations.fetch_data_from_mongodb(self.GAMES_DB_NAME)
+        print(games_df)
         ranks_df = self.database_operations.fetch_data_from_mongodb(self.RANKS_DB_NAME)
 
         # Drop games before CUTOFF_DATE and after 
