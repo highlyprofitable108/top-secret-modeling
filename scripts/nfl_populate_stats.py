@@ -26,7 +26,6 @@ class StatsCalculator:
 
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
-        self.data_processing = DataProcessing()
         self.CONSTANTS = scripts.constants.COLUMNS_TO_KEEP
         self._fetch_constants_and_configs()
         self.LOADED_MODEL = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
@@ -49,6 +48,8 @@ class StatsCalculator:
             self.CUTOFF_DATE = datetime.strptime(self.CUTOFF_DATE, '%Y-%m-%d')
             self.model_type = self.config.get_model_settings('model_type')
             self.grid_search_params = self.config.get_model_settings('grid_search')
+
+            self.data_processing = DataProcessing(self.TARGET_VARIABLE)
 
             paths = ['data_dir', 'model_dir', 'static_dir', 'template_dir']
             for path in paths:
@@ -156,7 +157,7 @@ class StatsCalculator:
         """
         try:
             # Normalize the power_rank values within each week
-            df = df[df['name'].isin(['NFC', 'AFC']) == False].copy()
+            df = df[df['name'].isin(['NFC', 'AFC', 'Team Irvin', 'Team Rice']) == False].copy()
 
             def normalize_within_week(group):
                 min_rank = group['power_rank'].min()

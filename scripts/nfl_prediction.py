@@ -31,7 +31,6 @@ class NFLPredictor:
     def __init__(self):
         # Configuration and Database Connection
         self.config = ConfigManager()
-        self.data_processing = DataProcessing()
         self.database_operations = DatabaseOperations()
 
         # Constants
@@ -43,6 +42,8 @@ class NFLPredictor:
         self.template_dir = self.config.get_config('paths', 'template_dir')
 
         self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
+
+        self.data_processing = DataProcessing(self.TARGET_VARIABLE)
         self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
 
         self.CUTOFF_DATE = self.config.get_config('constants', 'CUTOFF_DATE')

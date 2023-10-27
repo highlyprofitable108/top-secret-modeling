@@ -1,4 +1,6 @@
 import os
+import shap
+import random
 import logging
 import scipy.stats
 import numpy as np
@@ -11,7 +13,7 @@ from scipy.stats import zscore
 class Visualization:
     def __init__(self, template_dir=None, target_variable="odd.spread_close"):
         self.template_dir = template_dir
-        self.TARGET_VARIABLE = "summary." + target_variable
+        self.TARGET_VARIABLE = target_variable
 
     def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
         """
@@ -104,7 +106,7 @@ class Visualization:
             actual_away_points = row['summary.away.points']
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
-            spread_odds = row[self.TARGET_VARIABLE]
+            spread_odds = row["summary." + self.TARGET_VARIABLE]
             date = row['scheduled']
 
             predicted_difference = simulation_results[idx]
@@ -269,6 +271,9 @@ class Visualization:
     def plot_interactive_correlation_heatmap(self, df, importances):
         """Plots an interactive correlation heatmap using Plotly."""
         try:
+            # Save the target variable column
+            df_target = df[self.TARGET_VARIABLE].copy()
+
             # If df has more than 50 columns, select only the 50 most important ones
             if df.shape[1] > 50:
                 X = df.drop(columns=[self.TARGET_VARIABLE])
@@ -276,8 +281,11 @@ class Visualization:
                 # Get the top 50 features based on importance
                 top_50_features = X.columns[importances.argsort()[-50:]]
 
-                # Filter df to only include these top 50 features
+                # Filter df to only include these top 50 features and the target variable
                 df = df[top_50_features]
+
+                # Add the target variable back to the dataframe
+                df[self.TARGET_VARIABLE] = df_target
 
             corr = df.corr()
 
@@ -396,3 +404,24 @@ class Visualization:
         except Exception as e:
             logging.error(f"Error generating data quality report: {e}")
             return None
+
+    def visualize_shap_summary(self, shap_values, explainer, X):
+        """Visualize SHAP summary plot and save as HTML."""
+
+        # Save the SHAP summary plot as an HTML file
+        shap_summary_path = os.path.join(self.template_dir, 'shap_summary.html')
+        shap.save_html(shap_summary_path, shap.force_plot(explainer.expected_value, shap_values, X))
+
+        random_indices = random.sample(range(X.shape[0]), 20)
+
+        saved_paths = []
+
+        for idx, instance_index in enumerate(random_indices, start=1):
+            # Create a SHAP force plot for the specific instance
+            force_plot = shap.force_plot(explainer.expected_value, shap_values[instance_index], X.iloc[instance_index])
+
+            # Save the plot as an HTML file
+            force_plot_path = os.path.join(self.template_dir, f'shap_force_plot_{idx:02}.html')
+            shap.save_html(force_plot_path, force_plot)
+
+            saved_paths.append(force_plot_path)

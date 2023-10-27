@@ -13,11 +13,12 @@ class DataProcessing:
     converting time strings to minutes, and calculating scoring differentials.
     """
 
-    def __init__(self):
+    def __init__(self, target_variable):
         """
         Initializes the DataProcessing class.
         """
         self.logger = logging.getLogger(__name__)
+        self.TARGET_VARIABLE = target_variable
 
     def flatten_and_merge_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -75,8 +76,8 @@ class DataProcessing:
         # Filter the DataFrame
         filtered_data = merged_data[merged_data['update_date'] == date]
 
-        # Filter columns with stripping whitespaces and exclude 'scoring_differential'
-        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, filtered_data.columns) and col.strip() != 'scoring_differential']
+        # Filter columns with stripping whitespaces and exclude TARGET_VARIABLE
+        columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, filtered_data.columns) and col.strip() != self.TARGET_VARIABLE]
 
         filtered_data = filtered_data[columns_to_filter]
         filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])

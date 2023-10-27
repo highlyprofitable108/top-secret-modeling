@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import shap
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -57,11 +58,11 @@ class Modeling:
     def save_model(self, file_path):
         import joblib
         joblib.dump((self.LOADED_MODEL, self.LOADED_SCALER), file_path)
-    
+
     def load_model(self, file_path):
         import joblib
         self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
-        
+
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
         logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
@@ -136,6 +137,38 @@ class Modeling:
             h = se * norm.ppf((1 + confidence) / 2.)
 
         return m-h, m+h
+
+    def compute_shap_values(self, model, X, model_type):
+        """Compute SHAP values for a given model and dataset based on model type."""
+
+        # For tree-based models
+        if model_type in ["random_forest", "gradient_boosting"]:
+            explainer = shap.TreeExplainer(model)
+
+        # For linear models
+        elif model_type == "linear_regression":
+            explainer = shap.LinearExplainer(model, X)
+
+        # For SVM
+        elif model_type == "svm":
+            explainer = shap.KernelExplainer(model.predict, X)
+
+        # For ensemble methods
+        elif model_type == "simple_averaging_ensemble":
+            shap_values_list = []
+            for sub_model in model:
+                sub_model_type = ...  # You'd need a way to determine the type of each sub-model
+                sub_shap_values, _ = self.compute_shap_values(sub_model, X, sub_model_type)
+                shap_values_list.append(sub_shap_values)
+            # Average the SHAP values from each model in the ensemble
+            shap_values = np.mean(shap_values_list, axis=0)
+            return shap_values, None  # No specific explainer for ensemble method
+
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+        shap_values = explainer.shap_values(X)
+        return shap_values, explainer
 
     def analyze_simulation_results(self, simulation_results):
         """

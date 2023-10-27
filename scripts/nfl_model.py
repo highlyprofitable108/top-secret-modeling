@@ -10,6 +10,7 @@ import scripts.constants
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
+from classes.data_visualization import Visualization
 from classes.database_operations import DatabaseOperations
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,29 +18,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class NFLModel:
     def __init__(self):
-        """
-        Initialize the NFLModel class, loading configurations and constants.
-
-        Initializes configuration settings, constants, and necessary class instances.
-        """
+        """Initialize the NFLDataAnalyzer class, loading configurations and constants."""
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
-        self.data_processing = DataProcessing()
         self.modeling = Modeling()
 
         self._fetch_constants_and_configs()
+        self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
 
-    # Helper Methods
     def _fetch_constants_and_configs(self):
-        """
-        Fetch constants and configurations from the configuration manager.
-
-        Fetches various constants and configuration settings from the configuration manager.
-        """
+        """Fetch constants and configurations from the configuration manager."""
         try:
             constants = [
                 'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX', 
-                'HOME_PREFIX', 'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'RANKS_DB_NAME', 'CUTOFF_DATE',
+                'HOME_PREFIX', 'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'PREGAME_DB_NAME', 'RANKS_DB_NAME', 'CUTOFF_DATE',
                 'TARGET_VARIABLE'
             ]
             for const in constants:
@@ -53,42 +45,123 @@ class NFLModel:
             for path in paths:
                 setattr(self, path, self.config.get_config('paths', path))
 
+            self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
             self.database_name = self.config.get_config('database', 'database_name')
+
+            self.data_processing = DataProcessing(self.TARGET_VARIABLE)
+
         except Exception as e:
             raise ValueError(f"Error fetching configurations: {e}")
 
-    # Data Processing Methods
-    def load_and_process_data(self):
-        """
-        Load and preprocess data from MongoDB.
-
-        Loads data from MongoDB, preprocesses it, and filters based on specified criteria.
-
-        :return: Preprocessed DataFrame.
-        """
-        logging.info("Loading and processing data...")
-
+    # Processing Methods
+    def load_data(self, collection_name):
+        """Loads data from the specified MongoDB collection."""
         try:
-            collection_name = "pre_game_data"
-            df = self.database_operations.fetch_data_from_mongodb(collection_name)
-            df = self.data_processing.flatten_and_merge_data(df)
-            df['scheduled'] = pd.to_datetime(df['scheduled']).dt.tz_localize(None)
-            df = df[df['scheduled'] < pd.Timestamp.now().normalize()]
-
-            reload(scripts.constants)
-            columns_to_filter = [
-                col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)
-            ]
-            df = df[columns_to_filter]
-
-            if self.TARGET_VARIABLE not in df.columns:
-                logging.warning("self.TARGET_VARIABLE key does not exist. Dropping games.")
-                return pd.DataFrame()
-            return df
+            logging.info(f"Loading data from collection: {collection_name}")
+            return self.database_operations.fetch_data_from_mongodb(collection_name)
         except Exception as e:
-            logging.error(f"Error in load_and_process_data: {e}")
+            logging.error(f"Error loading data: {e}")
             return pd.DataFrame()
 
+    def process_data(self, df):
+        """Processes the data by flattening, merging, and calculating scoring differential."""
+        try:
+            df = self.data_processing.flatten_and_merge_data(df)
+            df = df.dropna(subset=[self.TARGET_VARIABLE])  # Remove rows where self.TARGET_VARIABLE is NaN
+
+            # Descriptive Statistics (Integration of suggestion 2)
+            descriptive_stats = df.describe()
+            descriptive_stats.to_csv(os.path.join(self.static_dir, 'descriptive_statistics.csv'))
+            return df
+        except Exception as e:
+            logging.error(f"Error processing data: {e}")
+            return pd.DataFrame()
+
+    def filter_columns(self, df):
+        """Filters the dataframe to keep only the necessary columns."""
+        try:
+            # Filter columns with stripping whitespaces
+            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)]
+
+            # Check if any columns are filtered
+            if not columns_to_filter:
+                logging.error("No matching columns found.")
+                return pd.DataFrame()
+
+            return df[columns_to_filter].copy()
+        except Exception as e:
+            logging.error(f"Error filtering columns: {e}")
+            return pd.DataFrame()
+
+    def load_and_process_data(self, collection_name):
+        """Loads and processes data from the specified MongoDB collection."""
+        df = self.load_data(collection_name)
+        df = self.process_data(df)
+        df = self.filter_columns(df)
+        df = self.data_processing.handle_null_values(df)
+        return df
+
+    # EDA Generation and Data Collection Methods
+    def generate_eda_report(self, df):
+        """Generates an EDA report with various analyses and saves it as image files."""
+        try:
+            logging.info("Generating EDA report")
+
+            # Paths to save the generated plots
+            descriptive_stats_path = self.visualization.generate_descriptive_statistics(df)
+            data_quality_report_path = self.visualization.generate_data_quality_report(df)
+
+            return descriptive_stats_path, data_quality_report_path
+
+        except Exception as e:
+            logging.error(f"Error in generate_eda_report: {e}")
+            return None, None, None, None, None
+
+    def plot_feature_importance(self, df, model):
+        """Plots the feature importance and highlights top correlations."""
+        try:
+            X = df.drop(columns=[self.TARGET_VARIABLE])
+            y = df[self.TARGET_VARIABLE]
+
+            # Extract and standardize feature importances
+            importances = model.best_estimator_.feature_importances_ / model.best_estimator_.feature_importances_.sum()
+
+            # Identify top features based on importance and correlation
+            top_importance_features, top_correlation_features = self.modeling.identify_top_features(X, y, importances)
+
+            # Create a DataFrame for feature importance visualization
+            feature_importance_df = self.prepare_feature_importance_df(X.columns, importances, top_importance_features, top_correlation_features)
+
+            # Visualize feature importance
+            feature_importance_path = self.visualization.visualize_feature_importance(feature_importance_df)
+
+            # Create Heat Map
+            heatmap_path = self.visualization.plot_interactive_correlation_heatmap(df, importances)
+
+            logging.info(f"Best model score: {model.best_score_}")
+
+            return feature_importance_path, heatmap_path
+        except Exception as e:
+            logging.error(f"Error generating feature importance plot: {e}")
+            return None
+
+    def prepare_feature_importance_df(self, feature_names, importances, top_importance_features, top_correlation_features):
+        """Prepare a DataFrame for feature importance visualization."""
+        def determine_color(feature):
+            if feature in top_importance_features and feature in top_correlation_features:
+                return 'Important and Related'
+            elif feature in top_importance_features:
+                return 'Important'
+            elif feature in top_correlation_features:
+                return 'Related to Target'
+            else:
+                return 'Just Data'
+
+        feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(determine_color)
+        return feature_importance_df.sort_values(by='Importance', ascending=False)
+
+    # Data Processing Methods
     def preprocess_nfl_data(self, df):
         """
         Preprocess NFL data for model training.
@@ -101,7 +174,6 @@ class NFLModel:
         logging.info("Preprocessing NFL data...")
 
         try:
-            df = self.data_processing.handle_null_values(df)
             feature_columns = [col for col in df.columns if col != self.TARGET_VARIABLE]
             X = df.drop(self.TARGET_VARIABLE, axis=1)
             y = df[self.TARGET_VARIABLE]
@@ -124,19 +196,19 @@ class NFLModel:
             return tuple([pd.DataFrame() for _ in range(6)]) + (None, [])
 
     def main(self):
-        """
-        Main method for executing the model training and evaluation pipeline.
-
-        This method orchestrates the entire model training and evaluation process, including data preprocessing,
-        model training, evaluation, and logging of results.
-        """
+        """Main method to load data, generate EDA report, and train the model."""
         try:
-            processed_df = self.load_and_process_data()
-            X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(processed_df)
+            logging.info("Starting main method")
+            reload(scripts.constants)
+
+            collection_name = self.PREGAME_DB_NAME
+            df = self.load_and_process_data(collection_name)
+            # Generate EDA report
+            self.generate_eda_report(df)
 
             # Train and evaluate model
+            X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns = self.preprocess_nfl_data(df)
             model = self.modeling.train_and_evaluate(X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns, self.model_type, self.grid_search_params)
-
             joblib.dump(model, os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
             joblib.dump(scaler, os.path.join(self.model_dir, 'data_scaler.pkl'))
 
@@ -156,6 +228,11 @@ class NFLModel:
                 importance_df = importance_df.sort_values(by='Importance', ascending=False)
                 importance_df['Rank'] = range(1, len(importance_df) + 1)
                 importance_df['Cumulative Importance'] = importance_df['Importance'].cumsum()
+                self.plot_feature_importance(df, model)
+
+                shap_values, explainer = self.modeling.compute_shap_values(model.best_estimator_, X_train, self.model_type)
+                X = pd.DataFrame(X_train, columns=feature_columns)
+                self.visualization.visualize_shap_summary(shap_values, explainer, X)
 
                 # Logging details
                 logging.info(f"Best Model: {model_name}")
@@ -171,5 +248,5 @@ class NFLModel:
 
 
 if __name__ == "__main__":
-    nfl_model = NFLModel()
-    nfl_model.main()
+    analyzer = NFLModel()
+    analyzer.main()

@@ -26,10 +26,10 @@
         <!-- OVERVIEW FOR DUMMIES SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">Overview for Dummies:</h3>
-            <p class="text-gray-700 mb-4">Building a model is like cooking a delicious dish. Just as you'd pick the best ingredients for your recipe, in data analysis, you choose the best pieces of information (called features) to predict something. In our case, we're trying to predict the "scoring differential" – that's the difference in scores between two teams in a game.</p>
+            <p class="text-gray-700 mb-4">Building a model is like cooking a delicious dish. Just as you'd pick the best ingredients for your recipe, in data analysis, you choose the best pieces of information (called features) to predict something. In our case, we're trying to predict the vegas odds of game spread or total – that's the difference in scores between two teams in a game.</p>
             <p class="text-gray-700 mb-4">That's where these reports come in! They help you understand which features are essential and which ones might not be. But remember, just like in cooking, understanding your ingredients (or in this case, football) is crucial. Knowing the game can help you make better decisions.</p>
-            <p class="text-gray-700 mb-4">Later on, we'll use the "scoring differential" and the features we select to run simulations. These simulations will help us see how different scenarios might play out in real games.</p>
-            <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
+            <p class="text-gray-700 mb-4">Later on, we'll use the vegas odds and the features we select to run simulations. These simulations will help us see how different scenarios might play out in real games.</p>
+            <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the vegas odds. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
         </div>
 
         <!-- Analysis Results -->
@@ -41,6 +41,7 @@
                 <button onclick="showTab('customPowerRanksContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Custom Power Ranks</button>
                 <button onclick="showTab('interactiveHeatmapContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Interactive Heatmap</button>
                 <button onclick="showTab('featureImportanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
+                <button onclick="showTab('shapSummaryContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Shap Summary</button>
                 <button onclick="showTab('dataQualityReportContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Data Quality Report</button>
                 <button onclick="showTab('descriptiveStatisticsContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Descriptive Statistics</button>
             </div>
@@ -62,6 +63,12 @@
                 {% include 'feature_importance.html' %}
 
                 <a href="/feature_importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
+            </div>
+
+            <div id="shapSummaryContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                {% include 'shap_summary.html' %}
+
+                <a href="/shap_summary" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
             <div id="dataQualityReportContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
@@ -92,7 +99,7 @@
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">Power Ranks:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic toy box. In this box, there are many toy teams. Some teams can jump really high, some can run super fast, and some are great at playing catch. You get to choose which skills are the most fun for you. Based on the skills you choose, the magic box arranges the toy teams in a line. The teams that are best at the skills you like are at the front, and the ones that are not so good are at the back. This report shows you that special line-up of teams!</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The power ranks provide a comprehensive ranking of teams based on the performance metrics selected by the user. These metrics can range from scoring differentials to possession times and other game-related statistics. The ranking is influenced by the importance of each metric as chosen by the user. Additionally, recent games have more weight, ensuring that the ranking reflects the current form of the teams. After considering all these factors, the ranks are normalized and presented in a bar chart for visualization.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The power ranks provide a comprehensive ranking of teams based on the performance metrics selected by the user. These metrics can range from vegas oddss to possession times and other game-related statistics. The ranking is influenced by the importance of each metric as chosen by the user. Additionally, recent games have more weight, ensuring that the ranking reflects the current form of the teams. After considering all these factors, the ranks are normalized and presented in a bar chart for visualization.</p>
             </div>
 
             <!-- Interactive Heatmap Explanation -->
@@ -108,6 +115,13 @@
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Importance:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report tells us which toys (or features) are the most fun to play with when predicting something.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report ranks features based on their importance in predicting the target variable. Features with higher scores impact the model's predictions more. Prioritize these features in your model.</p>
+            </div>
+
+            <!-- SHAP Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP (SHapley Additive exPlanations):</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic box that can predict how many candies you'll get. SHAP is like a magnifying glass that lets you see inside the box and understand which factors (like the day of the week or the weather) influence the number of candies you get.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> SHAP values provide a unified measure of feature importance by attributing the change in the expected model prediction when conditioning on that feature. It offers insights into the impact of each feature on the model's predictions for individual instances. The SHAP summary plot and force plot are visual representations that help in understanding these values and their implications on the model's behavior.</p>
             </div>
 
             <!-- Data Quality Report Explanation -->

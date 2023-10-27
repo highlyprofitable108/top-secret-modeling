@@ -9,11 +9,11 @@ class ConfigManager:
     """
     A class to manage the configuration settings from a YAML file.
     """
-    
+
     def __init__(self, config_path="config.yaml"):
         """
         Initializes the ConfigManager with the specified configuration file path.
-        
+
         Args:
             config_path (str): The path to the configuration file. Defaults to "config.yaml".
         """
