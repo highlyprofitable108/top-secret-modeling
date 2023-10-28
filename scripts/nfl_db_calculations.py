@@ -22,7 +22,6 @@ class WeightedStatsAvg:
         # Initialize ConfigManager, DatabaseOperations, and DataProcessing
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
-        self.data_processing = DataProcessing()
 
         # Fetch configurations using ConfigManager
         try:
@@ -40,6 +39,9 @@ class WeightedStatsAvg:
             self.END_DATE = datetime.strptime(self.config.get_constant('END_DATE'), '%Y-%m-%d')
             self.CUTOFF_DATE_STR = self.config.get_constant('CUTOFF_DATE')
             self.END_DATE_STR = self.config.get_constant('END_DATE')
+            self.TARGET_VARIABLE = self.config.get_constant('TARGET_VARIABLE')
+
+            self.data_processing = DataProcessing(self.TARGET_VARIABLE)
 
             self.data_dir = self.config.get_config('paths', 'data_dir')
             self.model_dir = self.config.get_config('paths', 'model_dir')
@@ -510,6 +512,7 @@ class WeightedStatsAvg:
         :return: None
         """
         games_df = self.database_operations.fetch_data_from_mongodb(self.GAMES_DB_NAME)
+        print(games_df)
         ranks_df = self.database_operations.fetch_data_from_mongodb(self.RANKS_DB_NAME)
 
         # Drop games before CUTOFF_DATE and after 

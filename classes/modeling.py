@@ -177,8 +177,8 @@ class Modeling:
         """
 
         # Constants to define the bounds for filtering the results
-        LOWER_PERCENTILE = 0.1
-        UPPER_PERCENTILE = 0.9
+        LOWER_PERCENTILE = 0.0
+        UPPER_PERCENTILE = 1
 
         # Calculate the lower and upper bounds based on percentiles
         lower_bound_value = np.percentile(simulation_results, LOWER_PERCENTILE * 100)
@@ -349,12 +349,12 @@ class Modeling:
         cloned_meta_model.fit(meta_features, y)
 
         return base_models, cloned_meta_model
-    
+
     def retrain_model(self, new_data, target_column, **training_args):
         X = new_data.drop(target_column, axis=1)
         y = new_data[target_column]
         self.LOADED_MODEL.fit(X, y, **training_args)
-        
+
     # Evaluation Methods
     def train_and_evaluate(self, X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, feature_columns, model_type, grid_search_params=None):
         """
@@ -392,7 +392,7 @@ class Modeling:
         except Exception as e:
             logging.error(f"Error in train_and_evaluate: {e}")
             return None
-            
+
     def evaluate_model(self, test_data, target_column):
         from sklearn.metrics import mean_squared_error
         X_test = test_data.drop(target_column, axis=1)
@@ -400,4 +400,3 @@ class Modeling:
         predictions = self.LOADED_MODEL.predict(X_test)
         mse = mean_squared_error(y_test, predictions)
         return mse
-    

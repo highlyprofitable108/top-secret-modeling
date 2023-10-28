@@ -4,7 +4,10 @@ import os
 import csv
 import json
 import logging
+import pandas as pd
 from datetime import datetime, timedelta
+from classes.data_processing import DataProcessing
+from classes.database_operations import DatabaseOperations
 
 
 # Configure logging
@@ -17,12 +20,16 @@ class DBInserter:
     def __init__(self):
         """Initializes the DBInserter with the given configuration."""
         config_manager = ConfigManager()
+        self.database_operations = DatabaseOperations()
         config = config_manager.get_config()
 
         self.mongo_uri = config.get('database', {}).get('mongo_uri')
         self.db_name = config.get('database', {}).get('database_name')
         self.json_dir = config.get('paths', {}).get('json_dir')
         self.odds_dir = config.get('paths', {}).get('odds_dir')
+        self.TARGET_VARIABLE = config.get('constants', 'TARGET_VARIABLE')
+
+        self.data_processing = DataProcessing(self.TARGET_VARIABLE)
 
         if not all([self.mongo_uri, self.db_name, self.json_dir]):
             logging.error("Missing necessary configurations")
@@ -237,6 +244,27 @@ class DBInserter:
                 }}
             )
 
+    def add_advanced_data(self, df):
+        for team in ['home', 'away']:
+            # Rush-Pass Ratio
+            df[f'statistics.{team}.advanced.rush_pass_rate'] = df[f'statistics.{team}.rushing.totals.attempts'] / df[f'statistics.{team}.passing.totals.attempts']
+
+            # Air Yards to Total Yards Ratio
+            df[f'statistics.{team}.advanced.air_to_total_yards_rate'] = df[f'statistics.{team}.receiving.totals.air_yards'] / df[f'statistics.{team}.receiving.totals.yards']
+
+            # Pressure Rate on QB
+            df[f'statistics.{team}.advanced.pressure_rate_on_qb'] = (df[f'statistics.{team}.passing.totals.blitzes'] + df[f'statistics.{team}.passing.totals.hurries'] + df[f'statistics.{team}.passing.totals.knockdowns']) / df[f'statistics.{team}.passing.totals.attempts']
+
+            # Tackle For Loss Rate
+            df[f'statistics.{team}.advanced.tackle_for_loss_rate'] = df[f'statistics.{team}.defense.totals.tloss'] / df[f'statistics.{team}.defense.totals.tackles']
+
+            # QB Hit Rate
+            df[f'statistics.{team}.advanced.qb_hit_rate'] = df[f'statistics.{team}.defense.totals.qb_hits'] / df[f'statistics.{team}.passing.totals.attempts']
+
+            # Drop Rate
+            df[f'statistics.{team}.advanced.drop_rate'] = df[f'statistics.{team}.receiving.totals.dropped_passes'] / df[f'statistics.{team}.receiving.totals.targets']
+
+        return df
 
     def insert_data_from_directory(self):
         """Inserts data from all JSON files in the specified directory into the database."""
@@ -253,8 +281,24 @@ class DBInserter:
 
         self.load_data_from_csv()
 
+    def update_games_with_advanced_data(self):
+        # Get the games collection from MongoDB
+        df = self.database_operations.fetch_data_from_mongodb('games')
+        df = self.data_processing.flatten_and_merge_data(df)
+
+        # Execute the add_advanced_data() method
+        df = self.add_advanced_data(df)
+
+        for _, row in df.iterrows():
+            game_id = row['_id']
+            # Convert row to dictionary and remove _id to avoid conflicts during update
+            game_data = row.to_dict()
+            del game_data['_id']
+            self.database_operations.update_data_in_mongodb('games', {'_id': game_id}, game_data)
+
 
 if __name__ == "__main__":
     # Usage example:
     db_inserter = DBInserter()
     db_inserter.insert_data_from_directory()
+    db_inserter.update_games_with_advanced_data()

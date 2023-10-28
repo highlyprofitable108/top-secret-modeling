@@ -23,7 +23,7 @@ import scripts.constants
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-HOME_FIELD_ADJUST = -2.7
+HOME_FIELD_ADJUST = 0
 BREAK_EVEN_PROBABILITY = 0.5238  # 52.38% implied probability to break even
 
 
@@ -207,7 +207,7 @@ class NFLPredictor:
                 'summary.away.id',
                 'summary.home.points',
                 'summary.away.points',
-                'summary.odds.spread'
+                'summary.odds.spread_close',
             ]
 
             # Create a new DataFrame with the desired columns set to None
