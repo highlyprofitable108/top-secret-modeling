@@ -280,9 +280,9 @@ def simulator_results():
     return render_template('simulator_results.html')
 
 
-@app.route('/view_power_ranks_sim')
-def view_power_ranks_sim():
-    return render_template('team_power_rank_sim.html')
+@app.route('/view_power_rank_bar')
+def view_power_rank_bar():
+    return render_template('normalized_power_ranks.html')
 
 
 @app.route('/view_simulation_distribution')

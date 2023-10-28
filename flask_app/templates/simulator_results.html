@@ -40,6 +40,7 @@
             <!-- Tab Buttons -->
             <div class="flex space-x-4 mb-4">
                 <button onclick="showTab('bettingRecommendationContent')" class="tab-button w-1/3 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Betting Recommendation Results</button>
+                <button onclick="showTab('powerRanksContent')" class="tab-button w-1/3 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Power Ranks for Sim Date</button>
                 <button onclick="showTab('simResultsContent')" class="tab-button w-1/3 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Sim Results Distribution</button>
                 <button onclick="showTab('valueOpportunityContent')" class="tab-button w-1/3 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Value Opportunity Distribution</button>
             </div>
@@ -51,9 +52,14 @@
             </div>
 
             <!-- Sim Results Distribution Content -->
+            <div id="powerRanksContent" class="tab-content hidden mt-4">
+                {% include 'normalized_power_ranks.html' %}
+                <a href="/view_power_rank_bar" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
+            </div>
+
+            <!-- Sim Results Distribution Content -->
             <div id="simResultsContent" class="tab-content hidden mt-4">
                 {% include 'simulation_distribution.html' %}
-                <div id="simResultsTable"></div>
             </div>
 
             <!-- Value Opportunity Distribution Content -->
@@ -72,6 +78,13 @@
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">Betting Recommendation Results:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> After making all those smart guesses, the simulator gives advice on where to place your coins to have the best chance of getting more coins back!</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Based on the simulations and the value opportunity identified, this section provides recommendations on which bets might be the most profitable. It takes into account the expected outcomes and compares them with the available betting odds to suggest where there might be value.</p>
+            </div>
+
+            <!-- Team Power Ranks on Date Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Team Power Ranks on Date:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a list of superheroes, and you want to know who is the strongest today (or on earlier days, if entered). This list tells you which superhero is the best today based on their recent actions and battles. Just like superheroes, teams also have good and bad days. This report shows you which team is the strongest today!</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The "Team Power Ranks on Date" provides a ranking of teams based on their recent performance (up to the date, if entered) and historical data. It evaluates each team's strengths and weaknesses to determine their position in the ranking. This helps users understand the form and potential of each team on a specific date. The higher the rank, the better the team's form on that date.</p>
             </div>
 
             <!-- Simulator Scoring Distribution and Projected Spread Explanation -->

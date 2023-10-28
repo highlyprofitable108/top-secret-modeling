@@ -57,7 +57,7 @@ class Visualization:
         full_html = plotly_html_string + formatted_output
 
         # Path to save the visualization as an HTML file
-        individual_simulation_path = os.path.join(self.template_dir, f'simulation_distribution_results_game_{game_number:04d}.html')
+        individual_simulation_path = os.path.join(self.template_dir, f'/tests/simulation_distribution_results_game_{game_number:04d}.html')
 
         # Save the combined HTML for the individual game
         try:
@@ -323,7 +323,7 @@ class Visualization:
         plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
         # Path to save the visualization as an HTML file
-        value_opportunity_path = os.path.join(self.template_dir, f'value_opportunity_results_game_{game_number:04d}.html')
+        value_opportunity_path = os.path.join(self.template_dir, f'/tests/value_opportunity_results_game_{game_number:04d}.html')
 
         # Save the combined HTML
         try:
