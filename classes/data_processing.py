@@ -97,6 +97,11 @@ class DataProcessing:
         # Return the row with the most recent update_date
         return df.loc[[idx]]
 
+    def replace_team_name(self, team_name):
+        if team_name in ["Redskins", "Football Team"]:
+            return "Commanders"
+        return team_name
+
     def get_standard_deviation(self, df):
         """Fetches the standard deviation for each column in the provided DataFrame."""
         # Exclude non-numeric columns

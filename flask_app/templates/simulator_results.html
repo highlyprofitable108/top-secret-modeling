@@ -54,26 +54,25 @@
             <div id="simResultsContent" class="tab-content hidden mt-4">
                 {% include 'simulation_distribution.html' %}
                 <div id="simResultsTable"></div>
-                <a href="/view_simulation_distribution" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
             </div>
 
             <!-- Value Opportunity Distribution Content -->
             <div id="valueOpportunityContent" class="tab-content hidden mt-4">
                 {% include 'value_opportunity_distribution.html' %}
-                <a href="/view_value_opportunity_distribution" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
             </div>
         </div>
         
         <!-- EXPLANATION SECTION -->
-        <!-- Betting Recommendation Results Explanation -->
-        <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-            <h4 class="text-lg font-semibold mb-2 text-gray-800">Betting Recommendation Results:</h4>
-            <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> After making all those smart guesses, the simulator gives advice on where to place your coins to have the best chance of getting more coins back!</p>
-            <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Based on the simulations and the value opportunity identified, this section provides recommendations on which bets might be the most profitable. It takes into account the expected outcomes and compares them with the available betting odds to suggest where there might be value.</p>
-        </div>
         
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">How to Interpret the Reports:</h3>   
+
+            <!-- Betting Recommendation Results Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Betting Recommendation Results:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> After making all those smart guesses, the simulator gives advice on where to place your coins to have the best chance of getting more coins back!</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Based on the simulations and the value opportunity identified, this section provides recommendations on which bets might be the most profitable. It takes into account the expected outcomes and compares them with the available betting odds to suggest where there might be value.</p>
+            </div>
 
             <!-- Simulator Scoring Distribution and Projected Spread Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">

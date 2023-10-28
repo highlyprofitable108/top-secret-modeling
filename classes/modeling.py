@@ -130,11 +130,7 @@ class Modeling:
         n = len(a)
         m, se = np.mean(a), np.std(a)/np.sqrt(n)
 
-        # Use t-distribution for small sample sizes and normal distribution for larger sample sizes
-        if n < 30:
-            h = se * t.ppf((1 + confidence) / 2., n-1)
-        else:
-            h = se * norm.ppf((1 + confidence) / 2.)
+        h = se * norm.ppf((1 + confidence) / 2.)
 
         return m-h, m+h
 

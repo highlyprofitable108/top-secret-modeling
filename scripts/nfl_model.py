@@ -230,9 +230,9 @@ class NFLModel:
                 importance_df['Cumulative Importance'] = importance_df['Importance'].cumsum()
                 self.plot_feature_importance(df, model)
 
-                shap_values, explainer = self.modeling.compute_shap_values(model.best_estimator_, X_train, self.model_type)
+                # shap_values, explainer = self.modeling.compute_shap_values(model.best_estimator_, X_train, self.model_type)
                 X = pd.DataFrame(X_train, columns=feature_columns)
-                self.visualization.visualize_shap_summary(shap_values, explainer, X)
+                # self.visualization.visualize_shap_summary(shap_values, explainer, X)
 
                 # Logging details
                 logging.info(f"Best Model: {model_name}")

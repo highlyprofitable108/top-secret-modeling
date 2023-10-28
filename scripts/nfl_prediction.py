@@ -152,12 +152,9 @@ class NFLPredictor:
         elif random_subset:
             game_data = game_data.sample(n=random_subset)
 
-        elif adhoc:
-            print("NEED TO DEVELOP STILL")
-
         return game_data
 
-    def analyze_and_log_results(self, simulation_results, most_likely_outcome):
+    def analyze_and_log_results(self, simulation_results, most_likely_outcome, home_team, away_team):
         # Analyze simulation results
         self.logger.info("Analyzing Simulation Results...")
         range_of_outcomes, standard_deviation, confidence_interval = self.model.analyze_simulation_results(simulation_results)
@@ -171,17 +168,18 @@ class NFLPredictor:
         self.logger.addHandler(log_handler)
 
         # User-friendly output
-        self.logger.info(f"Expected target value for {self.away_team} at {self.home_team}: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
-        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {self.home_team} projected spread.")
-        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {self.home_team} projected spread.")
-        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {self.home_team} projected spread.")
+        self.logger.info("---------------------------")
+        self.logger.info(f"Game: {away_team} at {home_team}")
+        self.logger.info("---------------------------")
+        self.logger.info(f"Expected target value: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
+        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {home_team} projected spread.")
+        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {home_team} projected spread.")
+        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {home_team} projected spread.")
+        self.logger.info("")  # Add an empty line for separation
 
         # Retrieve the log messages from the buffer
         log_contents = log_capture_buffer.getvalue()
-        # explanation = self.model.analysis_explanation(range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation)
         combined_output = log_contents
-
-        # self.logger.info(explanation)
 
         return combined_output
 
@@ -224,28 +222,37 @@ class NFLPredictor:
         all_simulation_results = []
         all_actual_results = []
         params_list = []
+        # Lists to store home and away team names
+        home_teams = []
+        away_teams = []
 
         self.file_cleanup()
 
         # Prepare data for each game
         for _, row in historical_df.iterrows():
-            self.set_game_details(row['summary.home.name'], row['summary.away.name'], row['scheduled'])
-            game_prediction_df = self.data_processing.prepare_data(df, self.features, self.home_team, self.away_team, self.date)
+            home_team = row['summary.home.name']
+            away_team = row['summary.away.name']
+            home_team = self.data_processing.replace_team_name(home_team)
+            away_team = self.data_processing.replace_team_name(away_team)
+
+            self.set_game_details(home_team, away_team, row['scheduled'])
+            game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
+
+            # Append the home and away team names to the lists
+            home_teams.append(home_team)
+            away_teams.append(away_team)
 
         with Pool() as pool:
             args_list = [(param, num_simulations) for param in params_list]
             results = pool.map(run_simulation_wrapper, args_list)
 
-        combined_output = ""
-
         # Process results for each game
         for idx, (simulation_results, most_likely_outcome) in enumerate(results):
-            output = self.analyze_and_log_results(simulation_results, most_likely_outcome)
-            combined_output += output
+            output = self.analyze_and_log_results(simulation_results, most_likely_outcome, home_teams[idx], away_teams[idx])
 
             perceived_value_for_game = BREAK_EVEN_PROBABILITY
-            value_opportunity = self.visualization.visualize_value_opportunity(simulation_results, perceived_value_for_game)
+            value_opportunity = self.visualization.visualize_value_opportunity(simulation_results, perceived_value_for_game, idx+1)
             self.logger.info(f"Value Opportunity for {self.home_team} vs {self.away_team}: {value_opportunity:.2f}")
 
             # Store simulation results and actual results for evaluation
@@ -257,8 +264,11 @@ class NFLPredictor:
                 actual_difference = None
             all_actual_results.append(actual_difference)
 
-        # Visualize simulation results
-        self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, combined_output)
+            # Visualize simulation results
+            self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, output, idx+1)
+
+        self.visualization.generate_value_opportunity_page(len(historical_df))
+        self.visualization.generate_simulation_distribution_page(len(historical_df))
 
         # Check if all_actual_results has data
         if all_actual_results:
