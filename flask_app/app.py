@@ -290,9 +290,19 @@ def view_simulation_distribution():
     return render_template('simulation_distribution.html')
 
 
+@app.route('/simulation_distribution_results_game_<int:game_number>.html')
+def serve_simulation_file(game_number):
+    return render_template(f'simulation_distribution_results_game_{game_number:04d}.html')
+
+
 @app.route('/view_value_opportunity_distribution')
 def view_value_opportunity_distribution():
     return render_template('value_opportunity_distribution.html')
+
+
+@app.route('/value_opportunity_results_game_<int:game_number>.html')
+def serve_opportunity_file(game_number):
+    return render_template(f'value_opportunity_results_game_{game_number:04d}.html')
 
 
 @app.route('/view_betting_recommendation_results')

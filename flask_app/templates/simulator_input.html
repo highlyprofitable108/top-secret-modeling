@@ -12,8 +12,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
     <title>Top Secret Modeling</title>
   </head>
-  <body>
-    <div style="position: relative;"> <!-- Wrap the entire content in a div with relative positioning -->
+  <body class="flex flex-col min-h-screen">
+    <div class="flex-grow relative">
 
         {% include 'header.html' %}
 
@@ -149,26 +149,22 @@
                 </div>
 
                 <div class="mb-4">
-                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Simulate Game</button>
+                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Simulate Game</button>
                 </div>        
 
 
             </form>
         </div>
 
+
         <!-- Bootstrap JS and dependencies -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-
         <script src="{{ url_for('static', filename='simulator_input.js') }}"></script>
         
     </div>
-
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='simulator_input.js') }}"></script>
-
+    <footer>
+        {% include 'footer.html' %}
+    </footer>
   </body>
-  <footer>
-    {% include 'footer.html' %}
-  </footer>
+
 </html>

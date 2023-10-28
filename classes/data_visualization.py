@@ -15,7 +15,7 @@ class Visualization:
         self.template_dir = template_dir
         self.TARGET_VARIABLE = target_variable
 
-    def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, bins=50):
+    def visualize_simulation_results(self, simulation_results, most_likely_outcome, output, game_number, bins=50):
         """
         Visualizes the simulation results using a histogram and calculates 
         the rounded most likely outcome.
@@ -57,11 +57,11 @@ class Visualization:
         full_html = plotly_html_string + formatted_output
 
         # Path to save the visualization as an HTML file
-        simulation_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+        individual_simulation_path = os.path.join(self.template_dir, f'simulation_distribution_results_game_{game_number:04d}.html')
 
-        # Save the combined HTML
+        # Save the combined HTML for the individual game
         try:
-            with open(simulation_path, "w") as f:
+            with open(individual_simulation_path, "w") as f:
                 f.write(full_html)
         except IOError as e:
             # Handle potential file write issues
@@ -77,6 +77,78 @@ class Visualization:
             formatted_most_likely_outcome = f"{rounded_most_likely_outcome:.2f}"
 
         return formatted_most_likely_outcome
+
+    def generate_simulation_distribution_page(self, num_games):
+        links_html = ""
+
+        # Define CSS styles for the links and divs
+        link_style = "color: blue; font-size: 18px; text-decoration: underline; margin-bottom: 10px;"
+        div_style = "background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-bottom: 20px;"
+
+        # Generate links and formatted outputs for all the individual game simulation results
+        for i in range(1, num_games + 1):
+            link = f'<a href="simulation_distribution_results_game_{i:04d}.html" target="_blank" style="{link_style}">Game {i} Simulation Results</a>'
+            links_html += f"<div style='{div_style}'>{link}</div>"
+
+        # Combine the links and formatted outputs into a single HTML page
+        full_html = f"""
+        <html>
+        <head>
+            <title>Simulation Distribution</title>
+        </head>
+        <body>
+            <h2>Available Simulation Results:</h2>
+            {links_html}
+        </body>
+        </html>
+        """
+
+        # Path to save the simulation distribution page
+        simulation_distribution_path = os.path.join(self.template_dir, 'simulation_distribution.html')
+
+        # Save the combined HTML
+        try:
+            with open(simulation_distribution_path, "w") as f:
+                f.write(full_html)
+        except IOError as e:
+            # Handle potential file write issues
+            print(f"Error writing to file: {e}")
+
+    def generate_value_opportunity_page(self, num_games):
+        links_html = ""
+
+        # Define CSS styles for the links and divs
+        link_style = "color: blue; font-size: 18px; text-decoration: underline; margin-bottom: 10px;"
+        div_style = "background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin-bottom: 20px;"
+
+        # Generate links and formatted outputs for all the individual game simulation results
+        for i in range(1, num_games + 1):
+            link = f'<a href="value_opportunity_results_game_{i:04d}.html" target="_blank" style="{link_style}">Game {i} Value Opportunity</a>'
+            links_html += f"<div style='{div_style}'>{link}</div>"
+
+        # Combine the links and formatted outputs into a single HTML page
+        full_html = f"""
+        <html>
+        <head>
+            <title>Value Opportunity</title>
+        </head>
+        <body>
+            <h2>Available Simulation Results:</h2>
+            {links_html}
+        </body>
+        </html>
+        """
+
+        # Path to save the valuopportunity page
+        value_opportunity_distribution_path = os.path.join(self.template_dir, 'value_opportunity_distribution.html')
+
+        # Save the combined HTML
+        try:
+            with open(value_opportunity_distribution_path, "w") as f:
+                f.write(full_html)
+        except IOError as e:
+            # Handle potential file write issues
+            print(f"Error writing to file: {e}")        
 
     def compare_simulated_to_actual(self, simulation_results, actual_results):
         model_covered = 0
@@ -111,7 +183,7 @@ class Visualization:
 
             predicted_difference = simulation_results[idx]
 
-            # Check if the game has actual results or if it's a future game
+            # Check if the game has odss or if it's a future game
             if pd.isna(spread_odds):
                 # Future game no spread
                 recommended_bet = None
@@ -235,7 +307,7 @@ class Visualization:
 
         return recommendation_accuracy, average_ev_percent, total_actual_value
 
-    def visualize_value_opportunity(self, simulation_results, perceived_value):
+    def visualize_value_opportunity(self, simulation_results, perceived_value, game_number):
         # Calculate the expected value
         expected_value = np.mean(simulation_results)
         value_opportunity = expected_value - perceived_value
@@ -251,7 +323,7 @@ class Visualization:
         plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
         # Path to save the visualization as an HTML file
-        value_opportunity_path = os.path.join(self.template_dir, 'value_opportunity_distribution.html')
+        value_opportunity_path = os.path.join(self.template_dir, f'value_opportunity_results_game_{game_number:04d}.html')
 
         # Save the combined HTML
         try:
