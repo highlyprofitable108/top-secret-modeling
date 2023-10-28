@@ -112,27 +112,19 @@ class Visualization:
             predicted_difference = simulation_results[idx]
 
             # Check if the game has actual results or if it's a future game
-            if pd.isna(actual_home_points) or pd.isna(actual_away_points):
-                # Future game
+            if pd.isna(spread_odds):
+                # Future game no spread
+                recommended_bet = None
+                ev_percentage = None
                 actual_covered = None
                 bet_outcome = None
                 actual_value = None
                 actual_difference = None
-                recommended_bet = None
-                ev_percentage = None
             else:
                 # Past game with actual results
                 actual_difference = (actual_home_points + spread_odds) - actual_away_points
 
-                # Determine who actually covered based on spread odds
-                if actual_difference < 0:
-                    actual_covered = "away"
-                elif actual_difference > 0:
-                    actual_covered = "home"
-                elif actual_difference == 0:
-                    recommended_bet = "push"
-
-                # Recommendation based on model
+                # Calculate the recommendation based on the model
                 reccommendation_calc = spread_odds - np.mean(predicted_difference)
                 if reccommendation_calc < 0:
                     recommended_bet = "away"
@@ -140,20 +132,8 @@ class Visualization:
                     recommended_bet = "home"
                 elif reccommendation_calc == 0:
                     recommended_bet = "push"
-
-                # Check historical performance
-                if recommended_bet == actual_covered and recommended_bet is not None:
-                    correct_recommendations += 1
-                    total_bets += 1
-                    bet_outcome = "Win"
-                    actual_value = 100  # Profit from a winning bet
-                elif recommended_bet == "push" or actual_covered == "push":
-                    bet_outcome = "Push"
-                    actual_value = 0  # No profit, no loss from a push
-                elif recommended_bet is not None:
-                    total_bets += 1
-                    bet_outcome = "Loss"
-                    actual_value = -110  # Loss from a losing bet
+                else:
+                    recommended_bet = None
 
                 # Calculate the model's implied probability
                 if recommended_bet == "home":
@@ -178,6 +158,30 @@ class Visualization:
                     ev = (potential_profit * model_probability) - (amount_bet * vegas_probability)
                     ev_percentage = ev  # Express EV as a percentage of the bet
                     total_ev += ev  # Accumulate the total expected value
+
+                # If actual results are available:
+                if actual_difference:
+                    # Determine who actually covered based on spread odds.
+                    if actual_difference < 0:
+                        actual_covered = "away"
+                    elif actual_difference > 0:
+                        actual_covered = "home"
+                    else:
+                        actual_covered = "push"
+
+                    # Check historical performance.
+                    if recommended_bet == actual_covered:
+                        correct_recommendations += 1
+                        total_bets += 1
+                        bet_outcome = "win"
+                        actual_value = 100  # Profit from a winning bet
+                    elif recommended_bet == "push" or actual_covered == "push":
+                        bet_outcome = "push"
+                        actual_value = 0  # No profit, no loss from a push
+                    else:
+                        total_bets += 1
+                        bet_outcome = "loss"
+                        actual_value = -110  # Loss from a losing bet
 
             # Append to results DataFrame
             new_row = pd.Series({

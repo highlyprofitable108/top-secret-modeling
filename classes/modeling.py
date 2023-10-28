@@ -177,8 +177,8 @@ class Modeling:
         """
 
         # Constants to define the bounds for filtering the results
-        LOWER_PERCENTILE = 0.1
-        UPPER_PERCENTILE = 0.9
+        LOWER_PERCENTILE = 0.0
+        UPPER_PERCENTILE = 1
 
         # Calculate the lower and upper bounds based on percentiles
         lower_bound_value = np.percentile(simulation_results, LOWER_PERCENTILE * 100)

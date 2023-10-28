@@ -60,10 +60,6 @@ class WeightedStatsAvg:
     def load_additional_tables(self):
         """Run the entire data processing pipeline."""
         try:
-            # Add advanced analytics
-            # Rename the games collection games_base
-
-
             # Clear existing metrics and temporary tables
             self.clear_team_metrics()
             self.clear_temp_tables()
@@ -90,7 +86,7 @@ class WeightedStatsAvg:
 
         except Exception as e:
             logging.error(f"An error occurred: {e}")
-    
+
     def clear_team_metrics(self):
         """Drop team_aggregated_metrics and pre_game_data collections if they exist."""
         if self.RANKS_DB_NAME in self.database_operations.db.list_collection_names():

@@ -244,27 +244,6 @@ class DBInserter:
                 }}
             )
 
-    def add_advanced_away_data(self, df):
-        # Rush-Pass Ratio
-        df['statistics.away.advanced.rush_pass_rate'] = df['statistics.away.rushing.totals.attempts'] / df['statistics.away.passing.totals.attempts']
-
-        # Air Yards to Total Yards Ratio
-        df['statistics.away.advanced.air_to_total_yards_rate'] = df['statistics.away.receiving.totals.air_yards'] / df['statistics.away.receiving.totals.yards']
-
-        # Pressure Rate on QB
-        df['statistics.away.advanced.pressure_rate_on_qb'] = (df['statistics.away.passing.totals.blitzes'] + df['statistics.away.passing.totals.hurries'] + df['statistics.away.passing.totals.knockdowns']) / df['statistics.away.passing.totals.attempts']
-
-        # Tackle For Loss Rate
-        df['statistics.away.advanced.tackle_for_loss_rate'] = df['statistics.away.defense.totals.tloss'] / df['statistics.away.defense.totals.tackles']
-
-        # QB Hit Rate
-        df['statistics.away.advanced.qb_hit_rate'] = df['statistics.away.defense.totals.qb_hits'] / df['statistics.away.passing.totals.attempts']
-
-        # Drop Rate
-        df['statistics.away.advanced.drop_rate'] = df['statistics.away.receiving.totals.dropped_passes'] / df['statistics.away.receiving.totals.targets']
-
-        return df
-
     def add_advanced_data(self, df):
         for team in ['home', 'away']:
             # Rush-Pass Ratio
@@ -321,5 +300,5 @@ class DBInserter:
 if __name__ == "__main__":
     # Usage example:
     db_inserter = DBInserter()
-    # db_inserter.insert_data_from_directory()
+    db_inserter.insert_data_from_directory()
     db_inserter.update_games_with_advanced_data()

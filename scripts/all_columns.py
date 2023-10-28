@@ -193,4 +193,10 @@ ALL_COLUMNS = [
     "efficiency.fourthdown.attempts",
     "efficiency.fourthdown.successes",
     "efficiency.fourthdown.pct",
+    "advanced.air_to_total_yards_rate",
+    "advanced.drop_rate",
+    "advanced.pressure_rate_on_qb",
+    "advanced.qb_hit_rate",
+    "advanced.rush_pass_rate",
+    "advanced.tackle_for_loss_rate",
 ]
