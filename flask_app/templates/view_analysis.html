@@ -41,7 +41,7 @@
                 <button onclick="showTab('customPowerRanksContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Custom Power Ranks</button>
                 <button onclick="showTab('interactiveHeatmapContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Interactive Heatmap</button>
                 <button onclick="showTab('featureImportanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
-                <button onclick="showTab('shapSummaryContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Shap Summary</button>
+                <!--<button onclick="showTab('shapSummaryContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Shap Summary</button>-->
                 <button onclick="showTab('dataQualityReportContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Data Quality Report</button>
                 <button onclick="showTab('descriptiveStatisticsContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Descriptive Statistics</button>
             </div>
@@ -65,12 +65,12 @@
                 <a href="/feature_importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
-            <div id="shapSummaryContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
-                {% include 'shap_summary.html' %}
+            <!--<div id="shapSummaryContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+                include shap_summary.html
 
-                <a href="/shap_summary" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
+                <a href=/shap_summary target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
-
+            -->
             <div id="dataQualityReportContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'data_quality_report.html' %}
 
@@ -118,11 +118,11 @@
             </div>
 
             <!-- SHAP Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+            <!--<div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP (SHapley Additive exPlanations):</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic box that can predict how many candies you'll get. SHAP is like a magnifying glass that lets you see inside the box and understand which factors (like the day of the week or the weather) influence the number of candies you get.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> SHAP values provide a unified measure of feature importance by attributing the change in the expected model prediction when conditioning on that feature. It offers insights into the impact of each feature on the model's predictions for individual instances. The SHAP summary plot and force plot are visual representations that help in understanding these values and their implications on the model's behavior.</p>
-            </div>
+            </div>-->
 
             <!-- Data Quality Report Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">

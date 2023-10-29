@@ -1,5 +1,6 @@
 import os
 import logging
+import random
 import joblib
 import pandas as pd
 from pymongo import MongoClient
@@ -74,6 +75,11 @@ class StatsCalculator:
                 if processed_stats_df[col].apply(type).eq(list).any():
                     processed_stats_df[col] = processed_stats_df[col].astype(str)
 
+            # Select a random sample
+            random_id = random.choice(processed_stats_df['id'].tolist())
+            self.sample_data = processed_stats_df[processed_stats_df['id'] == random_id]
+            logging.debug(f"Random sample data: \n{self.sample_data}")
+
             return processed_stats_df
         except Exception as e:
             logging.error(f"Error in load_and_process_data function: {e}")
@@ -98,6 +104,11 @@ class StatsCalculator:
             df_away = processed_df[['away_id', 'away_name', 'ranks_away_update_date'] + metrics_away]
             df_home = df_home.rename(columns={'ranks_home_update_date': 'update_date'})
             df_away = df_away.rename(columns={'ranks_away_update_date': 'update_date'})
+
+            # Log the transformations of the random sample
+            logging.debug(f"Transformed sample home data: \n{df_home[df_home['home_id'] == self.sample_data['home_id'].iloc[0]]}")
+            logging.debug(f"Transformed sample away data: \n{df_away[df_away['away_id'] == self.sample_data['away_id'].iloc[0]]}")
+
             return df_home, df_away
         except Exception as e:
             logging.error(f"Error in transform_data function: {e}")
@@ -140,7 +151,11 @@ class StatsCalculator:
             df['update_date'] = pd.to_datetime(df['update_date'])
 
             # Determine the week number based on the Tuesday-to-Monday window
-            df['week_number'] = (df['update_date'] - pd.Timedelta(days=1)).dt.isocalendar().week
+            reference_date = pd.Timestamp('1990-01-01')  # You can choose any date before your data starts
+            df['week_number'] = ((df['update_date'] - reference_date).dt.days // 7) + 1
+
+            # Log the power rank calculation of the random sample
+            # print(f"Sample data after power rank calculation: \n{df[df['id'] == self.sample_data['id'].iloc[0]]}")
 
             return df
         except Exception as e:
@@ -178,6 +193,9 @@ class StatsCalculator:
             columns = columns[:idx+1] + ['normalized_power_rank', 'power_rank'] + columns[idx+1:]
             df = df[columns]
 
+            # Log the normalization of the random sample
+            # print(f"Normalized sample data: \n{df[df['id'] == self.sample_data['id'].iloc[0]]}")
+
             return df  # The final aggregated and normalized dataframe
         except Exception as e:
             logging.error(f"Error in normalize_data function: {e}")
@@ -202,6 +220,10 @@ class StatsCalculator:
             aggregated_df = aggregated_df.sort_values(by='normalized_power_rank', ascending=False)
             power_ranks_report_path = os.path.join(self.static_dir, 'power_ranks.csv')
             aggregated_df.to_csv(power_ranks_report_path)
+
+            # Log the aggregated data of the random sample
+            # print(f"Aggregated sample data: \n{aggregated_df[aggregated_df['id'] == self.sample_data['id'].iloc[0]]}")
+
             logging.info("Aggregated data inserted into MongoDB successfully.")
         except Exception as e:
             logging.error(f"Error inserting aggregated data into MongoDB: {e}")
@@ -218,6 +240,10 @@ class StatsCalculator:
         db = client[self.database_name]
         collection = db[self.WEEKLY_RANKS_DB_NAME]
         df = pd.DataFrame(list(collection.find()))
+
+        # Log the fetched team ranking metrics of the random sample
+        logging.debug(f"Fetched sample team ranking metrics: \n{df[df['id'] == self.sample_data['id'].iloc[0]]}")
+
         return df
 
     def generate_interactive_htmls(self, df, date=None):

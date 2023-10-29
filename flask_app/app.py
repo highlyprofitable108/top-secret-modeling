@@ -245,9 +245,9 @@ def feature_importance():
     return render_template('feature_importance.html')
 
 
-@app.route('/shap_summary')
-def shap_summary():
-    return render_template('shap_summary.html')
+# @app.route('/shap_summary')
+# def shap_summary():
+#     return render_template('shap_summary.html')
 
 
 @app.route('/descriptive_statistics')
