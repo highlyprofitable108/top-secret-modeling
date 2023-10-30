@@ -240,9 +240,9 @@ def heatmap():
     return render_template('interactive_heatmap.html')
 
 
-@app.route('/feature_importance')
-def feature_importance():
-    return render_template('feature_importance.html')
+@app.route('/importance')
+def importance():
+    return render_template('importance.html')
 
 
 # @app.route('/shap_summary')

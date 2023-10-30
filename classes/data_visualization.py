@@ -339,9 +339,28 @@ class Visualization:
         """Visualize feature importance using Plotly."""
         fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
                      color='Highlight', color_discrete_map={'Important': 'red', 'Related to Target': 'blue', 'Important and Related': 'purple', 'Just Data': 'gray'})
-        feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
+        feature_importance_path = os.path.join(self.template_dir, 'importance.html')
         fig.write_html(feature_importance_path)
         return feature_importance_path
+
+    def visualize_coefficients(self, coef_df):
+        """Visualize feature coefficients using Plotly."""
+        # Create a bar chart using Plotly
+        fig = px.bar(coef_df,
+                     x='Feature',
+                     y='Coefficient',
+                     title='Feature Coefficients',
+                     labels={'Coefficient': 'Coefficient Value', 'Feature': 'Feature Name'},
+                     color='Coefficient',  # Color bars by coefficient value
+                     color_continuous_scale='balance'  # Use a diverging color scale
+                     )
+
+        # Adjust layout for better visualization
+        fig.update_layout(barmode='relative', showlegend=False)
+
+        coef_df = os.path.join(self.template_dir, 'importance.html')
+        fig.write_html(coef_df)
+        return coef_df
 
     # ENHANCE AND OPTIMIZE EDA OUTPUTS
     def plot_interactive_correlation_heatmap(self, df, importances):

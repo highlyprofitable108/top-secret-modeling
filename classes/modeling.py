@@ -5,10 +5,10 @@ import shap
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.stats import gaussian_kde, t, norm
+from scipy.stats import gaussian_kde, norm
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Lasso, Ridge
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
@@ -142,7 +142,7 @@ class Modeling:
             explainer = shap.TreeExplainer(model)
 
         # For linear models
-        elif model_type == "linear_regression":
+        elif model_type in ["linear", "lasso", "ridge"]:
             explainer = shap.LinearExplainer(model, X)
 
         # For SVM
@@ -232,12 +232,16 @@ class Modeling:
 
         if model_type == "random_forest":
             return self.train_random_forest(X, y, grid_search_params)
-        elif model_type == "linear_regression":
+        elif model_type == "linear":
             return self.train_linear_regression(X, y)
         elif model_type == "svm":
             return self.train_svm(X, y, grid_search_params)
         elif model_type == "gradient_boosting":
             return self.train_gradient_boosting(X, y, grid_search_params)
+        elif model_type == "lasso":
+            return self.train_lasso_regression(X, y, grid_search_params)
+        elif model_type == "ridge":
+            return self.train_ridge_regression(X, y, grid_search_params)
         elif model_type == "simple_averaging_ensemble":
             models = [
                 self.train_random_forest(X, y, grid_search_params),
@@ -320,6 +324,24 @@ class Modeling:
         model = GridSearchCV(GradientBoostingRegressor(random_state=108), grid_search_params, cv=3, verbose=2)
         model.fit(X, y)
         return model
+
+    def train_lasso_regression(self, X, y, grid_search_params=None):
+        if not grid_search_params:
+            grid_search_params = {
+                'alpha': [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]
+            }
+        lasso = GridSearchCV(Lasso(), grid_search_params, cv=5)
+        lasso.fit(X, y)
+        return lasso
+
+    def train_ridge_regression(self, X, y, grid_search_params=None):
+        # if not grid_search_params:
+        grid_search_params = {
+            'alpha': [0.01, 0.1, 1, 10, 100, 1000]
+        }
+        ridge = GridSearchCV(Ridge(), grid_search_params, cv=5)
+        ridge.fit(X, y)
+        return ridge
 
     def train_stacking_ensemble(self, base_models, meta_model, X, y):
         """

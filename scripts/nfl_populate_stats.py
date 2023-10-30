@@ -297,33 +297,55 @@ class StatsCalculator:
         processed_games_df = self.load_and_process_data()
 
         columns_to_filter = [col.replace('_difference', '').replace('_ratio', '').strip() for col in self.CONSTANTS if not col.startswith('odds.')]
-        columns_to_filter.extend(['id', 'update_date', 'name'])  # Add 'id' and 'name' to the columns
+        columns_to_filter.extend(['id', 'update_date', 'name'])  # Add 'id', 'update_date', and 'name' to the columns
 
         processed_games_df = processed_games_df[columns_to_filter]
 
-        # Rearrange columns to place 'id' and 'name' at the beginning
+        # Rearrange columns to place 'id', 'update_date', and 'name' at the beginning
         columns_ordered = ['id', 'update_date', 'name'] + [col for col in columns_to_filter if col not in ['id', 'update_date', 'name']]
         processed_games_df = processed_games_df[columns_ordered]
 
         if processed_games_df is not None:
-            # Transform data
-            # df_home, df_away = self.transform_data(processed_games_df, columns_to_filter)
+            # Check if the model is a result of GridSearchCV or RandomizedSearchCV
+            if hasattr(self.LOADED_MODEL, 'best_estimator_'):
+                estimator = self.LOADED_MODEL.best_estimator_
+            else:
+                estimator = self.LOADED_MODEL
 
-            # Calculate power rank
-            feature_importances = self.LOADED_MODEL.best_estimator_.feature_importances_
-            feature_names = [col.replace('_difference', '').replace('_ratio', '') for col in self.CONSTANTS]  # <-- Corrected this line
+            # Check if the estimator has feature_importances_ attribute (indicating it's a tree-based model)
+            if hasattr(estimator, 'feature_importances_'):
+                feature_importances = estimator.feature_importances_
+                feature_names = [col.replace('_difference', '').replace('_ratio', '') for col in self.CONSTANTS]
 
-            # Create a dictionary to store the modified feature names and their importances
-            modified_importances = {}
+                # Create a dictionary to store the modified feature names and their importances
+                modified_importances = {}
 
-            for name, importance in zip(feature_names, feature_importances):
-                # If the modified name already exists in the dictionary, average the importances
-                if name in modified_importances:
-                    modified_importances[name] = (modified_importances[name] + importance) / 2
-                else:
-                    modified_importances[name] = importance
+                for name, importance in zip(feature_names, feature_importances):
+                    # If the modified name already exists in the dictionary, average the importances
+                    if name in modified_importances:
+                        modified_importances[name] = (modified_importances[name] + importance) / 2
+                    else:
+                        modified_importances[name] = importance
 
-            weights = modified_importances  # Directly use the modified_importances dictionary as weights
+                weights = modified_importances  # Directly use the modified_importances dictionary as weights
+
+            # Check if the estimator is linear and has coef_ attribute
+            elif hasattr(estimator, 'coef_'):
+                coefficients = estimator.coef_
+                feature_names = [col.replace('_difference', '').replace('_ratio', '') for col in self.CONSTANTS]
+
+                # Create a dictionary to store the modified feature names and their coefficients
+                modified_coefficients = {}
+
+                for name, coef in zip(feature_names, coefficients):
+                    # If the modified name already exists in the dictionary, average the coefficients
+                    # (This step might not be necessary for coefficients, but I'm keeping it for consistency with the importances block)
+                    if name in modified_coefficients:
+                        modified_coefficients[name] = (modified_coefficients[name] + coef) / 2
+                    else:
+                        modified_coefficients[name] = coef
+
+                weights = modified_coefficients  # Directly use the modified_coefficients dictionary as weights
 
             # Exclude 'id' and 'name' from the power rank calculations
             columns_for_power_rank = [col for col in columns_to_filter if col not in ['id', 'name', 'update_date']]
