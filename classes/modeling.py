@@ -284,11 +284,11 @@ class Modeling:
     def train_random_forest(self, X, y, grid_search_params):
         """Train a RandomForestRegressor with hyperparameter tuning."""
         logging.info("Training RandomForestRegressor with hyperparameter tuning...")
-        if not grid_search_params:
-            grid_search_params = {
-                'n_estimators': [100], 
-                'max_depth': [None, 10],
-            }
+        # if not grid_search_params:
+        grid_search_params = {
+            'n_estimators': [100],
+            'max_depth': [None, 10],
+        }
         model = GridSearchCV(RandomForestRegressor(random_state=108), grid_search_params, cv=3, verbose=2)
         model.fit(X, y)
         return model

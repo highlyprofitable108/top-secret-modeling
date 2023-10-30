@@ -11,6 +11,7 @@ from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.database_operations import DatabaseOperations
 import scripts.constants
+import scripts.all_columns
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +29,7 @@ class StatsCalculator:
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
         self.CONSTANTS = scripts.constants.COLUMNS_TO_KEEP
+        self.NEGATIVE = scripts.all_columns.NEGATIVE_IMPACT_COLUMNS
         self._fetch_constants_and_configs()
         self.LOADED_MODEL = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
         self.feature_columns = [col for col in self.CONSTANTS]
@@ -321,6 +323,10 @@ class StatsCalculator:
                 modified_importances = {}
 
                 for name, importance in zip(feature_names, feature_importances):
+                    # Adjust the importance based on whether the feature has a negative impact
+                    if name in self.NEGATIVE:
+                        importance *= -1
+
                     # If the modified name already exists in the dictionary, average the importances
                     if name in modified_importances:
                         modified_importances[name] = (modified_importances[name] + importance) / 2

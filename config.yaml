@@ -37,7 +37,7 @@ database:
   database_name: "nfl_db"
 
 model_settings:
-  model_type: ridge
+  model_type: random_forest
   grid_search:
     n_estimators:
       - 

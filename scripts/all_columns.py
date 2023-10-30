@@ -200,3 +200,29 @@ ALL_COLUMNS = [
     "advanced.rush_pass_rate",
     "advanced.tackle_for_loss_rate",
 ]
+
+NEGATIVE_IMPACT_COLUMNS = [
+    "summary.safeties",
+    "summary.turnovers",
+    "summary.fumbles",
+    "summary.lost_fumbles",
+    "summary.penalties",
+    "summary.penalty_yards",
+    "rushing.totals.tlost",
+    "rushing.totals.tlost_yards",
+    "receiving.totals.dropped_passes",
+    "punts.totals.blocked",
+    "punts.totals.touchbacks",
+    "passing.totals.interceptions",
+    "passing.totals.sack_yards",
+    "passing.totals.sacks",
+    "passing.totals.throw_aways",
+    "passing.totals.poor_throws",
+    "passing.totals.defended_passes",
+    "passing.totals.dropped_passes",
+    "fumbles.totals.fumbles",
+    "fumbles.totals.lost_fumbles",
+    "field_goals.totals.blocked",
+    "defense.totals.missed_tackles",
+    "extra_points.kicks.totals.blocked"
+]
