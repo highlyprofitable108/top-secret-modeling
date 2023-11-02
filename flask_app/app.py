@@ -5,7 +5,7 @@ from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
 import scripts.constants
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
@@ -227,12 +227,17 @@ def sim_runner():
                     matchups.append((home_team, away_team))
             nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
 
-        return render_template('simulator_results.html')
-
+        return redirect(url_for('sim_results'))
+    
     except Exception as e:
         # If there is an error, log it and return an error message
         logger.error(f"Error in sim_runner: {e}")
         return jsonify(error=str(e)), 500
+
+
+@app.route('/sim_results')
+def sim_results():
+    return render_template('simulator_results.html')
 
 
 @app.route('/interactive_heatmap')
