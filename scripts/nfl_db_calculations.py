@@ -86,7 +86,7 @@ class WeightedStatsAvg:
 
         except Exception as e:
             logging.error(f"An error occurred: {e}")
-
+    
     def clear_team_metrics(self):
         """Drop team_aggregated_metrics and pre_game_data collections if they exist."""
         if self.RANKS_DB_NAME in self.database_operations.db.list_collection_names():
@@ -343,7 +343,7 @@ class WeightedStatsAvg:
         df = pd.concat([df_home, df_away], ignore_index=True)
 
         # Determine the week number based on the Tuesday-to-Monday window
-        df['week_number'] = (df['game_date'] - pd.Timedelta(days=1)).dt.isocalendar().week
+        df['week_number'] = (df['game_date'] - pd.Timedelta(days=2)).dt.isocalendar().week
 
         # Check if resulting dataframe is empty
         if df.empty:

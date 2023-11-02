@@ -209,7 +209,7 @@ class DataProcessing:
             self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None
 
-    def generate_weekdays_list(self, start_date, end_date, weekday=1, excluded_months=list(range(3, 9))):
+    def generate_weekdays_list(self, start_date, end_date, weekday=2, excluded_months=list(range(3, 9))):
         """
         Generate a list of specific weekdays between start_date and end_date.
 

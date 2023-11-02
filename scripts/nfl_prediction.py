@@ -172,7 +172,7 @@ class NFLPredictor:
         self.logger.info(f"Game: {away_team} at {home_team}")
         self.logger.info("---------------------------")
         self.logger.info(f"Expected target value: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
-        self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {home_team} projected spread.")
+        # self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {home_team} projected spread.")
         self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {home_team} projected spread.")
         self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {home_team} projected spread.")
         self.logger.info("")  # Add an empty line for separation

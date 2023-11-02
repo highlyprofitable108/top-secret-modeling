@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     function showLoadingSpinner() {
         // You can adjust the values here based on the specifics of column.js if needed
-        let countdown = 450;
+        let countdown = 900;
 
         document.getElementById('loading-spinner').style.display = 'block';
 

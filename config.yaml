@@ -5,7 +5,7 @@ constants:
   TARGET_VARIABLE: "odds.spread_close"
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
-  CUTOFF_DATE: '2015-09-01'
+  CUTOFF_DATE: '2020-09-01'
   END_DATE: '2023-10-25'
   BASE_COLUMNS: "scripts.all_columns.ALL_COLUMNS"
   AWAY_PREFIX: "statistics.away."
@@ -37,9 +37,9 @@ database:
   database_name: "nfl_db"
 
 model_settings:
-  model_type: random_forest
+  model_type: linear
   grid_search:
     n_estimators:
-      - 100
+      - 
     max_depth:
       - 

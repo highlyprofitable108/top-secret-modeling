@@ -240,14 +240,14 @@ def heatmap():
     return render_template('interactive_heatmap.html')
 
 
-@app.route('/feature_importance')
-def feature_importance():
-    return render_template('feature_importance.html')
+@app.route('/importance')
+def importance():
+    return render_template('importance.html')
 
 
-@app.route('/shap_summary')
-def shap_summary():
-    return render_template('shap_summary.html')
+# @app.route('/shap_summary')
+# def shap_summary():
+#     return render_template('shap_summary.html')
 
 
 @app.route('/descriptive_statistics')
@@ -280,9 +280,9 @@ def simulator_results():
     return render_template('simulator_results.html')
 
 
-@app.route('/view_power_ranks_sim')
-def view_power_ranks_sim():
-    return render_template('team_power_rank_sim.html')
+@app.route('/view_power_rank_bar')
+def view_power_rank_bar():
+    return render_template('normalized_power_ranks.html')
 
 
 @app.route('/view_simulation_distribution')
@@ -308,6 +308,11 @@ def serve_opportunity_file(game_number):
 @app.route('/view_betting_recommendation_results')
 def view_betting_recommendation_results():
     return render_template('betting_recommendation_results.html')
+
+
+@app.route('/view_summary_dash')
+def view_summary_dash():
+    return render_template('summary_dash.html')
 
 
 if __name__ == "__main__":

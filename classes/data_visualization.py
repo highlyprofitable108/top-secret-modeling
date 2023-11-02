@@ -1,5 +1,6 @@
 import os
 import shap
+import base64
 import random
 import logging
 import scipy.stats
@@ -57,7 +58,7 @@ class Visualization:
         full_html = plotly_html_string + formatted_output
 
         # Path to save the visualization as an HTML file
-        individual_simulation_path = os.path.join(self.template_dir, f'simulation_distribution_results_game_{game_number:04d}.html')
+        individual_simulation_path = os.path.join(self.template_dir, f'/tests/simulation_distribution_results_game_{game_number:04d}.html')
 
         # Save the combined HTML for the individual game
         try:
@@ -164,11 +165,160 @@ class Visualization:
 
         return model_cover_rate
 
+    def determine_probability_of_win(self, predicted_difference_list, vegas_line):
+        """
+        Determine the probability of winning the bet based on the value of the point spread,
+        especially when crossing key numbers.
+
+        :param predicted_difference: the predicted point difference from the model
+        :param vegas_line: the point spread from Vegas
+        :return: the probability of winning the bet
+        """
+        predicted_difference = np.median(predicted_difference_list)
+        # Define the value of each half-point around key numbers
+        point_values = {
+            # Key numbers and their immediate surroundings have higher values
+            3.0: 1.0, 3.5: 0.9, 2.5: 0.9,
+            7.0: 0.7, 7.5: 0.6, 6.5: 0.6,
+            # Other half-points within 7 points of the spread
+            6.0: 0.5, 4.5: 0.4, 5.5: 0.4, 4.0: 0.3, 5.0: 0.3,
+            2.0: 0.2, 1.5: 0.15, 1.0: 0.1, 0.5: 0.05, 8.0: 0.1, 8.5: 0.05,
+            # Values for points greater than 8.5
+        }
+        # Assign a value of 0.01 for any half-point greater than 8.5
+        for half_point in range(9, 15):  # Assuming we don't go beyond 14.5
+            point_values[half_point] = 0.01
+            point_values[half_point + 0.5] = 0.01
+
+        # Calculate the edge your model has over the Vegas line
+        model_edge = predicted_difference - vegas_line
+
+        # Check if the edge crosses a key number
+        if (vegas_line < 7 and predicted_difference > 7) or (vegas_line > 7 and predicted_difference < 7):
+            # Crossing the key number of 7 adds significant value
+            crossing_value = 0.1  # This value should be determined based on historical data
+        else:
+            crossing_value = 0
+
+        # Find the closest half-point value to the model edge
+        closest_half_point = min(point_values.keys(), key=lambda x: abs(x - model_edge))
+        value_adjustment = point_values.get(closest_half_point, 0.01)  # Default to 0.01 if not in the dictionary
+
+        # Adjust the base probability by the value of the closest half-point and crossing value
+        base_probability = 0.5  # Starting from a base probability of 50%
+        adjusted_probability = base_probability + (value_adjustment * 0.1) + crossing_value
+
+        # Ensure the probability is within reasonable bounds
+        adjusted_probability = min(max(adjusted_probability, 0), 1)
+
+        return adjusted_probability
+
+    def calculate_ev(self, vegas_line, predicted_difference, potential_profit, amount_bet):
+        # Use the model to predict the outcome or to determine the probability of winning
+        P_win = self.determine_probability_of_win(predicted_difference, vegas_line)
+        P_loss = 1 - P_win
+
+        # Calculate EV
+        ev = (P_win * potential_profit) - (P_loss * amount_bet)
+        return ev
+
+    def create_summary_dashboard(self, results_df, total_bets, recommendation_accuracy, average_ev_percent, total_actual_value):
+        # Calculate additional metrics
+        overall_record = results_df['Bet Outcome'].value_counts()
+        negative_ev_record = results_df[results_df['Expected Value (%)'] < 0]['Bet Outcome'].value_counts()
+        positive_ev_record = results_df[results_df['Expected Value (%)'] > 0]['Bet Outcome'].value_counts()
+        # positive_ev_2_5_record = results_df[results_df['Expected Value (%)'] > 2.5]['Bet Outcome'].value_counts()
+        # positive_ev_5_record = results_df[results_df['Expected Value (%)'] > 5]['Bet Outcome'].value_counts()
+
+        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
+        overall_record_df = overall_record.reset_index()
+        overall_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
+
+        # Now convert to HTML without the index
+        overall_record_html = overall_record_df.to_html(index=False, classes='table')
+
+        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
+        negative_ev_record_df = negative_ev_record.reset_index()
+        negative_ev_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
+
+        # Now convert to HTML without the index
+        negative_ev_record_html = negative_ev_record_df.to_html(index=False, classes='table')
+
+        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
+        positive_ev_record_df = positive_ev_record.reset_index()
+        positive_ev_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
+
+        # Now convert to HTML without the index
+        positive_ev_record_html = positive_ev_record_df.to_html(index=False, classes='table')
+
+        # Create a model vs Vegas odds chart
+        fig = go.Figure(data=go.Scatter(
+            x=results_df['Vegas Odds'],
+            y=results_df['Modeling Odds'],
+            mode='markers',
+            marker=dict(size=10, opacity=0.5)
+        ))
+
+        # Set plot titles and labels
+        fig.update_layout(
+            title='Model vs. Vegas Odds',
+            xaxis_title='Vegas Odds',
+            yaxis_title='Modeling Odds',
+            xaxis=dict(showgrid=True),
+            yaxis=dict(showgrid=True)
+        )
+
+        # Define the path for saving the image
+        chart_path = os.path.join(self.template_dir, 'model_vs_vegas_chart.png')
+
+        # Save the figure as a PNG image
+        fig.write_image(chart_path)
+
+        # Convert the image to a Base64 string
+        with open(chart_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+
+        # Embed the Base64 string directly into the HTML
+        embedded_image_html = f'<img src="data:image/png;base64,{encoded_string}" alt="Model vs Vegas Odds Chart">'
+
+        # Create HTML content
+        html_content = f"""
+            <div class="container">
+                <div class="stats-card">
+                    <h2>Key Metrics</h2>
+                    <p>Total Bets: <strong>{total_bets}</strong></p>
+                    <p>Overall Accuracy: <strong>{recommendation_accuracy:.2f}%</strong></p>
+                    <p>Average EV Percent: <strong>{average_ev_percent:.2f}%</strong></p>
+                    <p>Total Actual Value: <strong>${total_actual_value:.2f}</strong></p>
+                </div>
+                <div class="stats-card">
+                    <h2>Overall Record</h2>
+                    {overall_record_html}
+                </div>
+                <div class="stats-card">
+                    <h2>Positive EV Record</h2>
+                    {positive_ev_record_html}
+                </div>
+                <div class="stats-card">
+                    <h2>Negative EV Record</h2>
+                    {negative_ev_record_html}
+                </div>
+            </div>
+        """
+
+        # Path to save the valuopportunity page
+        summary_dash_path = os.path.join(self.template_dir, 'summary_dash.html')
+
+        # Write the HTML content to a file
+        with open(summary_dash_path, 'w') as f:
+            f.write(html_content)
+
     def evaluate_and_recommend(self, simulation_results, historical_df):
         historical_df = historical_df.reset_index(drop=True)
         correct_recommendations = 0
         total_bets = 0
         total_ev = 0
+        actual_covered = None
 
         # Create a DataFrame to store the results
         results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet', 'Expected Value (%)', 'Home Points', 'Away Points', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'])
@@ -178,26 +328,25 @@ class Visualization:
             actual_away_points = row['summary.away.points']
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
-            spread_odds = row["summary." + self.TARGET_VARIABLE]
+            vegas_line = row["summary." + self.TARGET_VARIABLE]
             date = row['scheduled']
 
             predicted_difference = simulation_results[idx]
 
             # Check if the game has odss or if it's a future game
-            if pd.isna(spread_odds):
+            if pd.isna(vegas_line):
                 # Future game no spread
                 recommended_bet = None
                 ev_percentage = None
-                actual_covered = None
                 bet_outcome = None
                 actual_value = None
                 actual_difference = None
             else:
                 # Past game with actual results
-                actual_difference = (actual_home_points + spread_odds) - actual_away_points
+                actual_difference = (actual_home_points + vegas_line) - actual_away_points
 
                 # Calculate the recommendation based on the model
-                reccommendation_calc = spread_odds - np.mean(predicted_difference)
+                reccommendation_calc = vegas_line - np.mean(predicted_difference)
                 if reccommendation_calc < 0:
                     recommended_bet = "away"
                 elif reccommendation_calc > 0:
@@ -207,29 +356,12 @@ class Visualization:
                 else:
                     recommended_bet = None
 
-                # Calculate the model's implied probability
-                if recommended_bet == "home":
-                    model_probability = 1 / (1 + 10 ** (np.mean(predicted_difference) / 10))
-                elif recommended_bet == "away":
-                    model_probability = 1 / (1 + 10 ** (-np.mean(predicted_difference) / 10))
-                else:
-                    model_probability = None
-
-                # Calculate the Vegas implied probability
-                if recommended_bet == "home":
-                    vegas_probability = 1 / (1 + 10 ** (spread_odds / 10))
-                elif recommended_bet == "away":
-                    vegas_probability = 1 / (1 + 10 ** (-spread_odds / 10))
-                else:
-                    vegas_probability = None
-
-                # Calculate expected value (adjusted for model vs. Vegas odds)
-                if vegas_probability is not None and model_probability is not None:
-                    potential_profit = 100  # Assuming a winning bet returns $100
-                    amount_bet = 100  # Assuming a bet amount of $100
-                    ev = (potential_profit * model_probability) - (amount_bet * vegas_probability)
-                    ev_percentage = ev  # Express EV as a percentage of the bet
-                    total_ev += ev  # Accumulate the total expected value
+                # Calculate EV
+                potential_profit = 100  # Assuming a winning bet returns $100
+                amount_bet = 110  # Assuming a bet amount of $100
+                ev = self.calculate_ev(vegas_line, predicted_difference, potential_profit, amount_bet)
+                ev_percentage = (ev / amount_bet) * 100 # Express EV as a percentage of the bet
+                total_ev += ev  # Accumulate the total expected value
 
                 # If actual results are available:
                 if actual_difference:
@@ -259,8 +391,8 @@ class Visualization:
             new_row = pd.Series({
                 'Date': date,
                 'Home Team': home_team,
-                'Vegas Odds': spread_odds,
-                'Modeling Odds': np.mean(predicted_difference),
+                'Vegas Odds': vegas_line,
+                'Modeling Odds': np.median(predicted_difference),
                 'Away Team': away_team,
                 'Recommended Bet': recommended_bet,
                 'Expected Value (%)': ev_percentage,
@@ -301,9 +433,11 @@ class Visualization:
             # Calculate the total actual value from all bets
             total_actual_value = results_df['Actual Value ($)'].sum()
 
-            recommendation_accuracy = correct_recommendations / total_bets * 100
+            recommendation_accuracy = (correct_recommendations / total_bets) * 100
             average_ev = total_ev / total_bets
             average_ev_percent = (average_ev / 110) * 100  # Adjust 110 if your standard bet amount is different
+
+        self.create_summary_dashboard(results_df, total_bets, recommendation_accuracy, average_ev_percent, total_actual_value)
 
         return recommendation_accuracy, average_ev_percent, total_actual_value
 
@@ -323,7 +457,7 @@ class Visualization:
         plotly_html_string = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
         # Path to save the visualization as an HTML file
-        value_opportunity_path = os.path.join(self.template_dir, f'value_opportunity_results_game_{game_number:04d}.html')
+        value_opportunity_path = os.path.join(self.template_dir, f'/tests/value_opportunity_results_game_{game_number:04d}.html')
 
         # Save the combined HTML
         try:
@@ -339,9 +473,28 @@ class Visualization:
         """Visualize feature importance using Plotly."""
         fig = px.bar(feature_importance_df, x='Importance', y='Feature', orientation='h', title='Feature Importance',
                      color='Highlight', color_discrete_map={'Important': 'red', 'Related to Target': 'blue', 'Important and Related': 'purple', 'Just Data': 'gray'})
-        feature_importance_path = os.path.join(self.template_dir, 'feature_importance.html')
+        feature_importance_path = os.path.join(self.template_dir, 'importance.html')
         fig.write_html(feature_importance_path)
         return feature_importance_path
+
+    def visualize_coefficients(self, coef_df):
+        """Visualize feature coefficients using Plotly."""
+        # Create a bar chart using Plotly
+        fig = px.bar(coef_df,
+                     x='Feature',
+                     y='Coefficient',
+                     title='Feature Coefficients',
+                     labels={'Coefficient': 'Coefficient Value', 'Feature': 'Feature Name'},
+                     color='Coefficient',  # Color bars by coefficient value
+                     color_continuous_scale='balance'  # Use a diverging color scale
+                     )
+
+        # Adjust layout for better visualization
+        fig.update_layout(barmode='relative', showlegend=False)
+
+        coef_df = os.path.join(self.template_dir, 'importance.html')
+        fig.write_html(coef_df)
+        return coef_df
 
     # ENHANCE AND OPTIMIZE EDA OUTPUTS
     def plot_interactive_correlation_heatmap(self, df, importances):
