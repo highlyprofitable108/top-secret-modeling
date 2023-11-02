@@ -23,3 +23,4 @@ flask_app/templates/team_power_rank.html
 .gitignore
 flask_app/templates/shap*
 flask_app/templates/*results_game*
+flask_app/templates/model_vs_vegas_chart.png

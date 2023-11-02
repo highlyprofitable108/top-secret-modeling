@@ -40,7 +40,7 @@
             <div class="flex space-x-4 mb-4">
                 <button onclick="showTab('customPowerRanksContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Custom Power Ranks</button>
                 <button onclick="showTab('interactiveHeatmapContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Interactive Heatmap</button>
-                <button onclick="showTab('featureImportanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
+                <button onclick="showTab('importanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
                 <!--<button onclick="showTab('shapSummaryContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Shap Summary</button>-->
                 <button onclick="showTab('dataQualityReportContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Data Quality Report</button>
                 <button onclick="showTab('descriptiveStatisticsContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Descriptive Statistics</button>
@@ -59,7 +59,7 @@
                 <a href="/interactive_heatmap" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
 
-            <div id="ImportanceContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+            <div id="importanceContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
                 {% include 'importance.html' %}
 
                 <a href="/importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>

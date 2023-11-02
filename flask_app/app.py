@@ -310,5 +310,10 @@ def view_betting_recommendation_results():
     return render_template('betting_recommendation_results.html')
 
 
+@app.route('/view_summary_dash')
+def view_summary_dash():
+    return render_template('summary_dash.html')
+
+
 if __name__ == "__main__":
     app.run(debug=True)

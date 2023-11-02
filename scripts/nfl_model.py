@@ -117,46 +117,46 @@ class NFLModel:
             logging.error(f"Error in generate_eda_report: {e}")
             return None, None, None, None, None
 
-    def plot_feature_importance(self, df, model):
+    def plot_importance(self, df, model):
         """Plots the feature importance for tree-based models and coefficients for linear models."""
         try:
             X = df.drop(columns=[self.TARGET_VARIABLE])
             y = df[self.TARGET_VARIABLE]
 
             # Check if the model is a result of GridSearchCV or RandomizedSearchCV
-            if hasattr(model, 'best_estimator'):
+            if hasattr(model, 'best_estimator_'):
                 estimator = model.best_estimator_
             else:
                 estimator = model
-
+                
             # Check if the model is tree-based and has feature_importances_ attribute
             if hasattr(estimator, 'feature_importances_'):
                 # Extract and standardize feature importances
                 importances = estimator.feature_importances_ / estimator.feature_importances_.sum()
                 importance_type = 'Importance'
+
+                # Identify top features based on importance or coefficients
+                top_importance_features, top_correlation_features = self.modeling.identify_top_features(X, y, importances)
+
+                # Create a DataFrame for feature importance or coefficient visualization
+                feature_importance_df = self.prepare_feature_importance_df(X.columns, importances, top_importance_features, top_correlation_features, importance_type)
+
+                # Visualize feature importance or coefficients
+                feature_importance_path = self.visualization.visualize_feature_importance(feature_importance_df)
+
             # Check if the model is linear and has coef_ attribute
             elif hasattr(estimator, 'coef_'):
                 importances = estimator.coef_
-                importance_type = 'Coefficient'
             else:
                 logging.error("The model doesn't support feature_importances_ or coef_")
                 return None
 
-            # Identify top features based on importance or coefficients
-            top_importance_features, top_correlation_features = self.modeling.identify_top_features(X, y, importances)
-
-            # Create a DataFrame for feature importance or coefficient visualization
-            feature_importance_df = self.prepare_feature_importance_df(X.columns, importances, top_importance_features, top_correlation_features, importance_type)
-
-            # Visualize feature importance or coefficients
-            feature_importance_path = self.visualization.visualize_feature_importance(feature_importance_df)
-
             # Create Heat Map
             heatmap_path = self.visualization.plot_interactive_correlation_heatmap(df, importances)
 
-            logging.info(f"Best model score: {model.best_score_}")
+            logging.info(f"Best model score: {estimator.score}")
 
-            return feature_importance_path, heatmap_path
+            return heatmap_path
         except Exception as e:
             logging.error(f"Error generating feature importance plot: {e}")
             return None
@@ -250,7 +250,7 @@ class NFLModel:
                 importance_df = importance_df.sort_values(by='Importance', ascending=False)
                 importance_df['Rank'] = range(1, len(importance_df) + 1)
                 importance_df['Cumulative Importance'] = importance_df['Importance'].cumsum()
-                self.plot_feature_importance(df, model)
+                self.plot_importance(df, model)
 
                 # shap_values, explainer = self.modeling.compute_shap_values(estimator, X_train, self.model_type)
                 # X = pd.DataFrame(X_train, columns=feature_columns)
@@ -275,7 +275,7 @@ class NFLModel:
                 # Sort by the absolute value of the coefficient for importance
                 coef_df = coef_df.sort_values(by='Coefficient', key=abs, ascending=False)
 
-                # Optionally, visualize the coefficients
+                self.plot_importance(df, model)
                 self.visualization.visualize_coefficients(coef_df)
 
                 # Logging details
