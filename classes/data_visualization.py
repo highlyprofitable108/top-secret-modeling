@@ -223,6 +223,16 @@ class Visualization:
         return ev
 
     def create_summary_dashboard(self, results_df, total_bets, recommendation_accuracy, average_ev_percent, total_actual_value):
+        # Helper function to calculate win percentage and format records
+        def format_records(records):
+            records = records.reindex(['win', 'loss', 'push'], fill_value=0)
+            win_pct = records['win'] / (records['win'] + records['loss']) if (records['win'] + records['loss']) > 0 else 0
+            win_pct = "{:.2f}%".format(win_pct * 100)  # Format as percentage with two decimals
+            records_df = records.to_frame().reset_index()
+            records_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
+            win_pct_row = pd.DataFrame([['win pct', win_pct]], columns=['Bet Outcome', 'Count'])
+            return pd.concat([records_df, win_pct_row], ignore_index=True)
+
         # Calculate additional metrics
         overall_record = results_df['Bet Outcome'].value_counts()
         negative_ev_record = results_df[results_df['Expected Value (%)'] < 0]['Bet Outcome'].value_counts()
@@ -230,26 +240,19 @@ class Visualization:
         # positive_ev_2_5_record = results_df[results_df['Expected Value (%)'] > 2.5]['Bet Outcome'].value_counts()
         # positive_ev_5_record = results_df[results_df['Expected Value (%)'] > 5]['Bet Outcome'].value_counts()
 
-        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
-        overall_record_df = overall_record.reset_index()
-        overall_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
+        # Format records and calculate win percentage
+        overall_record_df = format_records(overall_record)
+        negative_ev_record_df = format_records(negative_ev_record)
+        positive_ev_record_df = format_records(positive_ev_record)
+        # positive_ev_2_5_record_df = format_records(positive_ev_2_5_record)
+        # positive_ev_5_record_df = format_records(positive_ev_5_record)
 
-        # Now convert to HTML without the index
+        # Convert to HTML without the index
         overall_record_html = overall_record_df.to_html(index=False, classes='table')
-
-        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
-        negative_ev_record_df = negative_ev_record.reset_index()
-        negative_ev_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
-
-        # Now convert to HTML without the index
         negative_ev_record_html = negative_ev_record_df.to_html(index=False, classes='table')
-
-        # Convert it to a DataFrame and reset the index to make 'win' and 'loss' into a column
-        positive_ev_record_df = positive_ev_record.reset_index()
-        positive_ev_record_df.columns = ['Bet Outcome', 'Count']  # Rename columns for clarity
-
-        # Now convert to HTML without the index
         positive_ev_record_html = positive_ev_record_df.to_html(index=False, classes='table')
+        # positive_ev_2_5_record_html = positive_ev_2_5_record_df.to_html(index=False, classes='table')
+        # positive_ev_5_record_html = positive_ev_5_record_df.to_html(index=False, classes='table')
 
         # Create a model vs Vegas odds chart
         fig = go.Figure(data=go.Scatter(
@@ -409,21 +412,35 @@ class Visualization:
         # Round all values in the DataFrame to 2 decimals
         results_df = results_df.round(2)
 
+        fig = go.Figure(data=[go.Table(
+            header=dict(values=list(results_df.columns),
+                        fill_color='paleturquoise',
+                        align='left'),
+            cells=dict(values=[results_df[col].tolist() for col in results_df.columns],  # Convert each column's values to a list
+                    fill_color='lavender',
+                    align='left'))
+        ])
+
+        # Update layout for a better visual appearance if needed
+        fig.update_layout(
+            title='Betting Results',
+            title_x=0.5,
+            margin=dict(l=10, r=10, t=30, b=10)  # Adjust margins to fit the layout
+        )
+
+        # Convert the Plotly figure to an HTML string
+        betting_results_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+
         # Define paths to save the results
-        # csv_path = os.path.join(self.template_dir, 'betting_recommendation_results.csv')
-        html_path = os.path.join(self.template_dir, 'betting_recommendation_results.html')
+        betting_results_path = os.path.join(self.template_dir, 'betting_recommendation_results.html')
 
-        # Save results to CSV
-        # try:
-        #     results_df.to_csv(csv_path, index=False)
-        # except IOError as e:
-        #     print(f"Error writing to CSV file: {e}")
-
-        # Save results to HTML
+        # Save the combined HTML
         try:
-            results_df.to_html(html_path, index=False, classes='table table-striped')
+            with open(betting_results_path, "w") as f:
+                f.write(betting_results_html)
         except IOError as e:
-            print(f"Error writing to HTML file: {e}")
+            # Handle potential file write issues
+            print(f"Error writing to file: {e}")
 
         recommendation_accuracy = 0
         average_ev_percent = 0

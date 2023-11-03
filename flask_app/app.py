@@ -5,7 +5,7 @@ from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
 import scripts.constants
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
@@ -14,8 +14,21 @@ from importlib import reload
 import logging
 
 # Set up logging at the top of your app.py
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    # Set the level of the logger. This is a one-time setup.
+    logger.setLevel(logging.INFO)
+
+    # Create a console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+
+    # Create a formatter and set it for the handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+
+    # Add the handler to the logger
+    logger.addHandler(ch)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
@@ -227,12 +240,17 @@ def sim_runner():
                     matchups.append((home_team, away_team))
             nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
 
-        return render_template('simulator_results.html')
-
+        return redirect(url_for('sim_results'))
+    
     except Exception as e:
         # If there is an error, log it and return an error message
         logger.error(f"Error in sim_runner: {e}")
         return jsonify(error=str(e)), 500
+
+
+@app.route('/sim_results')
+def sim_results():
+    return render_template('simulator_results.html')
 
 
 @app.route('/interactive_heatmap')
