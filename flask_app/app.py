@@ -14,8 +14,21 @@ from importlib import reload
 import logging
 
 # Set up logging at the top of your app.py
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    # Set the level of the logger. This is a one-time setup.
+    logger.setLevel(logging.INFO)
+
+    # Create a console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+
+    # Create a formatter and set it for the handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+
+    # Add the handler to the logger
+    logger.addHandler(ch)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
