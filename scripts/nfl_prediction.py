@@ -35,6 +35,7 @@ class NFLPredictor:
 
         # Constants
         self.features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
+        self.model_type = self.config.get_config('model_settings', 'model_type')
 
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
@@ -97,6 +98,7 @@ class NFLPredictor:
     def load_model_and_scaler(self):
         try:
             model = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
+            print(model)
             scaler = joblib.load(os.path.join(self.model_dir, 'data_scaler.pkl'))
             return model, scaler
         except FileNotFoundError as e:
@@ -150,7 +152,7 @@ class NFLPredictor:
 
         # If random_subset is specified, fetch a random subset of games
         elif random_subset:
-            game_data = game_data.sample(n=random_subset)
+            game_data = game_data.sample(n=random_subset, replace=True)
 
         return game_data
 
@@ -287,7 +289,32 @@ class NFLPredictor:
                 self.visualization.compare_simulated_to_actual(sims_with_results, all_actual_results)
 
         # Evaluate the betting recommendation and expected value
-        recommendation_accuracy, average_ev, actual_value = self.visualization.evaluate_and_recommend(all_simulation_results, historical_df)
+        results_df, recommendation_accuracy, average_ev, actual_value = self.visualization.evaluate_and_recommend(all_simulation_results, historical_df)
+
+        if (num_simulations >= 1000) and (random_subset is not None) and (random_subset >= 100):
+            # Get the current time
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+            # Insert 'current_time' as the first column
+            results_df.insert(0, 'current_time', current_time)
+
+            # Insert 'self.model_type' as the second column
+            results_df.insert(1, 'model_type', self.model_type)
+
+            # Insert 'self.TARGET_VARIABLE' as the third column
+            results_df.insert(2, 'target_variable', self.TARGET_VARIABLE)
+
+            # Add 'self.features_list' as the last column
+            results_df['features_list'] = [self.features] * len(results_df)
+
+            # Create a unique game identifier by concatenating date, home_team, and away_team
+            results_df['game_id'] = results_df['Date'].dt.strftime('%Y-%m-%d') + '_' + results_df['Home Team']
+
+            bet_results = results_df.to_dict('records')
+            collection_name = "bet_results"
+
+            self.database_operations.insert_data_into_mongodb(collection_name, bet_results)
+
         self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
         self.logger.info(f"Average Expected Value: {average_ev:.2f}%")
         self.logger.info(f"Actual Results: ${actual_value:.2f}")

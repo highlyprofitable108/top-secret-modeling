@@ -9,6 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from scipy.stats import zscore
+from datetime import datetime, date as date_type
 
 
 class Visualization:
@@ -322,6 +323,7 @@ class Visualization:
         total_bets = 0
         total_ev = 0
         actual_covered = None
+        bet_outcome = None
 
         # Create a DataFrame to store the results
         results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet', 'Expected Value (%)', 'Home Points', 'Away Points', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'])
@@ -336,12 +338,15 @@ class Visualization:
 
             predicted_difference = simulation_results[idx]
 
+            # Convert 'date' to a datetime object if it's not already
+            if isinstance(date, date_type) and not isinstance(date, datetime):
+                date = datetime.combine(date, datetime.min.time())
+
             # Check if the game has odss or if it's a future game
             if pd.isna(vegas_line):
                 # Future game no spread
                 recommended_bet = None
                 ev_percentage = None
-                bet_outcome = None
                 actual_value = None
                 actual_difference = None
             else:
@@ -456,7 +461,7 @@ class Visualization:
 
         self.create_summary_dashboard(results_df, total_bets, recommendation_accuracy, average_ev_percent, total_actual_value)
 
-        return recommendation_accuracy, average_ev_percent, total_actual_value
+        return results_df, recommendation_accuracy, average_ev_percent, total_actual_value
 
     def visualize_value_opportunity(self, simulation_results, perceived_value, game_number):
         # Calculate the expected value

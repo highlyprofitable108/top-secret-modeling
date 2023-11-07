@@ -28,7 +28,6 @@ COLUMNS_TO_KEEP = [
     "misc_returns.totals.yards_difference",
     "penalties.totals.penalties_difference",
     "punt_returns.totals.avg_yards_difference",
-    "punts.totals.avg_hang_time_ratio",
     "touchdowns.fumble_return_difference",
     "touchdowns.int_return_difference",
     "touchdowns.kick_return_difference",

@@ -128,7 +128,7 @@ class NFLModel:
                 estimator = model.best_estimator_
             else:
                 estimator = model
-                
+
             # Check if the model is tree-based and has feature_importances_ attribute
             if hasattr(estimator, 'feature_importances_'):
                 # Extract and standardize feature importances
@@ -283,7 +283,7 @@ class NFLModel:
                 logging.info(coef_df)
 
             else:
-                logging.error("The best model from GridSearchCV doesn't support feature_importances_")
+                logging.error("The best model from GridSearchCV doesn't support feature_importances_ or coef_")
         except Exception as e:
             logging.error(f"Error in main: {e}")
 

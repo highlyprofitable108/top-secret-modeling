@@ -33,7 +33,7 @@
                     <div class="mt-2">
                         <label class="inline-flex items-center">
                             <input type="radio" id="randomHistorical" name="action" value="randomHistorical" class="form-radio text-blue-600" required>
-                            <span class="ml-2">Randomly pick historical games (max 500 games)</span>
+                            <span class="ml-2">Randomly pick historical games</span>
                         </label>
                         <label class="inline-flex items-center mt-2">
                             <input type="radio" id="nextWeek" name="action" value="nextWeek" class="form-radio text-blue-600">
@@ -48,8 +48,8 @@
             
                 <!-- Simulation Iterations -->
                 <div class="mb-4">
-                    <label for="simIterations" class="block text-gray-700">Number of Sim Iterations (max 10000, optional):</label>
-                    <input id="simIterations" name="simIterations" type="number" min="1" max="10000" class="form-input mt-1 block w-full border rounded-md p-2">
+                    <label for="simIterations" class="block text-gray-700">Number of Sim Iterations (max 100000, optional):</label>
+                    <input id="simIterations" name="simIterations" type="number" min="1" max="100000" class="form-input mt-1 block w-full border rounded-md p-2">
                 </div>
             
                 <!-- Date Selection -->
@@ -63,7 +63,7 @@
                 <!-- Number of Random Historical Games Selection -->
                 <div id="randomHistoricalGamesSection" style="display: none;" class="mb-4">
                     <label for="numRandomGames" class="block text-gray-700">Number of Random Historical Games:</label>
-                    <input id="numRandomGames" name="numRandomGames" type="number" min="1" max="500" class="form-input mt-1 block w-full border rounded-md p-2">
+                    <input id="numRandomGames" name="numRandomGames" type="number" min="1" class="form-input mt-1 block w-full border rounded-md p-2">
                 </div>
 
                 <!-- Custom Matchups Section -->
@@ -149,7 +149,7 @@
                 </div>
 
                 <div class="mb-4">
-                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Simulate Game</button>
+                    <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Simulate Game(s)</button>
                 </div>        
 
 

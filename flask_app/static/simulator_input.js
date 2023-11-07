@@ -11,16 +11,16 @@ function validateForm() {
 
     // Simulation Iterations
     const simIterations = document.getElementById('simIterations').value;
-    if (simIterations && (simIterations < 1 || simIterations > 10000)) {
-        alert('Number of Sim Iterations should be between 1 and 10,000.');
+    if (simIterations && (simIterations < 1 || simIterations > 1000000)) {
+        alert('Number of Sim Iterations should be between 1 and 1,000,000.');
         return false;
     }
 
     // Number of Random Historical Games
     if (randomHistoricalRadio.checked) {
         const numRandomGames = document.getElementById('numRandomGames').value;
-        if (!numRandomGames || numRandomGames < 1 || numRandomGames > 500) {
-            alert('Number of Random Historical Games should be between 1 and 500.');
+        if (!numRandomGames || numRandomGames < 1) {
+            alert('Number of Random Historical Games should be > 0');
             return false;
         }
     }

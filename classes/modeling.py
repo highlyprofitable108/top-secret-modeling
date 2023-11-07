@@ -64,8 +64,8 @@ class Modeling:
         self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
 
     def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
-        logging.info(df.head())
         logging.info("Starting Monte Carlo Simulation...")
+        logging.info(df.head())
 
         simulation_results = []
 
@@ -231,23 +231,23 @@ class Modeling:
         logging.info(f"Training model of type: {model_type}")
 
         if model_type == "random_forest":
-            return self.train_random_forest(X, y, grid_search_params)
+            return self.train_random_forest(X, y)
         elif model_type == "linear":
             return self.train_linear_regression(X, y)
         elif model_type == "svm":
-            return self.train_svm(X, y, grid_search_params)
+            return self.train_svm(X, y)
         elif model_type == "gradient_boosting":
-            return self.train_gradient_boosting(X, y, grid_search_params)
+            return self.train_gradient_boosting(X, y)
         elif model_type == "lasso":
-            return self.train_lasso_regression(X, y, grid_search_params)
+            return self.train_lasso_regression(X, y)
         elif model_type == "ridge":
-            return self.train_ridge_regression(X, y, grid_search_params)
+            return self.train_ridge_regression(X, y)
         elif model_type == "simple_averaging_ensemble":
             models = [
-                self.train_random_forest(X, y, grid_search_params),
+                self.train_random_forest(X, y),
                 self.train_linear_regression(X, y),
-                self.train_svm(X, y, grid_search_params),
-                self.train_gradient_boosting(X, y, grid_search_params)
+                self.train_svm(X, y),
+                self.train_gradient_boosting(X, y)
             ]
             return SimpleAveragingEnsemble(models)
         elif model_type == "stacking_ensemble":
@@ -325,17 +325,15 @@ class Modeling:
         model.fit(X, y)
         return model
 
-    def train_lasso_regression(self, X, y, grid_search_params=None):
-        if not grid_search_params:
-            grid_search_params = {
-                'alpha': [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]
-            }
+    def train_lasso_regression(self, X, y):
+        grid_search_params = {
+            'alpha': [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]
+        }
         lasso = GridSearchCV(Lasso(), grid_search_params, cv=5)
         lasso.fit(X, y)
         return lasso
 
-    def train_ridge_regression(self, X, y, grid_search_params=None):
-        # if not grid_search_params:
+    def train_ridge_regression(self, X, y):
         grid_search_params = {
             'alpha': [0.01, 0.1, 1, 10, 100, 1000]
         }
