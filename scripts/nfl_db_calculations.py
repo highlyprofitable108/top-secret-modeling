@@ -1,7 +1,7 @@
 # Standard library imports
+import logging
 from datetime import datetime, timedelta
 from dateutil.parser import parse
-import logging
 
 # Third-party imports
 import pandas as pd
