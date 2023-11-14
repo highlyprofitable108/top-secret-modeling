@@ -14,8 +14,6 @@ constants:
   TEAMS_DB_NAME: "teams"
   PREGAME_DB_NAME: "pre_game_data"
   RANKS_DB_NAME: "team_aggregated_metrics"
-  WEEKLY_RANKS_DB_NAME: "weekly_ranks"
-  WASHINGTON: "Commanders"
   DATE_FLEXIBILITY: 1
 
 nfl_api:
@@ -33,7 +31,7 @@ paths:
   odds_dir: "./data/csvs/odds.csv"
 
 database:
-  mongo_uri: "mongodb://localhost:27017/"
+  mongo_uri: "mongodb+srv://mikefuscoletti:sERswgdHNxTxCKrd@cluster0.o9lx9sb.mongodb.net/?retryWrites=true&w=majority"
   database_name: "nfl_db"
 
 model_settings:

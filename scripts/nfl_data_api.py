@@ -1,5 +1,5 @@
-from classes.api_handler import APIHandler
 import logging
+from classes.api_handler import APIHandler
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -42,10 +42,10 @@ def fetch_nfl_data(year: int, season_type: str) -> dict:
             return None
 
         # Fetch game schedule
-        game_schedule = api_handler.fetch_game_schedule(year, season_type)
+        api_handler.fetch_game_schedule(year, season_type)
 
         logging.info("Successfully fetched NFL data")
-        return game_schedule
+
     except Exception as e:
         logging.error(f"Error fetching NFL data: {e}")
         return None

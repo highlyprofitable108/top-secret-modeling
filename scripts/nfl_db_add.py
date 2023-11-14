@@ -49,14 +49,6 @@ class DBInserter:
                     self.insert_game_data(data)
                     logging.info("Inserting team data")
                     self.insert_team_data(data)
-                    # logging.info("Inserting venue data")
-                    # self.insert_venue_data(data)
-                    # logging.info("Inserting statistics data")
-                    # self.insert_statistics_data(data)
-                    # logging.info("Inserting players data")
-                    # self.insert_players_data(data)
-                    # logging.info("Inserting summary data")
-                    # self.insert_summary_data(data)
 
             except json.JSONDecodeError:
                 logging.error(f"Error decoding JSON from file: {file_path}")
@@ -90,36 +82,10 @@ class DBInserter:
                     games_collection.update_one({'id': game_id}, {'$set': data})
 
     def insert_team_data(self, data):
+        """Insert data into teams table."""
         teams_collection = self.db['teams']
         teams_collection.insert_one(data['summary']['home'])
         teams_collection.insert_one(data['summary']['away'])
-
-    """
-    def insert_venue_data(self, data):
-        if 'venue' in data:
-            venue_collection = self.db['venues']
-            venue_collection.insert_one(data['venue'])
-
-    def insert_statistics_data(self, data):
-        if 'statistics' in data:
-            statistics_collection = self.db['statistics']
-            statistics_collection.insert_one(data['statistics']['home'])
-            statistics_collection.insert_one(data['statistics']['away'])
-
-    def insert_players_data(self, data):
-        if 'statistics' in data:
-            players_collection = self.db['players']
-            for team in ['home', 'away']:
-                for category, stats in data['statistics'][team].items():
-                    if isinstance(stats, dict) and 'players' in stats:
-                        for player in stats['players']:
-                            players_collection.insert_one(player)
-
-    def insert_summary_data(self, data):
-        if 'summary' in data:
-            summary_collection = self.db['summary']
-            summary_collection.insert_one(data['summary'])
-    """
 
     def load_data_from_csv(self):
         """Loads data from a CSV file."""
@@ -178,9 +144,6 @@ class DBInserter:
     def _extract_team_name(self, team_name):
         main_name = team_name.split(' (')[0].split(' ')[-1] if ' (' in team_name else team_name.split(' ')[-1]
         return main_name
-
-        # conversion = {"Team": "Commanders", "Redskins": "Commanders"}
-        # return conversion.get(main_name, main_name)
 
     def _construct_query(self, date_str, home_team, away_team):
         one_day = timedelta(days=1)
@@ -244,6 +207,29 @@ class DBInserter:
                 }}
             )
 
+    def normalize(self, value, min_value=0, max_value=100):
+        # Placeholder normalization function, should be replaced with actual normalization logic
+        return (value - min_value) / (max_value - min_value) * 100
+
+    def calculate_defensive_line_rating(self, sacks, tloss, qb_hits, hurries, forced_fumbles, knockdowns):
+        # Normalize each stat to a 0-100 scale based on league max/min for the season
+        # Then take a weighted average
+        # Weights are hypothetical and should be determined by analysis
+        weights = {'sacks': 0.25, 'tloss': 0.2, 'qb_hits': 0.2, 'hurries': 0.15, 'forced_fumbles': 0.1, 'knockdowns': 0.1}
+        stats = {'sacks': sacks, 'tloss': tloss, 'qb_hits': qb_hits, 'hurries': hurries, 'forced_fumbles': forced_fumbles, 'knockdowns': knockdowns}
+        
+        rating = sum(weights[stat] * self.normalize(stats[stat]) for stat in stats)
+        return rating
+
+    def calculate_offensive_line_rating(self, pocket_time, sacks_allowed, hurries_allowed, knockdowns_allowed, rushing_yards_before_contact, throw_aways):
+        # Normalize and invert where necessary (e.g., fewer sacks allowed is better)
+        # Weights are hypothetical and should be determined by analysis
+        weights = {'pocket_time': 0.2, 'sacks_allowed': 0.25, 'hurries_allowed': 0.25, 'knockdowns_allowed': 0.15, 'rushing_yards_before_contact': 0.1, 'throw_aways': 0.05}
+        stats = {'pocket_time': pocket_time, 'sacks_allowed': sacks_allowed, 'hurries_allowed': hurries_allowed, 'knockdowns_allowed': knockdowns_allowed, 'rushing_yards_before_contact': rushing_yards_before_contact, 'throw_aways': throw_aways}
+        
+        rating = sum(weights[stat] * (100 - self.normalize(stats[stat])) if stat in ['sacks_allowed', 'hurries_allowed', 'knockdowns_allowed', 'throw_aways'] else weights[stat] * self.normalize(stats[stat]) for stat in stats)
+        return rating
+        
     def add_advanced_data(self, df):
         for team in ['home', 'away']:
             # Rush-Pass Ratio
@@ -263,6 +249,26 @@ class DBInserter:
 
             # Drop Rate
             df[f'statistics.{team}.advanced.drop_rate'] = df[f'statistics.{team}.receiving.totals.dropped_passes'] / df[f'statistics.{team}.receiving.totals.targets']
+
+            # Calculate Defensive Line Rating
+            df[f'statistics.{team}.advanced.defensive_line_rating'] = self.calculate_defensive_line_rating(
+                df[f'statistics.{team}.defense.totals.sacks'],
+                df[f'statistics.{team}.defense.totals.tloss'],
+                df[f'statistics.{team}.defense.totals.qb_hits'],
+                df[f'statistics.{team}.defense.totals.hurries'],
+                df[f'statistics.{team}.defense.totals.forced_fumbles'],
+                df[f'statistics.{team}.defense.totals.knockdowns']
+            )
+
+            # Calculate Offensive Line Rating
+            df[f'statistics.{team}.advanced.offensive_line_rating'] = self.calculate_offensive_line_rating(
+                df[f'statistics.{team}.passing.totals.pocket_time'],
+                df[f'statistics.{team}.passing.totals.sacks'],
+                df[f'statistics.{team}.passing.totals.hurries'],
+                df[f'statistics.{team}.passing.totals.knockdowns'],
+                df[f'statistics.{team}.rushing.totals.yards'] - df[f'statistics.{team}.rushing.totals.yards_after_contact'],
+                df[f'statistics.{team}.passing.totals.throw_aways']
+            )
 
         return df
 

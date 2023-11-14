@@ -199,6 +199,8 @@ ALL_COLUMNS = [
     "advanced.qb_hit_rate",
     "advanced.rush_pass_rate",
     "advanced.tackle_for_loss_rate",
+    "advanced.offensive_line_rating",
+    "advanced.defensive_line_rating",
 ]
 
 NEGATIVE_IMPACT_COLUMNS = [
