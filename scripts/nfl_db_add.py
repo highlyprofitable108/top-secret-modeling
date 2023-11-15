@@ -84,8 +84,24 @@ class DBInserter:
     def insert_team_data(self, data):
         """Insert data into teams table."""
         teams_collection = self.db['teams']
-        teams_collection.insert_one(data['summary']['home'])
-        teams_collection.insert_one(data['summary']['away'])
+
+        # Function to get first 5 fields of a document
+        def get_first_5_fields(doc):
+            return {k: doc[k] for k in list(doc.keys())[:5]}
+
+        # Prepare documents
+        home_team_data = get_first_5_fields(data['summary']['home'])
+        away_team_data = get_first_5_fields(data['summary']['away'])
+
+        # Function to insert document if not exists
+        def insert_if_not_exists(collection, doc):
+            # Assuming there's a unique identifier in the document, e.g., 'team_id'
+            if not collection.find_one({'id': doc['id']}):
+                collection.insert_one(doc)
+
+        # Insert data
+        insert_if_not_exists(teams_collection, home_team_data)
+        insert_if_not_exists(teams_collection, away_team_data)
 
     def load_data_from_csv(self):
         """Loads data from a CSV file."""
@@ -186,7 +202,7 @@ class DBInserter:
                     'summary.odds.total_close': total_close
                 }}
             )
-        else:
+        elif days_difference < 0:
             home_points = game['summary']['home']['points']
             away_points = game['summary']['away']['points']
 

@@ -13,6 +13,7 @@ constants:
   GAMES_DB_NAME: "games"
   TEAMS_DB_NAME: "teams"
   PREGAME_DB_NAME: "pre_game_data"
+  WEEKLY_RANKS_DB_NAME: "weekly_stats"
   RANKS_DB_NAME: "team_aggregated_metrics"
   DATE_FLEXIBILITY: 1
 

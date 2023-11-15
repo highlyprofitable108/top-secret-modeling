@@ -354,15 +354,15 @@ class StatsCalculator:
                 weights = modified_coefficients  # Directly use the modified_coefficients dictionary as weights
 
             # Exclude 'id' and 'name' from the power rank calculations
-            # columns_for_power_rank = [col for col in columns_to_filter if col not in ['id', 'name', 'update_date']]
-            # df = self.calculate_power_rank(processed_games_df, columns_for_power_rank, weights)
+            columns_for_power_rank = [col for col in columns_to_filter if col not in ['id', 'name', 'update_date']]
+            df = self.calculate_power_rank(processed_games_df, columns_for_power_rank, weights)
 
-            # if df is not None:
-            #    normalized_df = self.normalize_data(df)
-                # Insert aggregated data into MongoDB
-            #    self.insert_aggregated_data_into_database(normalized_df)
-            # else:
-            #     logging.error("Error in calculating power rank. Exiting script.")
+            if df is not None:
+                normalized_df = self.normalize_data(df)
+
+                self.insert_aggregated_data_into_database(normalized_df)
+            else:
+                logging.error("Error in calculating power rank. Exiting script.")
         else:
             logging.error("Error in data loading and processing. Exiting script.")
 

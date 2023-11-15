@@ -10,7 +10,7 @@ import scripts.constants
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
-from classes.data_visualization import Visualization
+from classes.model_visualization import ModelVisualization
 from classes.database_operations import DatabaseOperations
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,7 +24,7 @@ class NFLModel:
         self.modeling = Modeling()
 
         self._fetch_constants_and_configs()
-        self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
+        self.model_results = ModelVisualization(self.template_dir, self.TARGET_VARIABLE)
 
     def _fetch_constants_and_configs(self):
         """Fetch constants and configurations from the configuration manager."""
@@ -108,74 +108,12 @@ class NFLModel:
             logging.info("Generating EDA report")
 
             # Paths to save the generated plots
-            descriptive_stats_path = self.visualization.generate_descriptive_statistics(df)
-            data_quality_report_path = self.visualization.generate_data_quality_report(df)
-
-            return descriptive_stats_path, data_quality_report_path
+            self.model_results.generate_descriptive_statistics(df)
+            self.model_results.generate_data_quality_report(df)
 
         except Exception as e:
             logging.error(f"Error in generate_eda_report: {e}")
             return None, None, None, None, None
-
-    def plot_importance(self, df, model):
-        """Plots the feature importance for tree-based models and coefficients for linear models."""
-        try:
-            X = df.drop(columns=[self.TARGET_VARIABLE])
-            y = df[self.TARGET_VARIABLE]
-
-            # Check if the model is a result of GridSearchCV or RandomizedSearchCV
-            if hasattr(model, 'best_estimator_'):
-                estimator = model.best_estimator_
-            else:
-                estimator = model
-
-            # Check if the model is tree-based and has feature_importances_ attribute
-            if hasattr(estimator, 'feature_importances_'):
-                # Extract and standardize feature importances
-                importances = estimator.feature_importances_ / estimator.feature_importances_.sum()
-                importance_type = 'Importance'
-
-                # Identify top features based on importance or coefficients
-                top_importance_features, top_correlation_features = self.modeling.identify_top_features(X, y, importances)
-
-                # Create a DataFrame for feature importance or coefficient visualization
-                feature_importance_df = self.prepare_feature_importance_df(X.columns, importances, top_importance_features, top_correlation_features, importance_type)
-
-                # Visualize feature importance or coefficients
-                feature_importance_path = self.visualization.visualize_feature_importance(feature_importance_df)
-
-            # Check if the model is linear and has coef_ attribute
-            elif hasattr(estimator, 'coef_'):
-                importances = estimator.coef_
-            else:
-                logging.error("The model doesn't support feature_importances_ or coef_")
-                return None
-
-            # Create Heat Map
-            heatmap_path = self.visualization.plot_interactive_correlation_heatmap(df, importances)
-
-            logging.info(f"Best model score: {estimator.score}")
-
-            return heatmap_path
-        except Exception as e:
-            logging.error(f"Error generating feature importance plot: {e}")
-            return None
-
-    def prepare_feature_importance_df(self, feature_names, importances, top_importance_features, top_correlation_features, importance_type):
-        """Prepare a DataFrame for feature importance or coefficient visualization."""
-        def determine_color(feature):
-            if feature in top_importance_features and feature in top_correlation_features:
-                return 'Important and Related'
-            elif feature in top_importance_features:
-                return 'Important'
-            elif feature in top_correlation_features:
-                return 'Related to Target'
-            else:
-                return 'Just Data'
-
-        feature_importance_df = pd.DataFrame({'Feature': feature_names, importance_type: importances})
-        feature_importance_df['Highlight'] = feature_importance_df['Feature'].apply(determine_color)
-        return feature_importance_df.sort_values(by=importance_type, ascending=False)
 
     # Data Processing Methods
     def preprocess_nfl_data(self, df):
@@ -228,62 +166,31 @@ class NFLModel:
             joblib.dump(model, os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
             joblib.dump(scaler, os.path.join(self.model_dir, 'data_scaler.pkl'))
 
-            # Check if the model is a result of GridSearchCV or RandomizedSearchCV
-            if hasattr(model, 'best_estimator_'):
-                estimator = model.best_estimator_
-            else:
-                estimator = model
+            # Extract the best estimator if using GridSearchCV or RandomizedSearchCV
+            estimator = model.best_estimator_ if hasattr(model, 'best_estimator_') else model
 
-            # Ensure the model is a RandomForestRegressor before accessing feature_importances_
-            if hasattr(estimator, 'feature_importances_'):
-                # Fetching additional details
-                best_score = model.best_score_
-                best_params = model.best_params_
-                model_name = type(estimator).__name__
+            # Calculate and store feature coefficients
+            coefficients = estimator.coef_
+            feature_coefficients_html = self.model_results.calculate_feature_coefficients(feature_columns, coefficients)
 
-                # Constructing importance dataframe
-                importance_data = {
-                    'Feature': feature_columns,
-                    'Importance': estimator.feature_importances_
-                }
-                importance_df = pd.DataFrame(importance_data)
-                importance_df = importance_df.sort_values(by='Importance', ascending=False)
-                importance_df['Rank'] = range(1, len(importance_df) + 1)
-                importance_df['Cumulative Importance'] = importance_df['Importance'].cumsum()
-                self.plot_importance(df, model)
+            # Create Heat Map
+            self.model_results.correlation_heatmap(df, coefficients)
 
-                # shap_values, explainer = self.modeling.compute_shap_values(estimator, X_train, self.model_type)
-                # X = pd.DataFrame(X_train, columns=feature_columns)
-                # self.visualization.visualize_shap_summary(shap_values, explainer, X)
+            # Model Interpretation using SHAP or LIME
+            shap_html = self.model_results.model_interpretation(estimator, X_train, feature_columns)
 
-                # Logging details
-                logging.info(f"Best Model: {model_name}")
-                logging.info(f"Best Parameters: {best_params}")
-                logging.info(f"Best Score: {best_score:.4f}")
-                logging.info("Feature Importances:")
-                logging.info(importance_df)
-            elif hasattr(estimator, 'coef_'):
-                coefficients = estimator.coef_
+            # Generate Performance Metrics Summary
+            performance_metrics_html = self.model_results.performance_metrics_summary(estimator, X_test, y_test)
 
-                # Create a DataFrame for feature coefficients
-                coef_data = {
-                    'Feature': feature_columns,
-                    'Coefficient': coefficients
-                }
-                coef_df = pd.DataFrame(coef_data)
+            # Check for Data Leakage
+            # self.model_results.check_data_leakage(df, feature_columns, self.TARGET_VARIABLE)
 
-                # Sort by the absolute value of the coefficient for importance
-                coef_df = coef_df.sort_values(by='Coefficient', key=abs, ascending=False)
+            # Document Model Decisions
+            # self.model_results.document_model_decisions()
 
-                self.plot_importance(df, model)
-                self.visualization.visualize_coefficients(coef_df)
+            # Generate consolidated HTML report
+            self.model_results.generate_consolidated_report(feature_coefficients_html, shap_html, performance_metrics_html)
 
-                # Logging details
-                logging.info("Feature Coefficients:")
-                logging.info(coef_df)
-
-            else:
-                logging.error("The best model from GridSearchCV doesn't support feature_importances_ or coef_")
         except Exception as e:
             logging.error(f"Error in main: {e}")
 

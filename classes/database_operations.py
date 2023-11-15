@@ -33,6 +33,7 @@ class DatabaseOperations:
         try:
             cursor = self.db[collection_name].find()
             df = pd.DataFrame(list(cursor))
+
             return df
         except Exception as e:
             self.logger.error(f"Error fetching data from MongoDB: {e}")

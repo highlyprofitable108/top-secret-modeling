@@ -121,7 +121,6 @@ class DataProcessing:
 
         # Extract unique base column names from the features list
         base_column_names = set(col.rsplit('_', 1)[0] for col in features)
-
         # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
         home_features = self.get_team_data(df, home_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
         away_features = self.get_team_data(df, away_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)

@@ -178,3 +178,24 @@ h1 {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+.custom-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.5rem; /* Adjust spacing as needed */
+}
+
+.custom-table th, .custom-table td {
+    border: 1px solid #ddd;
+    padding: 0.5rem; /* Adjust padding as needed */
+    text-align: left;
+}
+
+.custom-table th {
+    background-color: #f8f9fa; /* Adjust header background color as needed */
+    color: #333;
+}
+
+.custom-table tbody tr:hover {
+    background-color: #f1f1f1; /* Adjust hover background color as needed */
+}

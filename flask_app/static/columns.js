@@ -104,8 +104,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         })
         .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                // If /generate_power_ranks is successful, send a request to /sim_runner
+                return fetch('/sim_runner', {
+                    method: 'POST'
+                });
+            } else {
+                throw new Error(data.error || 'Error generating power ranks.');
+            }
+        })
         .then(() => {
-            // After all fetch calls are successful, redirect to /view_analysis
+            // After /sim_runner call is successful, redirect to /view_analysis
             window.location.href = '/view_analysis'; 
         })
         .catch(error => {
@@ -113,7 +123,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             alert('An error occurred. Please try again.');
             document.getElementById('loading-spinner').style.display = 'none';
         });
-    }
+    }    
 
     function showLoadingSpinner() {
         // You can adjust the values here based on the specifics of column.js if needed

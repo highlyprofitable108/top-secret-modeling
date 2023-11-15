@@ -38,46 +38,29 @@
             
             <!-- Tab Buttons -->
             <div class="flex space-x-4 mb-4">
-                <button onclick="showTab('customPowerRanksContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Custom Power Ranks</button>
-                <button onclick="showTab('interactiveHeatmapContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Interactive Heatmap</button>
-                <button onclick="showTab('importanceContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Feature Importance</button>
-                <!--<button onclick="showTab('shapSummaryContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Shap Summary</button>-->
-                <button onclick="showTab('dataQualityReportContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Data Quality Report</button>
-                <button onclick="showTab('descriptiveStatisticsContent')" class="tab-button w-1/5 text-center py-2 px-4 bg-blue-200 hover:bg-blue-500 text-gray-700 hover:text-white rounded-lg">Descriptive Statistics</button>
+                <button onclick="showTab('summaryContent')" class="tab-button">Summary</button>
+                <button onclick="showTab('heatmapContent')" class="tab-button">Heatmap</button>
+                <button onclick="showTab('dataQualityContent')" class="tab-button">Data Quality</button>
+                <button onclick="showTab('descriptiveStatsContent')" class="tab-button">Descriptive Statistics</button>
             </div>
 
             <!-- Tab Contents -->
-            <div id="customPowerRanksContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
-                {% include 'team_power_rank.html' %}
+            <div id="summaryContent" class="tab-content hidden">
+                {% include 'summary.html' %}
 
-                <a href="/view_power_ranks" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
+                <a href="/summary" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
-
-            <div id="interactiveHeatmapContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card heatmap-card">
+            <div id="heatmapContent" class="tab-content hidden">
                 {% include 'interactive_heatmap.html' %}
 
                 <a href="/interactive_heatmap" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
-
-            <div id="importanceContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
-                {% include 'importance.html' %}
-
-                <a href="/importance" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
-            </div>
-
-            <!--<div id="shapSummaryContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
-                include shap_summary.html
-
-                <a href=/shap_summary target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
-            </div>
-            -->
-            <div id="dataQualityReportContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+            <div id="dataQualityContent" class="tab-content hidden">
                 {% include 'data_quality_report.html' %}
-
+            
                 <a href="/data_quality_report" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
-
-            <div id="descriptiveStatisticsContent" class="tab-content hidden mt-4 p-6 bg-gray-100 rounded-lg content-card">
+            <div id="descriptiveStatsContent" class="tab-content hidden">
                 {% include 'descriptive_statistics.html' %}
 
                 <a href="/descriptive_statistics" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
@@ -95,12 +78,40 @@
                 <p class="bg-gray-300 p-4 rounded">In data analysis, differences are used to measure the absolute change between two values, which can be useful to understand the scale of change. Ratios, on the other hand, provide a relative measure, indicating how many times one value is compared to another. This can be particularly useful when comparing values of different scales or when looking for proportional changes.</p>
             </div>
 
-            <!-- Power Ranks Explanation -->
+            <!-- Feature Coefficient Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Power Ranks:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic toy box. In this box, there are many toy teams. Some teams can jump really high, some can run super fast, and some are great at playing catch. You get to choose which skills are the most fun for you. Based on the skills you choose, the magic box arranges the toy teams in a line. The teams that are best at the skills you like are at the front, and the ones that are not so good are at the back. This report shows you that special line-up of teams!</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The power ranks provide a comprehensive ranking of teams based on the performance metrics selected by the user. These metrics can range from vegas oddss to possession times and other game-related statistics. The ranking is influenced by the importance of each metric as chosen by the user. Additionally, recent games have more weight, ensuring that the ranking reflects the current form of the teams. After considering all these factors, the ranks are normalized and presented in a bar chart for visualization.</p>
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Coefficients:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine each feature in our data as a player in a team. Some players have a big impact on the game's score, and others have less. Feature coefficients tell us how much each player (feature) helps in winning the game (predicting the outcome).</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Feature coefficients represent the importance and direction of each feature's impact on the model's prediction. A high positive or negative coefficient suggests a strong influence on the outcome. These coefficients are crucial for understanding which features contribute most to the model's predictions and in which direction.</p>
             </div>
+            
+            <!-- SHAP Value Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP Values:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Think of SHAP values as a way to see inside a magic ball that can guess things. It shows us what things inside the ball (features) make the ball guess one way or another.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> SHAP (SHapley Additive exPlanations) values provide detailed insights into how each feature in the model contributes to each prediction. They help in understanding the model's behavior on a granular level, revealing the impact of each feature on the model's output for individual predictions.</p>
+            </div>
+
+            <!-- Mean Absolute Error (MAE) Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Mean Absolute Error (MAE):</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you are guessing the number of candies in a jar. If your guess is not exact, MAE tells us how far off your guess was on average.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> MAE measures the average magnitude of errors in predictions, regardless of direction. It's the average over the test sample of the absolute differences between predicted and actual values. A lower MAE value indicates higher accuracy. In an ideal scenario, an MAE of 0 means perfect predictions, but in practice, a 'good' MAE depends on the context and range of your target variable.</p>
+            </div>            
+            
+            <!-- Mean Squared Error (MSE) Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Mean Squared Error (MSE):</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> If you try to hit a target with a ball, MSE tells us how close you get to the target each time, on average. The closer you are, the better your aim.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> MSE is similar to MAE but squares the difference between predicted and actual values. It penalizes larger errors more severely than MAE, making it sensitive to outliers. Like MAE, a lower MSE indicates better performance. However, since MSE is in squared units of the target variable, it should be interpreted in the context of the data's scale and variance.</p>
+            </div>            
+
+            <!-- R-squared (R2) Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">R-squared (R2):</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> If you have a bunch of dots on a paper and draw a line through them, R2 tells us how well the line goes through all the dots. A perfect line would go through every dot.</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> R2 is a statistical measure representing the proportion of the variance for the dependent variable that's explained by the independent variables in the model. It ranges from 0 to 1, with higher values indicating a better fit between prediction and reality. An R2 of 1 implies perfect prediction. While a higher R2 is generally better, it's crucial to consider the complexity of the model and the risk of overfitting, especially with high R2 values.</p>
+            </div>            
 
             <!-- Interactive Heatmap Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
@@ -109,20 +120,6 @@
                 <p class="bg-yellow-200 p-4 rounded italic font-normal text-xs">Important Note: For the puzzle to load quickly, we only use up to 50 pieces. If you have more than 10 pieces, it's best to download and look at the puzzle on your own computer for the best view.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The heatmap visualizes the correlation between different features. High positive or negative correlation indicates related features. Avoid multicollinearity by not selecting features that are highly correlated. For optimal performance and clarity, especially with datasets having more than 50 columns, we recommend downloading the heatmap and reviewing it locally.</p>
             </div>
-
-            <!-- Feature Importance Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Importance:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> This report tells us which toys (or features) are the most fun to play with when predicting something.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> The report ranks features based on their importance in predicting the target variable. Features with higher scores impact the model's predictions more. Prioritize these features in your model.</p>
-            </div>
-
-            <!-- SHAP Explanation -->
-            <!--<div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP (SHapley Additive exPlanations):</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have a magic box that can predict how many candies you'll get. SHAP is like a magnifying glass that lets you see inside the box and understand which factors (like the day of the week or the weather) influence the number of candies you get.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> SHAP values provide a unified measure of feature importance by attributing the change in the expected model prediction when conditioning on that feature. It offers insights into the impact of each feature on the model's predictions for individual instances. The SHAP summary plot and force plot are visual representations that help in understanding these values and their implications on the model's behavior.</p>
-            </div>-->
 
             <!-- Data Quality Report Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">

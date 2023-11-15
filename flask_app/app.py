@@ -188,33 +188,8 @@ def generate_power_ranks():
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
     try:
-        # Retrieve parameters from the POST request
-        action = request.form.get('action')
-        logger.info(f"Action: {action}")
-
-        # Handle num_simulations with default value of 1000
-        simIterations = request.form.get('simIterations')
-        num_simulations = int(simIterations) if simIterations else 1000
-        logger.info(f"Number of Simulations: {num_simulations}")
-
-        # Handle date_input with default value of today
-        date_input = request.form.get('date')
-        if not date_input:
-            date_input = datetime.today()
-        elif isinstance(date_input, str):
-            date_input = datetime.strptime(date_input, '%Y-%m-%d')
-        logger.info(f"Date Input: {date_input}")
-
-        # Handle random_subset with default value of 0
-        numRandomGames = request.form.get('numRandomGames', 0)
-        random_subset = int(numRandomGames) if numRandomGames else 0
-        logger.info(f"Random Subset: {random_subset}")
-
-        # Convert date string to datetime object
-        if not date_input:
-            date_input = datetime.today()
-        elif isinstance(date_input, str):
-            date_input = datetime.strptime(date_input, '%Y-%m-%d')
+        # Set the date to the current day
+        date_input = datetime.today()
 
         # Determine the closest past Tuesday
         while date_input.weekday() != 1:  # 1 represents Tuesday
@@ -223,34 +198,39 @@ def sim_runner():
         # Initialize the NFLPredictor
         nfl_sim = NFLPredictor()
 
-        # Handle different actions
-        if action == "randomHistorical":
-            logger.info("Handling randomHistorical action")
-            nfl_sim.simulate_games(num_simulations=num_simulations, random_subset=random_subset, date=date_input)
-        elif action == "nextWeek":
-            logger.info("Handling nextWeek action")
-            nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, get_current=True)
-        elif action == "customMatchups":
-            logger.info("Handling customMatchups action")
-            matchups = []
-            for i in range(1, 17):  # Assuming max 16 matchups
-                home_team = request.form.get(f'homeTeam{i}')
-                away_team = request.form.get(f'awayTeam{i}')
-                if home_team and away_team:
-                    matchups.append((home_team, away_team))
-            nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
+        # Execute the randomHistorical action
+        # logger.info("Executing randomHistorical action")
+        # nfl_sim.simulate_games(num_simulations=2500, random_subset=500, date=date_input)
+
+        # Execute the nextWeek action
+        # logger.info("Executing nextWeek action")
+        # nfl_sim.simulate_games(num_simulations=10000, date=date_input, get_current=True)
 
         return redirect(url_for('sim_results'))
-    
+  
     except Exception as e:
         # If there is an error, log it and return an error message
         logger.error(f"Error in sim_runner: {e}")
         return jsonify(error=str(e)), 500
 
+        # elif action == "customMatchups":
+        #     logger.info("Handling customMatchups action")
+        #     matchups = []
+        #     for i in range(1, 17):  # Assuming max 16 matchups
+        #         home_team = request.form.get(f'homeTeam{i}')
+        #         away_team = request.form.get(f'awayTeam{i}')
+        #         if home_team and away_team:
+        #             matchups.append((home_team, away_team))
+        #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)  
 
 @app.route('/sim_results')
 def sim_results():
     return render_template('simulator_results.html')
+
+
+@app.route('/summary')
+def summary():
+    return render_template('consolidated_model_report.html')
 
 
 @app.route('/interactive_heatmap')
@@ -258,14 +238,9 @@ def heatmap():
     return render_template('interactive_heatmap.html')
 
 
-@app.route('/importance')
-def importance():
-    return render_template('importance.html')
-
-
-# @app.route('/shap_summary')
-# def shap_summary():
-#     return render_template('shap_summary.html')
+@app.route('/data_quality_report')
+def data_quality_report():
+    return render_template('data_quality_report.html')
 
 
 @app.route('/descriptive_statistics')
@@ -273,19 +248,9 @@ def descriptive_statistics():
     return render_template('descriptive_statistics.html')
 
 
-@app.route('/data_quality_report')
-def data_quality_report():
-    return render_template('data_quality_report.html')
-
-
 @app.route('/view_analysis')
 def view_analysis():
     return render_template('view_analysis.html')
-
-
-@app.route('/view_power_ranks')
-def view_power_ranks():
-    return render_template('team_power_rank.html')
 
 
 @app.route('/simulator_input')
@@ -296,11 +261,6 @@ def simulator_input():
 @app.route('/simulator_results')
 def simulator_results():
     return render_template('simulator_results.html')
-
-
-@app.route('/view_power_rank_bar')
-def view_power_rank_bar():
-    return render_template('normalized_power_ranks.html')
 
 
 @app.route('/view_simulation_distribution')

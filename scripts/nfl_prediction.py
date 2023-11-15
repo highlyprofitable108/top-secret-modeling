@@ -98,7 +98,6 @@ class NFLPredictor:
     def load_model_and_scaler(self):
         try:
             model = joblib.load(os.path.join(self.model_dir, 'trained_nfl_model.pkl'))
-            print(model)
             scaler = joblib.load(os.path.join(self.model_dir, 'data_scaler.pkl'))
             return model, scaler
         except FileNotFoundError as e:
@@ -118,7 +117,14 @@ class NFLPredictor:
         # Convert the 'scheduled' column to datetime format
         historical_df['scheduled'] = pd.to_datetime(historical_df['scheduled'])
 
-        # Filter out games scheduled before "09-01-2015"
+        # Get current date
+        current_date = datetime.now()
+
+        # Filter out rows where 'scheduled' date is more than 7 days in the future
+        seven_days_ahead = current_date + timedelta(days=7)
+        historical_df = historical_df[historical_df['scheduled'] <= seven_days_ahead]
+
+        # Filter out games scheduled before CUTOFF_DATE
         historical_df = historical_df[historical_df['scheduled'] >= self.CUTOFF_DATE]
 
         columns_to_check = [col for col in historical_df.columns if col.startswith('summary.odds.spread')]
@@ -190,36 +196,9 @@ class NFLPredictor:
         self.logger.info("Starting prediction process...")
         reload(scripts.constants)
 
-        # Fetch data only for the selected teams from the weekly_ranks collection
-        df = self.database_operations.fetch_data_from_mongodb('weekly_ranks')
-
-        if adhoc and matchups:
-            # Filter out matchups where both teams are "None" or None
-            valid_matchups = [(home, away) for home, away in matchups if home not in [None, "None"] and away not in [None, "None"]]
-
-            # If it's an adhoc simulation with custom matchups, prepare the historical_df accordingly
-            historical_df = pd.DataFrame(valid_matchups, columns=['summary.home.name', 'summary.away.name'])
-            historical_df['scheduled'] = date
-
-            columns_to_enable = [
-                'id',
-                'summary.home.id',
-                'summary.away.id',
-                'summary.home.points',
-                'summary.away.points',
-                'summary.odds.spread_close',
-            ]
-
-            # Create a new DataFrame with the desired columns set to None
-            df_none = pd.DataFrame(columns=columns_to_enable)
-            for column in columns_to_enable:
-                df_none[column] = None
-
-            # Update the historical_df with the new DataFrame
-            historical_df = historical_df.combine_first(df_none)
-        else:
-            historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
-
+        # Fetch data only for the selected teams from the weekly_stats collection
+        df = self.database_operations.fetch_data_from_mongodb('weekly_stats')
+        historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
         all_actual_results = []
@@ -234,13 +213,18 @@ class NFLPredictor:
         for _, row in historical_df.iterrows():
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
+
+            # Skip iteration if home_team or away_team is 'AFC' or 'NFC'
+            if home_team in ['AFC', 'NFC'] or away_team in ['AFC', 'NFC']:
+                continue
+
             home_team = self.data_processing.replace_team_name(home_team)
             away_team = self.data_processing.replace_team_name(away_team)
 
             self.set_game_details(home_team, away_team, row['scheduled'])
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
-
+            
             # Append the home and away team names to the lists
             home_teams.append(home_team)
             away_teams.append(away_team)
