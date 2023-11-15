@@ -367,8 +367,8 @@ class StatsCalculator:
             logging.error("Error in data loading and processing. Exiting script.")
 
         # After inserting aggregated data into MongoDB
-        df = self.fetch_team_ranking_metrics()
-        self.generate_interactive_htmls(df)
+        # df = self.fetch_team_ranking_metrics()
+        # self.generate_interactive_htmls(df)
 
 
 if __name__ == "__main__":

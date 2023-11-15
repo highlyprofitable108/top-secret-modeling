@@ -20,11 +20,11 @@
       <td>6</td>
     </tr>
     <tr>
-      <th>passing.totals.cmp_pct_ratio</th>
+      <th>passing.totals.attempts_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
-      <td>6</td>
+      <td>20</td>
     </tr>
     <tr>
       <th>passing.totals.completions_difference</th>
@@ -34,18 +34,53 @@
       <td>21</td>
     </tr>
     <tr>
-      <th>passing.totals.net_yards_difference</th>
+      <th>passing.totals.dropped_passes_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>21</td>
+    </tr>
+    <tr>
+      <th>passing.totals.longest_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>25</td>
+    </tr>
+    <tr>
+      <th>passing.totals.poor_throws_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>26</td>
+    </tr>
+    <tr>
+      <th>rushing.totals.attempts_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
       <td>16</td>
     </tr>
     <tr>
-      <th>receiving.totals.broken_tackles_difference</th>
+      <th>rushing.totals.avg_yards_ratio</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
-      <td>23</td>
+      <td>22</td>
+    </tr>
+    <tr>
+      <th>receiving.totals.dropped_passes_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>21</td>
+    </tr>
+    <tr>
+      <th>receiving.totals.targets_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>19</td>
     </tr>
     <tr>
       <th>summary.fumbles_difference</th>
@@ -55,46 +90,151 @@
       <td>29</td>
     </tr>
     <tr>
-      <th>first_downs.penalty_difference</th>
+      <th>summary.possession_time_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>26</td>
+    </tr>
+    <tr>
+      <th>summary.turnovers_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>22</td>
+    </tr>
+    <tr>
+      <th>efficiency.redzone.successes_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>19</td>
+    </tr>
+    <tr>
+      <th>defense.totals.def_comps_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
       <td>23</td>
     </tr>
     <tr>
-      <th>fumbles.totals.out_of_bounds_difference</th>
-      <td>0</td>
-      <td>0</td>
-      <td>float64</td>
-      <td>37</td>
-    </tr>
-    <tr>
-      <th>int_returns.totals.number_difference</th>
+      <th>defense.totals.hurries_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
       <td>35</td>
     </tr>
     <tr>
-      <th>penalties.totals.yards_difference</th>
+      <th>defense.totals.interceptions_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
-      <td>30</td>
+      <td>34</td>
     </tr>
     <tr>
-      <th>punts.totals.longest_difference</th>
+      <th>defense.totals.safeties_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>49</td>
+    </tr>
+    <tr>
+      <th>defense.totals.sp_blocks_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
       <td>28</td>
     </tr>
     <tr>
-      <th>touchdowns.pass_difference</th>
+      <th>defense.totals.tackles_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>27</td>
+    </tr>
+    <tr>
+      <th>defense.totals.tloss_yards_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>27</td>
+    </tr>
+    <tr>
+      <th>advanced.air_to_total_yards_rate_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <th>advanced.tackle_for_loss_rate_difference</th>
       <td>0</td>
       <td>0</td>
       <td>float64</td>
       <td>25</td>
+    </tr>
+    <tr>
+      <th>extra_points.conversions.totals.pass_successes_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>42</td>
+    </tr>
+    <tr>
+      <th>field_goals.totals.attempts_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>31</td>
+    </tr>
+    <tr>
+      <th>field_goals.totals.net_attempts_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>30</td>
+    </tr>
+    <tr>
+      <th>first_downs.pass_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <th>fumbles.totals.opp_rec_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>34</td>
+    </tr>
+    <tr>
+      <th>interceptions.number_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>35</td>
+    </tr>
+    <tr>
+      <th>misc_returns.totals.blk_fg_touchdowns_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>32</td>
+    </tr>
+    <tr>
+      <th>punt_returns.totals.longest_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>33</td>
+    </tr>
+    <tr>
+      <th>punts.totals.yards_difference</th>
+      <td>0</td>
+      <td>0</td>
+      <td>float64</td>
+      <td>21</td>
     </tr>
   </tbody>
 </table>

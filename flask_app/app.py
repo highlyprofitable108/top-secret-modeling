@@ -199,12 +199,12 @@ def sim_runner():
         nfl_sim = NFLPredictor()
 
         # Execute the randomHistorical action
-        # logger.info("Executing randomHistorical action")
-        # nfl_sim.simulate_games(num_simulations=2500, random_subset=500, date=date_input)
+        logger.info("Executing randomHistorical action")
+        nfl_sim.simulate_games(num_simulations=25, random_subset=5, date=date_input)
 
         # Execute the nextWeek action
-        # logger.info("Executing nextWeek action")
-        # nfl_sim.simulate_games(num_simulations=10000, date=date_input, get_current=True)
+        logger.info("Executing nextWeek action")
+        nfl_sim.simulate_games(num_simulations=100, date=date_input, get_current=True)
 
         return redirect(url_for('sim_results'))
   
@@ -223,6 +223,7 @@ def sim_runner():
         #             matchups.append((home_team, away_team))
         #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)  
 
+
 @app.route('/sim_results')
 def sim_results():
     return render_template('simulator_results.html')
@@ -233,14 +234,19 @@ def summary():
     return render_template('consolidated_model_report.html')
 
 
+@app.route('/data_quality_report')
+def data_quality_report():
+    return render_template('data_quality_report.html')
+
+
 @app.route('/interactive_heatmap')
 def heatmap():
     return render_template('interactive_heatmap.html')
 
 
-@app.route('/data_quality_report')
-def data_quality_report():
-    return render_template('data_quality_report.html')
+@app.route('/feature_coef')
+def feature_coef():
+    return render_template('feature_coef_report.html')
 
 
 @app.route('/descriptive_statistics')

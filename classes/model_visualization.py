@@ -7,8 +7,12 @@ import pandas as pd
 import numpy as np
 import shap
 import plotly.graph_objs as go
+import matplotlib
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
+
+
+matplotlib.use('Agg')
 
 
 class ModelVisualization:
@@ -72,14 +76,32 @@ class ModelVisualization:
             return None
 
     def calculate_feature_coefficients(self, feature_columns, coefficients):
-        coef_data = {
-            'Feature': feature_columns,
-            'Coefficient': coefficients
-        }
-        coef_df = pd.DataFrame(coef_data)
-        
-        return coef_df.sort_values(by='Coefficient', key=abs, ascending=False).to_html(classes="custom-table", border=0, index=True)
-    
+        try:
+            coef_data = {
+                'Feature': feature_columns,
+                'Coefficient': coefficients
+            }
+            coef_df = pd.DataFrame(coef_data)
+            
+            html_content = coef_df.sort_values(by='Coefficient', key=abs, ascending=False).to_html(classes="custom-table", border=0, index=True)
+
+            # Full HTML structure
+            full_html_content = f"""
+            <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Feature Coefficients</h2>
+                {html_content}
+            </div>
+            """
+
+            # Saving to an HTML file
+            feature_coef_path = os.path.join(self.template_dir, 'feature_coef_report.html')
+            with open(feature_coef_path, 'w') as file:
+                file.write(full_html_content)
+
+        except Exception as e:
+            logging.error(f"Error generating data quality report: {e}")
+            return None
+
     def correlation_heatmap(self, df, importances):
         """Plots an interactive correlation heatmap using Plotly."""
         try:
@@ -161,7 +183,7 @@ class ModelVisualization:
         # Return the image in HTML
         return f'<div class="image-container"><img src="data:image/png;base64,{base64_encoded_result}" class="mx-auto" /></div>'
 
-    def performance_metrics_summary(self, estimator, X_test, y_test, file_name='performance_metrics_summary.html'):
+    def performance_metrics_summary(self, estimator, X_test, y_test):
         y_pred = estimator.predict(X_test)
 
         # Regression metrics
@@ -172,8 +194,17 @@ class ModelVisualization:
         }
 
         metrics_df = pd.DataFrame([metrics])
-        return metrics_df.to_html(classes="table-auto border-collapse border border-gray-400", border=0, index=False)
 
+        # Convert DataFrame to HTML
+        html_table = metrics_df.to_html(border=0, index=False)
+
+        # Custom styling using Tailwind CSS
+        styled_html = html_table.replace('<table ', '<table class="table-auto border-collapse border border-gray-400 " ')
+        styled_html = styled_html.replace('<th>', '<th class="px-4 py-2">')
+        styled_html = styled_html.replace('<td>', '<td class="border px-4 py-2">')
+
+        return styled_html
+    
     def check_data_leakage(self, df, feature_columns, target_column):
         # Check for direct correlation between features and target
         correlation_matrix = df[feature_columns + [target_column]].corr()
@@ -208,8 +239,8 @@ class ModelVisualization:
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Model Analysis Report</h2>
 
             <div class="mb-8">
-                <h3 class="text-xl font-semibold mb-2 text-gray-700">Feature Coefficients</h3>
-                {feature_coefficients_html}
+                <h3 class="text-xl font-semibold mb-2 text-gray-700">Performance Metrics</h3>
+                {performance_metrics_html}
             </div>
 
             <div class="mb-8">
@@ -217,10 +248,6 @@ class ModelVisualization:
                 {shap_html}
             </div>
 
-            <div class="mb-8">
-                <h3 class="text-xl font-semibold mb-2 text-gray-700">Performance Metrics</h3>
-                {performance_metrics_html}
-            </div>
         </div>
         """
 

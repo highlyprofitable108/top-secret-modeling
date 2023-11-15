@@ -39,16 +39,22 @@
             <!-- Tab Buttons -->
             <div class="flex space-x-4 mb-4">
                 <button onclick="showTab('summaryContent')" class="tab-button">Summary</button>
+                <button onclick="showTab('featureContent')" class="tab-button">Features</button>
                 <button onclick="showTab('heatmapContent')" class="tab-button">Heatmap</button>
                 <button onclick="showTab('dataQualityContent')" class="tab-button">Data Quality</button>
                 <button onclick="showTab('descriptiveStatsContent')" class="tab-button">Descriptive Statistics</button>
             </div>
 
             <!-- Tab Contents -->
-            <div id="summaryContent" class="tab-content hidden">
-                {% include 'summary.html' %}
+            <div id="summaryContent" class="tab-content">
+                {% include 'consolidated_model_report.html' %}
 
                 <a href="/summary" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
+            </div>
+            <div id="featureContent" class="tab-content hidden">
+                {% include 'feature_coef_report.html' %}
+
+                <a href="/feature_coef" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
             </div>
             <div id="heatmapContent" class="tab-content hidden">
                 {% include 'interactive_heatmap.html' %}
@@ -71,18 +77,12 @@
         <!-- EXPLANATION SECTION -->
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">Reviewing Reports:</h3>
+            
             <!-- Calculation Method Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">Why Differences and Ratios?</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine you have two boxes of crayons. If you want to know how many more crayons one box has than the other, you subtract (this is a difference). But if you want to know how many times bigger one box is than the other, you divide (this is a ratio).</p>
                 <p class="bg-gray-300 p-4 rounded">In data analysis, differences are used to measure the absolute change between two values, which can be useful to understand the scale of change. Ratios, on the other hand, provide a relative measure, indicating how many times one value is compared to another. This can be particularly useful when comparing values of different scales or when looking for proportional changes.</p>
-            </div>
-
-            <!-- Feature Coefficient Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Coefficients:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine each feature in our data as a player in a team. Some players have a big impact on the game's score, and others have less. Feature coefficients tell us how much each player (feature) helps in winning the game (predicting the outcome).</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Feature coefficients represent the importance and direction of each feature's impact on the model's prediction. A high positive or negative coefficient suggests a strong influence on the outcome. These coefficients are crucial for understanding which features contribute most to the model's predictions and in which direction.</p>
             </div>
             
             <!-- SHAP Value Explanation -->
@@ -90,6 +90,13 @@
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP Values:</h4>
                 <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Think of SHAP values as a way to see inside a magic ball that can guess things. It shows us what things inside the ball (features) make the ball guess one way or another.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> SHAP (SHapley Additive exPlanations) values provide detailed insights into how each feature in the model contributes to each prediction. They help in understanding the model's behavior on a granular level, revealing the impact of each feature on the model's output for individual predictions.</p>
+            </div>
+
+            <!-- Feature Coefficient Explanation -->
+            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature Coefficients:</h4>
+                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a 5-year-old:</strong> Imagine each feature in our data as a player in a team. Some players have a big impact on the game's score, and others have less. Feature coefficients tell us how much each player (feature) helps in winning the game (predicting the outcome).</p>
+                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced Users:</strong> Feature coefficients represent the importance and direction of each feature's impact on the model's prediction. A high positive or negative coefficient suggests a strong influence on the outcome. These coefficients are crucial for understanding which features contribute most to the model's predictions and in which direction.</p>
             </div>
 
             <!-- Mean Absolute Error (MAE) Explanation -->
