@@ -32,9 +32,9 @@
             <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the vegas odds. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
         </div>
 
-        <!-- Analysis Results -->
+        <!-- Model and Sim Data -->
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">Analysis Results</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Model and Sim Data</h2>
             
             <!-- Tab Buttons -->
             <div class="flex space-x-4 mb-4">
@@ -43,6 +43,8 @@
                 <button onclick="showTab('heatmapContent')" class="tab-button">Heatmap</button>
                 <button onclick="showTab('dataQualityContent')" class="tab-button">Data Quality</button>
                 <button onclick="showTab('descriptiveStatsContent')" class="tab-button">Descriptive Statistics</button>
+                <button onclick="showTab('historicalDataContent')" class="tab-button">Historical Data Testing</button>
+                <button onclick="showTab('futurePredictionsContent')" class="tab-button">Future Predictions</button>
             </div>
 
             <!-- Tab Contents -->
@@ -70,6 +72,24 @@
                 {% include 'descriptive_statistics.html' %}
 
                 <a href="/descriptive_statistics" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View in New Tab</a>
+            </div>
+            <!-- Historical Data Testing Content -->
+            <div id="historicalDataContent" class="tab-content hidden">
+                <!-- Summary Results Content -->
+                <div class="mt-4">
+                    {% include 'summary_dash.html' %}
+                </div>
+
+                <!-- Betting Recommendation Results Content -->
+                <div class="mt-4">
+                    {% include 'historical_results_backtesting.html' %}
+                    <a href="/historical_results_backtesting" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
+                </div>
+            </div>
+
+            <div id="futurePredictionsContent" class="tab-content hidden">
+                {% include 'future_betting_recommendations.html' %}
+                <a href="/future_betting_recommendations" target="_blank" class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open in New Tab</a>
             </div>
         </div>
 

@@ -142,7 +142,7 @@ class NFLModel:
 
             blind_test_data = pd.concat([pd.DataFrame(X_blind_test, columns=df.columns.drop(self.TARGET_VARIABLE)),
                                          y_blind_test.reset_index(drop=True)], axis=1)
-            blind_test_data.to_csv(os.path.join(self.data_dir, 'blind_test_data.csv'), index=False)
+            blind_test_data.to_csv(os.path.join(self.static_dir, 'blind_test_data.csv'), index=False)
 
             return X_train, y_train, X_test, y_test, X_blind_test, y_blind_test, scaler, feature_columns
         except Exception as e:

@@ -14,6 +14,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
         })
         .then(response => response.json())
         .then(data => {
+            if (data.success) {
+                // If /process_columns is successful, send a request to /generate_model
+                return fetch('/generate_power_ranks', {
+                    method: 'POST'
+                });
+            } else {
+                throw new Error('Error processing columns.');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
             if (data.status === "success") {
                 // If /generate_model is successful, send a request to /sim_runner
                 return fetch('/sim_runner', {

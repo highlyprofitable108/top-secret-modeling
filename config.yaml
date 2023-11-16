@@ -36,4 +36,4 @@ database:
   database_name: "nfl_db"
 
 model_settings:
-  model_type: lasso
+  model_type: ridge

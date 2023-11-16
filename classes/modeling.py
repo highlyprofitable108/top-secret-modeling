@@ -124,16 +124,6 @@ class Modeling:
         logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, most_likely_outcome
 
-    def compute_confidence_interval(self, data, confidence=0.95):
-        """Compute the confidence interval for a given dataset."""
-        a = 1.0 * np.array(data)
-        n = len(a)
-        m, se = np.mean(a), np.std(a)/np.sqrt(n)
-
-        h = se * norm.ppf((1 + confidence) / 2.)
-
-        return m-h, m+h
-
     def compute_shap_values(self, model, X, model_type):
         """Compute SHAP values for a given model and dataset based on model type."""
 
@@ -166,36 +156,6 @@ class Modeling:
         shap_values = explainer.shap_values(X)
         return shap_values, explainer
 
-    def analyze_simulation_results(self, simulation_results):
-        """
-        Analyzes the simulation results to compute the range of outcomes, 
-        standard deviation, and the most likely outcome.
-        """
-
-        # Constants to define the bounds for filtering the results
-        LOWER_PERCENTILE = 0.0
-        UPPER_PERCENTILE = 1
-
-        # Calculate the lower and upper bounds based on percentiles
-        lower_bound_value = np.percentile(simulation_results, LOWER_PERCENTILE * 100)
-        upper_bound_value = np.percentile(simulation_results, UPPER_PERCENTILE * 100)
-
-        # Filter the results based on the calculated bounds
-        filtered_results = [result for result in simulation_results if lower_bound_value <= result <= upper_bound_value]
-
-        # Save raw simulation results to a CSV file
-        pd.DataFrame(simulation_results, columns=['Simulation_Result']).to_csv(os.path.join(self.static_dir, 'simulation_results.csv'), index=False)
-
-        # Calculate the range of outcomes based on the filtered results
-        range_of_outcomes = (min(filtered_results), max(filtered_results))
-
-        # Calculate the standard deviation based on the filtered results
-        standard_deviation = np.std(filtered_results)
-
-        # Calculate confidence intervals
-        confidence_interval = self.compute_confidence_interval(simulation_results)
-
-        return range_of_outcomes, standard_deviation, confidence_interval
 
     def analysis_explanation(self, range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation):
         explanation = """

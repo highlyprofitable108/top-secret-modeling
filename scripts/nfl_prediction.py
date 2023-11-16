@@ -1,6 +1,7 @@
 # Standard library imports
 import io
 import os
+import pytz
 from datetime import datetime, timedelta
 from importlib import reload
 
@@ -15,7 +16,7 @@ from pymongo import MongoClient
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
-from classes.data_visualization import Visualization
+from classes.sim_visualization import SimVisualization
 from classes.database_operations import DatabaseOperations
 import scripts.constants
 
@@ -45,7 +46,7 @@ class NFLPredictor:
         self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
 
         self.data_processing = DataProcessing(self.TARGET_VARIABLE)
-        self.visualization = Visualization(self.template_dir, self.TARGET_VARIABLE)
+        self.sim_visualization = SimVisualization(self.template_dir, self.TARGET_VARIABLE)
 
         self.CUTOFF_DATE = self.config.get_config('constants', 'CUTOFF_DATE')
 
@@ -104,7 +105,7 @@ class NFLPredictor:
             logging.error(f"Error loading files: {e}")
             return None, None
 
-    def get_historical_data(self, random_subset=None, get_current=False, adhoc=False, date=None):
+    def get_historical_data(self, random_subset=None, get_current=False):
         """
         Prepare historical data for simulations.
 
@@ -118,7 +119,7 @@ class NFLPredictor:
         historical_df['scheduled'] = pd.to_datetime(historical_df['scheduled'])
 
         # Get current date
-        current_date = datetime.now()
+        current_date = datetime.now(pytz.utc)
 
         # Filter out rows where 'scheduled' date is more than 7 days in the future
         seven_days_ahead = current_date + timedelta(days=7)
@@ -162,10 +163,10 @@ class NFLPredictor:
 
         return game_data
 
-    def analyze_and_log_results(self, simulation_results, most_likely_outcome, home_team, away_team):
+    def analyze_and_log_results(self, simulation_results, home_team, away_team):
         # Analyze simulation results
         self.logger.info("Analyzing Simulation Results...")
-        range_of_outcomes, standard_deviation, confidence_interval = self.model.analyze_simulation_results(simulation_results)
+        range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
 
         # Create a buffer to capture log messages
         log_capture_buffer = io.StringIO()
@@ -178,27 +179,25 @@ class NFLPredictor:
         # User-friendly output
         self.logger.info("---------------------------")
         self.logger.info(f"Game: {away_team} at {home_team}")
+        print(f"Outcome Range: {range_of_outcomes}")
+        print(f"Standard Deviation: {standard_deviation}")
+        print(f"95% Confidence Interval: {confidence_interval}")
         self.logger.info("---------------------------")
-        self.logger.info(f"Expected target value: {range_of_outcomes[0]:.2f} to {range_of_outcomes[1]:.2f} points.")
-        # self.logger.info(f"95% Confidence Interval: {confidence_interval[0]:.2f} to {confidence_interval[1]:.2f} for {home_team} projected spread.")
-        self.logger.info(f"Most likely target value: {most_likely_outcome:.2f} for {home_team} projected spread.")
-        self.logger.info(f"Standard deviation of target values: {standard_deviation:.2f} for {home_team} projected spread.")
-        self.logger.info("")  # Add an empty line for separation
 
         # Retrieve the log messages from the buffer
         log_contents = log_capture_buffer.getvalue()
         combined_output = log_contents
-
+        
         return combined_output
 
-    def simulate_games(self, num_simulations=1000, random_subset=None, date=None, get_current=False, adhoc=False, matchups=None):
+    def simulate_games(self, num_simulations=1000, random_subset=None, get_current=False):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
         self.logger.info("Starting prediction process...")
         reload(scripts.constants)
 
-        # Fetch data only for the selected teams from the weekly_stats collection
-        df = self.database_operations.fetch_data_from_mongodb('weekly_stats')
-        historical_df = self.get_historical_data(random_subset, get_current, adhoc, date)
+        # Fetch data only for the selected teams from the team_aggregated_metrics collection
+        df = self.database_operations.fetch_data_from_mongodb('team_aggregated_metrics')
+        historical_df = self.get_historical_data(random_subset, get_current)
         # Lists to store simulation results and actual results for each game
         all_simulation_results = []
         all_actual_results = []
@@ -214,15 +213,12 @@ class NFLPredictor:
             home_team = row['summary.home.name']
             away_team = row['summary.away.name']
 
-            # Skip iteration if home_team or away_team is 'AFC' or 'NFC'
-            if home_team in ['AFC', 'NFC'] or away_team in ['AFC', 'NFC']:
-                continue
-
             home_team = self.data_processing.replace_team_name(home_team)
             away_team = self.data_processing.replace_team_name(away_team)
 
             self.set_game_details(home_team, away_team, row['scheduled'])
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
+
             params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
             
             # Append the home and away team names to the lists
@@ -234,15 +230,18 @@ class NFLPredictor:
             results = pool.map(run_simulation_wrapper, args_list)
 
         # Process results for each game
-        for idx, (simulation_results, most_likely_outcome) in enumerate(results):
-            output = self.analyze_and_log_results(simulation_results, most_likely_outcome, home_teams[idx], away_teams[idx])
+        for idx, (simulation_results_tuple) in enumerate(results):
+            # Extract only the list of results from the tuple
+            simulation_results_list = simulation_results_tuple[0]
 
+            self.analyze_and_log_results(simulation_results_list, home_teams[idx], away_teams[idx])
+
+            # LOOK INTO THIS FOR PREDICTIONS
             perceived_value_for_game = BREAK_EVEN_PROBABILITY
-            value_opportunity = self.visualization.visualize_value_opportunity(simulation_results, perceived_value_for_game, idx+1)
-            self.logger.info(f"Value Opportunity for {self.home_team} vs {self.away_team}: {value_opportunity:.2f}")
+            # value_opportunity = self.visualization.visualize_value_opportunity(simulation_results_list, perceived_value_for_game, idx+1)
 
             # Store simulation results and actual results for evaluation
-            all_simulation_results.append(simulation_results)
+            all_simulation_results.append(simulation_results_list)
             row = historical_df.iloc[idx]
             if row['summary.home.points'] is not None and row['summary.away.points'] is not None:
                 actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1)
@@ -250,58 +249,8 @@ class NFLPredictor:
                 actual_difference = None
             all_actual_results.append(actual_difference)
 
-            # Visualize simulation results
-            self.visualization.visualize_simulation_results(simulation_results, most_likely_outcome, output, idx+1)
-
-        self.visualization.generate_value_opportunity_page(len(historical_df))
-        self.visualization.generate_simulation_distribution_page(len(historical_df))
-
-        # Check if all_actual_results has data
-        if all_actual_results:
-            # Identify indices of rows that have None in all_actual_results
-            indices_with_none = [i for i, result in enumerate(all_actual_results) if result is None]
-
-            # Drop rows with None values from all_actual_results
-            all_actual_results = [result for i, result in enumerate(all_actual_results) if i not in indices_with_none]
-
-            # Drop corresponding rows from all_simulation_results
-            sims_with_results = [result for i, result in enumerate(all_simulation_results) if i not in indices_with_none]
-
-            # Only run this if all_actual_results still has data after dropping rows with None values
-            if all_actual_results:
-                # After the loop, compare the simulated results to the actual results
-                self.visualization.compare_simulated_to_actual(sims_with_results, all_actual_results)
-
         # Evaluate the betting recommendation and expected value
-        results_df, recommendation_accuracy, average_ev, actual_value = self.visualization.evaluate_and_recommend(all_simulation_results, historical_df)
-
-        if (num_simulations >= 1000) and (random_subset is not None) and (random_subset >= 100):
-            # Get the current time
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-            # Insert 'current_time' as the first column
-            results_df.insert(0, 'current_time', current_time)
-
-            # Insert 'self.model_type' as the second column
-            results_df.insert(1, 'model_type', self.model_type)
-
-            # Insert 'self.TARGET_VARIABLE' as the third column
-            results_df.insert(2, 'target_variable', self.TARGET_VARIABLE)
-
-            # Add 'self.features_list' as the last column
-            results_df['features_list'] = [self.features] * len(results_df)
-
-            # Create a unique game identifier by concatenating date, home_team, and away_team
-            results_df['game_id'] = results_df['Date'].dt.strftime('%Y-%m-%d') + '_' + results_df['Home Team']
-
-            bet_results = results_df.to_dict('records')
-            collection_name = "bet_results"
-
-            self.database_operations.insert_data_into_mongodb(collection_name, bet_results)
-
-        self.logger.info(f"Recommendation Accuracy: {recommendation_accuracy:.2f}%")
-        self.logger.info(f"Average Expected Value: {average_ev:.2f}%")
-        self.logger.info(f"Actual Results: ${actual_value:.2f}")
+        self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
 
 
 def run_simulation_wrapper(args):

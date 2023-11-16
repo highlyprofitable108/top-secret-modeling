@@ -28,3 +28,4 @@ models/trained_nfl_model.pkl
 flask_app/templates/consolidated_model_report.html
 .gitignore
 .gitignore
+models/data_scaler.pkl

@@ -115,7 +115,6 @@ class DataProcessing:
 
     def prepare_data(self, df, features, home_team, away_team, date):
         """Prepare data for simulation."""
-
         # Create a dictionary with column names as keys and arithmetic operations as values
         feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
 

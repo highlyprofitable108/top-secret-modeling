@@ -172,19 +172,6 @@ def generate_model():
     return jsonify(status="success")
 
 
-@app.route('/generate_power_ranks', methods=['POST'])
-def generate_power_ranks():
-    try:
-        nfl_power_ranks = StatsCalculator()
-        nfl_power_ranks.main()
-
-        # If successful, return a success message
-        return jsonify(status="success"), 200
-    except Exception as e:
-        # If there is an error, return an error message
-        return jsonify(error=str(e)), 500
-
-
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
     try:
@@ -200,18 +187,18 @@ def sim_runner():
 
         # Execute the randomHistorical action
         logger.info("Executing randomHistorical action")
-        nfl_sim.simulate_games(num_simulations=25, random_subset=5, date=date_input)
+        nfl_sim.simulate_games(num_simulations=2500, random_subset=1000)
 
         # Execute the nextWeek action
         logger.info("Executing nextWeek action")
-        nfl_sim.simulate_games(num_simulations=100, date=date_input, get_current=True)
+        nfl_sim.simulate_games(num_simulations=10000, get_current=True)
 
-        return redirect(url_for('sim_results'))
-  
     except Exception as e:
         # If there is an error, log it and return an error message
         logger.error(f"Error in sim_runner: {e}")
         return jsonify(error=str(e)), 500
+
+    return jsonify(status="success")
 
         # elif action == "customMatchups":
         #     logger.info("Handling customMatchups action")
@@ -289,9 +276,14 @@ def serve_opportunity_file(game_number):
     return render_template(f'value_opportunity_results_game_{game_number:04d}.html')
 
 
-@app.route('/view_betting_recommendation_results')
-def view_betting_recommendation_results():
-    return render_template('betting_recommendation_results.html')
+@app.route('/historical_results_backtesting')
+def historical_results_backtesting():
+    return render_template('historical_results_backtesting.html')
+
+
+@app.route('/future_betting_recommendations')
+def future_betting_recommendations():
+    return render_template('future_betting_recommendations.html')
 
 
 @app.route('/view_summary_dash')

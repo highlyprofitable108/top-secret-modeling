@@ -95,17 +95,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         .then(response => response.json())
         .then(data => {
             if (data.status === "success") {
-                // If /generate_model is successful, send a request to /generate_power_ranks
-                return fetch('/generate_power_ranks', {
-                    method: 'POST'
-                });
-            } else {
-                throw new Error(data.error || 'Error generating model.');
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
                 // If /generate_power_ranks is successful, send a request to /sim_runner
                 return fetch('/sim_runner', {
                     method: 'POST'
