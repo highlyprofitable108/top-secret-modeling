@@ -30,6 +30,21 @@
       <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting features, search for those that have a strong relationship, either positive or negative, with the scoring differential. However, exercise caution! If two features are closely related, like rush yards and carries, it's often better to choose just one. Alternatively, you can use a combined metric like yards per carry if it offers valuable insight. The exception is when two similar features represent data for different teams; in such cases, both can be considered.</p>
     </div>
 
+    <!-- SIMULATION EXPLANATION SECTION -->
+    <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
+      <h3 class="text-2xl font-bold mb-4 text-gray-800">Simulation Process Explained:</h3>
+      <p class="text-gray-700 mb-4">In the final step of our analysis, we run simulations to forecast game outcomes based on the selected features. This process is critical in understanding how different variables might influence future games.</p>
+      <p class="text-gray-700 mb-4"><b>Full Sim Button:</b> Clicking the 'Full Sim' button initiates a comprehensive simulation (Average run time: 35 mins). This process is thorough and takes a longer time, as it runs a larger number of simulations (historical: 2500, next week: 10000, random subset: 1000) to ensure detailed and accurate predictions. Ideal for when you need a deep and extensive analysis.</p>
+      <p class="text-gray-700 mb-4"><b>Quick Test Button:</b> The 'Quick Test' button is designed for a faster, more streamlined analysis (Average run time: 4 mins). It runs a fewer number of simulations (historical: 250, next week: 1000, random subset: 100), providing a quicker overview of potential outcomes. This option is perfect for preliminary testing or when time is a constraint.</p>
+      <p class="text-gray-700">Choose the type of simulation based on your analysis needs. While 'Full Sim' offers more comprehensive insights, 'Quick Test' allows for rapid assessments, helping you make swift decisions.</p>
+      
+      <!-- Note for Advanced Users -->
+      <div class="mt-4 bg-gray-100 p-4 rounded shadow-md">
+        <h5 class="font-bold text-gray-800">Note for Advanced Users:</h5>
+        <p class="text-gray-700">The 'Full Sim' option runs 2500 historical simulations, 10000 next week simulations, and selects a random subset of 1000. The 'Quick Test' runs 250 historical simulations, 1000 next week simulations, and selects a random subset of 100. These parameters were chosen to balance detail and speed in the simulation process.</p>
+      </div>
+    </div>
+
     <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
 
       <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
@@ -78,10 +93,16 @@
                 </div>
             </div>
           {% endfor %}
-
         </div>
       
-        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50" onclick="showLoadingSpinner();">Submit</button>
+        <!-- Fixed Position Button Container -->
+        <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+          <div class="flex justify-center space-x-4 mt-4">
+            <button type="button" class="bg-green-600 text-white py-2 px-4 rounded" onclick="showLoadingSpinner();" id="quickTestButton">Quick Test</button>
+            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded" onclick="showLoadingSpinner();">Full Sim</button>
+          </div>
+        </div>
+
       </form>
     </div>
 

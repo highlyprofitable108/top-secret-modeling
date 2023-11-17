@@ -73,6 +73,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
     function handleFormSubmission(event, isQuickTest = false) {
         event.preventDefault(); // Prevent default form submission
         
+        // Check if any checkboxes are selected
+        const checkboxesSelected = Array.from(checkboxes).some(checkbox => checkbox.checked);
+        if (!checkboxesSelected) {
+            alert('Please select at least one column before running the simulation.');
+            return; // Stop the function if no checkboxes are selected
+        }
+        
         // Call the showLoadingSpinner function
         showLoadingSpinner();
     

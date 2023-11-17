@@ -111,18 +111,31 @@ class DataProcessing:
         standard_deviation_df = numeric_df.std().to_frame().transpose()
 
         # Return the standard deviation DataFrame
+        print()
         return standard_deviation_df
 
     def prepare_data(self, df, features, home_team, away_team, date):
         """Prepare data for simulation."""
-        # Create a dictionary with column names as keys and arithmetic operations as values
+        # Create a dictionary with base column names as keys and arithmetic operations as values
         feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
 
         # Extract unique base column names from the features list
         base_column_names = set(col.rsplit('_', 1)[0] for col in features)
-        # Filter the home_team_data and away_team_data DataFrames to retain only the necessary columns
-        home_features = self.get_team_data(df, home_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
-        away_features = self.get_team_data(df, away_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
+
+        # Find all columns in df that contain any of the base column names
+        related_columns = [col for col in df.columns if any(base_col in col for base_col in base_column_names)]
+
+        # Filter the home_team_data and away_team_data DataFrames to retain only the related columns
+        home_data = self.get_team_data(df, home_team, date)[related_columns].reset_index(drop=True)
+        away_data = self.get_team_data(df, away_team, date)[related_columns].reset_index(drop=True)
+
+        # Separate standard deviation columns for home and away data
+        home_stddev = home_data.filter(regex='_stddev$').copy()
+        away_stddev = away_data.filter(regex='_stddev$').copy()
+
+        # Drop standard deviation columns from home_features and away_features
+        home_features = home_data.drop(home_stddev.columns, axis=1)
+        away_features = away_data.drop(away_stddev.columns, axis=1)
 
         # List to hold the new columns
         new_columns = []
@@ -136,11 +149,20 @@ class DataProcessing:
                 new_col_name = col + "_ratio"
                 new_columns.append(pd.Series(home_features[col] / away_features[col], name=new_col_name))
 
+        # Ensure that both home_stddev and away_stddev have the same columns
+        common_stddev_columns = home_stddev.columns.intersection(away_stddev.columns)
+
+        # Subtract home_stddev from away_stddev for common columns
+        stddev_difference = abs(home_stddev[common_stddev_columns] - away_stddev[common_stddev_columns])
+
         # Concatenate all new columns at once
         game_prediction_df = pd.concat(new_columns, axis=1)
 
         # Handle potential division by zero issues
         game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+        game_prediction_df = pd.concat([game_prediction_df, stddev_difference], axis=1)
+
         return game_prediction_df
 
     def cleanup_ranks(self, df: pd.DataFrame) -> pd.DataFrame:

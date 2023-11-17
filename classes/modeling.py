@@ -63,37 +63,47 @@ class Modeling:
         import joblib
         self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
 
-    def monte_carlo_simulation(self, df, standard_deviation_df, num_simulations=500):
+    def monte_carlo_simulation(self, game_prediction_df, num_simulations=250):
         logging.info("Starting Monte Carlo Simulation...")
-        logging.info(df.head())
+        # Separate standard deviation columns into a new DataFrame
+        stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
+        logging.info(f"Identified standard deviation columns: {stddev_columns}")
 
+        stddev_df = game_prediction_df[stddev_columns].copy()
+        # Remove stddev columns from the original DataFrame
+        game_prediction_df = game_prediction_df.drop(columns=stddev_columns)
+        
         simulation_results = []
 
         # List to store sampled_df for each iteration
         sampled_data_list = []
 
         start_time = time.time()
-        with tqdm(total=num_simulations, ncols=100) as pbar:  # Initialize tqdm with total number of simulations
-            for _ in range(num_simulations):
-                sampled_df = df.copy()
+        with tqdm(total=num_simulations, ncols=1000) as pbar:  # Initialize tqdm with total number of simulations
+            for sim_num in range(num_simulations):
+                sampled_df = game_prediction_df.copy()
+
                 for column in sampled_df.columns:
-                    base_column = column.replace('_difference', '').replace('_ratio', '')
-                    if base_column in standard_deviation_df.columns:
-                        mean_value = df[column].iloc[0]
-                        stddev_value = standard_deviation_df[base_column].iloc[0]
+                    base = column.replace('_difference', '').replace('_ratio', '')
+                    stddev_column = f"{base}_stddev"
+                    if stddev_column in stddev_df.columns:
+                        mean_value = sampled_df[column].iloc[0]
+                        stddev_value = stddev_df[stddev_column].iloc[0]
                         sampled_value = np.random.normal(mean_value, stddev_value)
                         sampled_df[column] = sampled_value
+                        logging.info(f"Sim {sim_num}, Column: {column}, Mean: {mean_value}, StdDev: {stddev_value}, Sampled: {sampled_value}")
 
                 # Append sampled_df to the list
                 sampled_data_list.append(sampled_df)
 
                 modified_df = sampled_df.dropna(axis=1, how='any')
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
+                logging.info(f"Sim {sim_num}, Scaled DataFrame for prediction: {scaled_df}")
 
                 try:
                     prediction = self.LOADED_MODEL.predict(scaled_df)
-                    adjusted_prediction = prediction[0] + self.HOME_FIELD_ADJUST
-                    simulation_results.append(adjusted_prediction)
+                    simulation_results.append(prediction)
+                    logging.info(f"Sim {sim_num}, Prediction: {prediction[0]}")
                 except Exception as e:
                     logging.error(f"Error during prediction: {e}")
 
@@ -102,9 +112,17 @@ class Modeling:
                     pbar.set_postfix_str("Running simulations...")
                     start_time = time.time()
 
-        # After obtaining simulation_results
-        kernel = gaussian_kde(simulation_results)
-        most_likely_outcome = simulation_results[np.argmax(kernel(simulation_results))]
+        # Flatten the simulation_results if it's a list of arrays
+        flat_simulation_results = np.array(simulation_results).flatten()
+
+        # Now pass the flattened array to gaussian_kde
+        # Ensure that flat_simulation_results is one-dimensional
+        if flat_simulation_results.ndim == 1:
+            kernel = gaussian_kde(flat_simulation_results)
+            most_likely_outcome = flat_simulation_results[np.argmax(kernel(flat_simulation_results))]
+        else:
+            logging.error("Simulation results are not one-dimensional, cannot use gaussian_kde.")
+        
 
         # Append simulation_results to the CSV files
         combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)
@@ -114,7 +132,7 @@ class Modeling:
         else:
             combined_sampled_data.to_csv(combined_file_path, index=False)
 
-        simulation_df = pd.DataFrame(simulation_results, columns=['Simulation_Result'])
+        simulation_df = pd.DataFrame(flat_simulation_results, columns=['Simulation_Result'])
         simulation_file_path = os.path.join(self.static_dir, 'simulation_results.csv')
         if os.path.exists(simulation_file_path):
             simulation_df.to_csv(simulation_file_path, mode='a', header=False, index=False)
@@ -122,7 +140,8 @@ class Modeling:
             simulation_df.to_csv(simulation_file_path, index=False)
 
         logging.info("Monte Carlo Simulation Completed!")
-        return simulation_results, most_likely_outcome
+        time.sleep(60)
+        return flat_simulation_results, most_likely_outcome
 
     def compute_shap_values(self, model, X, model_type):
         """Compute SHAP values for a given model and dataset based on model type."""

@@ -2,6 +2,7 @@
 import io
 import os
 import pytz
+import time
 from datetime import datetime, timedelta
 from importlib import reload
 
@@ -219,7 +220,7 @@ class NFLPredictor:
             self.set_game_details(home_team, away_team, row['scheduled'])
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
 
-            params_list.append((game_prediction_df, self.data_processing.get_standard_deviation(df), self.model))
+            params_list.append((game_prediction_df, self.model))
             
             # Append the home and away team names to the lists
             home_teams.append(home_team)
@@ -258,8 +259,8 @@ def run_simulation_wrapper(args):
 
 
 def run_simulation(params, num_simulations):
-    game_prediction_df, standard_deviation, model = params
-    return model.monte_carlo_simulation(game_prediction_df, standard_deviation, num_simulations)
+    game_prediction_df, model = params
+    return model.monte_carlo_simulation(game_prediction_df, num_simulations)
 
 
 if __name__ == "__main__":
