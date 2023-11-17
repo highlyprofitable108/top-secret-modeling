@@ -47,10 +47,7 @@
 
     <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
 
-      <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
-        <h5 class="font-bold text-gray-800">Currently Selected Columns:</h5>
-        <p id="selectedColumnsList" class="text-gray-700">None</p>
-      </div>
+
 
       <h1 class="text-2xl font-bold text-gray-800 mb-4">Select Columns</h1>
       <div class="mb-3">
@@ -62,6 +59,11 @@
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="selectAll">Select All</button>
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="selectRandom">Random Selection</button>
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded" id="clearSelection">Clear Selection</button>
+        </div>
+
+        <div class="bg-gray-100 p-4 rounded shadow-md mb-4">
+          <h5 class="font-bold text-gray-800">Currently Selected Columns:</h5>
+          <p id="selectedColumnsList" class="text-gray-700">None</p>
         </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             {% for category, columns in ordered_categorized_columns.items() %}
