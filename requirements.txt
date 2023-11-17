@@ -4,7 +4,6 @@ certifi==2023.7.22
 charset-normalizer==3.3.2
 click==8.1.7
 cloudpickle==3.0.0
-conda==4.3.16
 contourpy==1.2.0
 cycler==0.12.1
 dnspython==2.4.2
