@@ -67,7 +67,7 @@ class Modeling:
         logging.info("Starting Monte Carlo Simulation...")
         # Separate standard deviation columns into a new DataFrame
         stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
-        logging.info(f"Identified standard deviation columns: {stddev_columns}")
+        # logging.info(f"Identified standard deviation columns: {stddev_columns}")
 
         stddev_df = game_prediction_df[stddev_columns].copy()
         # Remove stddev columns from the original DataFrame
@@ -91,14 +91,14 @@ class Modeling:
                         stddev_value = stddev_df[stddev_column].iloc[0]
                         sampled_value = np.random.normal(mean_value, stddev_value)
                         sampled_df[column] = sampled_value
-                        logging.info(f"Sim {sim_num}, Column: {column}, Mean: {mean_value}, StdDev: {stddev_value}, Sampled: {sampled_value}")
+                        # logging.info(f"Sim {sim_num}, Column: {column}, Mean: {mean_value}, StdDev: {stddev_value}, Sampled: {sampled_value}")
 
                 # Append sampled_df to the list
                 sampled_data_list.append(sampled_df)
 
                 modified_df = sampled_df.dropna(axis=1, how='any')
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
-                logging.info(f"Sim {sim_num}, Scaled DataFrame for prediction: {scaled_df}")
+                # logging.info(f"Sim {sim_num}, Scaled DataFrame for prediction: {scaled_df}")
 
                 try:
                     prediction = self.LOADED_MODEL.predict(scaled_df)
@@ -140,7 +140,7 @@ class Modeling:
             simulation_df.to_csv(simulation_file_path, index=False)
 
         logging.info("Monte Carlo Simulation Completed!")
-        time.sleep(60)
+
         return flat_simulation_results, most_likely_outcome
 
     def compute_shap_values(self, model, X, model_type):
