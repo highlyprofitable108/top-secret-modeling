@@ -124,15 +124,20 @@ class DataProcessing:
         home_features = self.get_team_data(df, home_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
         away_features = self.get_team_data(df, away_team, date)[list(base_column_names.intersection(df.columns))].reset_index(drop=True)
 
-        # Initialize an empty DataFrame for the results
-        game_prediction_df = pd.DataFrame()
+        # List to hold the new columns
+        new_columns = []
 
         # Iterate over the columns using the dictionary
         for col, operation in feature_operations.items():
             if operation == "difference":
-                game_prediction_df[col + "_difference"] = home_features[col] - away_features[col]
+                new_col_name = col + "_difference"
+                new_columns.append(pd.Series(home_features[col] - away_features[col], name=new_col_name))
             else:
-                game_prediction_df[col + "_ratio"] = home_features[col] / away_features[col]
+                new_col_name = col + "_ratio"
+                new_columns.append(pd.Series(home_features[col] / away_features[col], name=new_col_name))
+
+        # Concatenate all new columns at once
+        game_prediction_df = pd.concat(new_columns, axis=1)
 
         # Handle potential division by zero issues
         game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)

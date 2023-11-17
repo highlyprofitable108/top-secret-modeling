@@ -20,16 +20,15 @@
         <!-- First row with two same-sized buttons -->
         <div class="flex justify-center space-x-4">
             <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px text-center">Select Stats for Model</a>
+            
             <form action="/generate_analysis" method="POST">
               <div id="loading-spinner" style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
                 <div class="loader" style="margin: 0 auto 10px auto;"></div>
                 <p style="color: white; font-size: 16px;">Generating analysis. This process can take some time. Please do not close or refresh the page.</p>
                 <div id="countdown-timer" style="color: white; font-size: 16px; margin-top: 10px;"></div>
-              </div>  
-
-              <button type="submit" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px" onclick="handleFormSubmission(event);">Re-generate for Active Stats</button>
-            
+              </div>              
             </form>
+
         </div>
       </div>       
     </section>  

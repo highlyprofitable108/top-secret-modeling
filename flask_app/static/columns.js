@@ -70,16 +70,20 @@ document.addEventListener('DOMContentLoaded', (event) => {
         selectedColumnsList.innerHTML = selectedColumnsText || 'None';
     }
 
-    function handleFormSubmission(event) {
+    function handleFormSubmission(event, isQuickTest = false) {
         event.preventDefault(); // Prevent default form submission
         
         // Call the showLoadingSpinner function
         showLoadingSpinner();
     
+        // Prepare the data to be sent to the server
+        const formData = new FormData(form);
+        formData.append('quick_test', isQuickTest); // Add the quick_test parameter to the form data
+    
         // First, send form data to /process_columns
         fetch('/process_columns', {
             method: 'POST',
-            body: new FormData(form)
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -97,7 +101,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (data.status === "success") {
                 // If /generate_power_ranks is successful, send a request to /sim_runner
                 return fetch('/sim_runner', {
-                    method: 'POST'
+                    method: 'POST',
+                    body: formData // Send the updated formData with the quick_test parameter
                 });
             } else {
                 throw new Error(data.error || 'Error generating power ranks.');
@@ -112,7 +117,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             alert('An error occurred. Please try again.');
             document.getElementById('loading-spinner').style.display = 'none';
         });
-    }    
+    }      
 
     function showLoadingSpinner() {
         // You can adjust the values here based on the specifics of column.js if needed
@@ -140,6 +145,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Attach the handleFormSubmission function to the form's submit event
     form.addEventListener('submit', handleFormSubmission);
+
+    // Add event listener for the "Quick Test" button
+    const quickTestButton = document.getElementById('quickTestButton');
+    if (quickTestButton) {
+        quickTestButton.addEventListener('click', (event) => {
+            // Call handleFormSubmission with isQuickTest set to true
+            handleFormSubmission(event, true);
+        });
+    }
 
     // Add event listener to clear all selections when the "Clear Selection" button is clicked
     document.getElementById('clearSelection').addEventListener('click', function() {

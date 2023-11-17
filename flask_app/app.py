@@ -1,11 +1,10 @@
 from scripts import nfl_stats_select, constants
 from scripts.nfl_model import NFLModel
-from scripts.nfl_populate_stats import StatsCalculator
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
 import scripts.constants
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
@@ -175,6 +174,9 @@ def generate_model():
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
     try:
+        # Retrieve the quick_test parameter from the POST request
+        quick_test = request.form.get('quick_test', default=False, type=lambda v: v.lower() == 'true')
+
         # Set the date to the current day
         date_input = datetime.today()
 
@@ -185,13 +187,18 @@ def sim_runner():
         # Initialize the NFLPredictor
         nfl_sim = NFLPredictor()
 
+        # Set the number of simulations based on quick_test value
+        historical_sims = 250 if quick_test else 2500
+        next_week_sims = 1000 if quick_test else 10000
+        random_subset = 100 if quick_test else 1000
+
         # Execute the randomHistorical action
-        logger.info("Executing randomHistorical action")
-        nfl_sim.simulate_games(num_simulations=2500, random_subset=1000)
+        logger.info(f"Executing randomHistorical action with {historical_sims} simulations")
+        nfl_sim.simulate_games(num_simulations=historical_sims, random_subset=random_subset)
 
         # Execute the nextWeek action
-        logger.info("Executing nextWeek action")
-        nfl_sim.simulate_games(num_simulations=10000, get_current=True)
+        logger.info(f"Executing nextWeek action with {next_week_sims} simulations")
+        nfl_sim.simulate_games(num_simulations=next_week_sims, get_current=True)
 
     except Exception as e:
         # If there is an error, log it and return an error message
