@@ -65,7 +65,7 @@ class NFLPredictor:
             self.client = MongoClient(self.MONGO_URI)
             self.db = self.client[self.DATABASE_NAME]
         except Exception as e:
-            logging.error(f"Error connecting to MongoDB: {e}")
+            logging.info(f"Error connecting to MongoDB: {e}")
             raise
 
         # Loading the pre-trained model and the data scaler
@@ -103,7 +103,7 @@ class NFLPredictor:
             scaler = joblib.load(os.path.join(self.model_dir, 'data_scaler.pkl'))
             return model, scaler
         except FileNotFoundError as e:
-            logging.error(f"Error loading files: {e}")
+            logging.info(f"Error loading files: {e}")
             return None, None
 
     def get_historical_data(self, random_subset=None, get_current=False):
@@ -220,6 +220,11 @@ class NFLPredictor:
             self.set_game_details(home_team, away_team, row['scheduled'])
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
 
+            # Diagnostic check: Ensure game_prediction_df is not empty
+            if game_prediction_df.empty:
+                logging.info(f"Game prediction DataFrame is empty for {home_team} vs {away_team}")
+                continue
+
             params_list.append((game_prediction_df, self.model))
             
             # Append the home and away team names to the lists
@@ -228,21 +233,25 @@ class NFLPredictor:
 
         with Pool() as pool:
             args_list = [(param, num_simulations) for param in params_list]
+
+            # Diagnostic check: Ensure args_list is not empty
+            if not args_list:
+                logging.info("args_list for multiprocessing pool is empty.")
+                return
+            
             results = pool.map(run_simulation_wrapper, args_list)
-
+        print(results)
         # Process results for each game
-        for idx, (simulation_results_tuple) in enumerate(results):
-            # Extract only the list of results from the tuple
-            simulation_results_list = simulation_results_tuple[0]
+        for idx, (simulation_results) in enumerate(results):
 
-            self.analyze_and_log_results(simulation_results_list, home_teams[idx], away_teams[idx])
+            self.analyze_and_log_results(simulation_results, home_teams[idx], away_teams[idx])
 
             # LOOK INTO THIS FOR PREDICTIONS
-            perceived_value_for_game = BREAK_EVEN_PROBABILITY
-            # value_opportunity = self.visualization.visualize_value_opportunity(simulation_results_list, perceived_value_for_game, idx+1)
+            # perceived_value_for_game = BREAK_EVEN_PROBABILITY
+            # value_opportunity = self.visualization.visualize_value_opportunity(simulation_results, perceived_value_for_game, idx+1)
 
             # Store simulation results and actual results for evaluation
-            all_simulation_results.append(simulation_results_list)
+            all_simulation_results.append(simulation_results)
             row = historical_df.iloc[idx]
             if row['summary.home.points'] is not None and row['summary.away.points'] is not None:
                 actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1)

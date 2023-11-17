@@ -149,17 +149,22 @@ class DataProcessing:
                 new_col_name = col + "_ratio"
                 new_columns.append(pd.Series(home_features[col] / away_features[col], name=new_col_name))
 
+        # Concatenate all new columns at once
+        game_prediction_df = pd.concat(new_columns, axis=1)
+
+        # Iterate over each column
+        for column in game_prediction_df.columns:
+            # Calculate the median of the current column, excluding infinite values
+            median = game_prediction_df[column].replace([np.inf, -np.inf], np.nan).median()
+
+            # Replace infinite values with the median of the column
+            game_prediction_df[column].replace([np.inf, -np.inf], median, inplace=True)
+
         # Ensure that both home_stddev and away_stddev have the same columns
         common_stddev_columns = home_stddev.columns.intersection(away_stddev.columns)
 
         # Subtract home_stddev from away_stddev for common columns
         stddev_difference = abs(home_stddev[common_stddev_columns] - away_stddev[common_stddev_columns])
-
-        # Concatenate all new columns at once
-        game_prediction_df = pd.concat(new_columns, axis=1)
-
-        # Handle potential division by zero issues
-        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
 
         game_prediction_df = pd.concat([game_prediction_df, stddev_difference], axis=1)
 
