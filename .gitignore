@@ -12,7 +12,7 @@ flask_app/templates/*results_game*
 flask_app/templates/consolidated_model_report.html
 flask_app/templates/data_quality_report.html
 flask_app/templates/descriptive_statistics.html
-flask_app/templates/feature_importance.html
+flask_app/templates/feature_coef_report.html
 flask_app/templates/importance.html
 flask_app/templates/interactive_heatmap.html
 flask_app/templates/normalized_power_ranks.html
@@ -23,4 +23,5 @@ models/*
 models/data_scaler.pkl
 models/trained_nfl_model.pkl
 scripts/__pycache__/*
+scripts/constants*
 venv/*
