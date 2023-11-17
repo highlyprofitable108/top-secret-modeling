@@ -103,7 +103,7 @@ class Modeling:
                 try:
                     prediction = self.LOADED_MODEL.predict(scaled_df)
                     simulation_results.append(prediction)
-                    logging.info(f"Sim {sim_num}, Prediction: {prediction[0]}")
+                    # logging.info(f"Sim {sim_num}, Prediction: {prediction[0]}")
                 except Exception as e:
                     logging.error(f"Error during prediction: {e}")
 
@@ -140,7 +140,9 @@ class Modeling:
             simulation_df.to_csv(simulation_file_path, index=False)
 
         logging.info("Monte Carlo Simulation Completed!")
-
+        print(flat_simulation_results)
+        print(most_likely_outcome)
+        
         return flat_simulation_results, most_likely_outcome
 
     def compute_shap_values(self, model, X, model_type):
