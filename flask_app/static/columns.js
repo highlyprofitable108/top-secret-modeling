@@ -132,21 +132,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         document.getElementById('loading-spinner').style.display = 'block';
 
-        // Calculate the estimated completion time
-        let currentDate = new Date();
-        let completionDate = new Date(currentDate.getTime() + (countdown * 1000)); // Convert seconds to milliseconds
-        
-        let hours = completionDate.getHours();
-        let minutes = completionDate.getMinutes().toString().padStart(2, '0');
-        let ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-        
-        let completionTime = `${hours}:${minutes} ${ampm}`;
-        
-        // Display the estimated completion time
-        document.getElementById('countdown-timer').textContent = "Estimated completion time: " + completionTime;
-
         return true; // Show the spinner
     }
 
