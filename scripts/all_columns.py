@@ -74,7 +74,6 @@ ALL_COLUMNS = [
     "passing.totals.net_yards",
     "passing.totals.yards",
     "passing.totals.throw_aways",
-    "passing.totals.poor_throws",
     "passing.totals.defended_passes",
     "passing.totals.dropped_passes",
     "passing.totals.spikes",
