@@ -5,7 +5,6 @@ import shap
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.stats import gaussian_kde, norm
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, Lasso, Ridge
@@ -63,18 +62,20 @@ class Modeling:
         import joblib
         self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
 
-    def monte_carlo_simulation(self, game_prediction_df, num_simulations=250):
+    def monte_carlo_simulation(self, game_prediction_df, home_team, away_team, num_simulations=250):
         logging.info("Starting Monte Carlo Simulation...")
         # Separate standard deviation columns into a new DataFrame
         stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
-        # logging.info(f"Identified standard deviation columns: {stddev_columns}")
+        logging.info(f"Identified standard deviation columns: {stddev_columns}")
 
         stddev_df = game_prediction_df[stddev_columns].copy()
+        logging.info(f"Standard deviation DataFrame created with columns: {stddev_df.columns}")
+
         # Remove stddev columns from the original DataFrame
         game_prediction_df = game_prediction_df.drop(columns=stddev_columns)
+        logging.info(f"Original DataFrame columns after dropping stddev columns: {game_prediction_df.columns}")
 
         simulation_results = []
-        most_likely_outcome = -2
 
         # List to store sampled_df for each iteration
         sampled_data_list = []
@@ -92,32 +93,35 @@ class Modeling:
                         stddev_value = stddev_df[stddev_column].iloc[0]
                         sampled_value = np.random.normal(mean_value, stddev_value)
                         sampled_df[column] = sampled_value
+                        # logging.info(f"Sim {sim_num}, Column: {column}, Sampled Value: {sampled_value}")
 
                 # Append sampled_df to the list
                 sampled_data_list.append(sampled_df)
+                # logging.info(f"Sampled DataFrame for simulation {sim_num} added to list.")
 
                 modified_df = sampled_df.dropna(axis=1, how='any')
-                scaled_df = self.LOADED_SCALER.transform(modified_df)
-                # logging.info(f"Sim {sim_num}, Scaled DataFrame for prediction: {scaled_df}")
+                # logging.info(f"Modified DataFrame (dropped NA) for simulation {sim_num} has columns: {modified_df.columns}")
 
                 try:
+                    scaled_df = self.LOADED_SCALER.transform(modified_df)
+                    # logging.info(f"Scaled DataFrame for simulation {sim_num} prepared for prediction.")
+
                     prediction = self.LOADED_MODEL.predict(scaled_df)
                     simulation_results.append(prediction[0])
                     logging.info(f"Sim {sim_num}, Prediction: {prediction[0]}")
                 except Exception as e:
-                    logging.error(f"Error during prediction: {e}")
+                    logging.error(f"Error during prediction in simulation {sim_num}: {e}")
+                    continue
 
                 pbar.update(1)  # Increment tqdm progress bar
                 if time.time() - start_time > 10:
                     pbar.set_postfix_str("Running simulations...")
                     start_time = time.time()
 
-        # After obtaining simulation_results
-        kernel = gaussian_kde(simulation_results)
-
         # Append simulation_results to the CSV files
         combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)
         combined_file_path = os.path.join(self.static_dir, 'combined_sampled_data.csv')
+        logging.info("Writing combined sampled data to CSV...")
         if os.path.exists(combined_file_path):
             combined_sampled_data.to_csv(combined_file_path, mode='a', header=False, index=False)
         else:
@@ -125,13 +129,14 @@ class Modeling:
 
         simulation_df = pd.DataFrame(simulation_results, columns=['Simulation_Result'])
         simulation_file_path = os.path.join(self.static_dir, 'simulation_results.csv')
+        logging.info("Writing simulation results to CSV...")
         if os.path.exists(simulation_file_path):
             simulation_df.to_csv(simulation_file_path, mode='a', header=False, index=False)
         else:
             simulation_df.to_csv(simulation_file_path, index=False)
 
         logging.info("Monte Carlo Simulation Completed!")
-        return simulation_results
+        return simulation_results, home_team, away_team
 
     def compute_shap_values(self, model, X, model_type):
         """Compute SHAP values for a given model and dataset based on model type."""

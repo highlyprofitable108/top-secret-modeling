@@ -1,14 +1,9 @@
 import os
-import shap
-import base64
-import random
 import logging
-import scipy.stats
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from scipy.stats import zscore, norm
+from scipy.stats import norm
 from datetime import datetime, date as date_type
 
 
@@ -20,15 +15,38 @@ class SimVisualization:
 
     def compute_confidence_interval(self, data, confidence=0.95):
         """Compute the confidence interval for a given dataset."""
+        print("Starting confidence interval computation.")
+
         a = 1.0 * np.array(data)
         n = len(a)
         m, se = np.mean(a), np.std(a)/np.sqrt(n)
 
         h = se * norm.ppf((1 + confidence) / 2.)
 
-        return m-h, m+h
+        confidence_interval = (m-h, m+h)
+        print(f"Computed confidence interval: {confidence_interval}")
+
+        return confidence_interval
 
     def filter_simulation_results(self, simulation_results):
+        print("Starting filtering of simulation results.")
+        print(simulation_results)
+
+        # Check if the simulation results are None or contain only a single value
+        if simulation_results is None or (isinstance(simulation_results, np.ndarray) and simulation_results.size <= 1):
+            print(f"Simulation results are empty or contain only a single value: {simulation_results}")
+            return []
+
+        # Handle NaN values by replacing them with zero
+        simulation_results = np.nan_to_num(simulation_results)
+
+        # Check if the simulation results array is empty
+        if simulation_results.size == 0:
+            print("Simulation results are empty.")
+            return []
+
+        print(f"Simulation results after handling NaNs: {simulation_results}")
+
         # Constants for bounds
         LOWER_PERCENTILE = 0.0
         UPPER_PERCENTILE = 1
@@ -37,14 +55,29 @@ class SimVisualization:
         lower_bound = np.percentile(simulation_results, LOWER_PERCENTILE * 100)
         upper_bound = np.percentile(simulation_results, UPPER_PERCENTILE * 100)
 
+        print(f"Lower bound: {lower_bound}, Upper bound: {upper_bound}")
+
         # Filter
-        return [result for result in simulation_results if lower_bound <= result <= upper_bound]
+        filtered_results = [result for result in simulation_results if lower_bound <= result <= upper_bound]
+        print(f"Filtered results: {filtered_results}")
+
+        return filtered_results
 
     def analyze_simulation_results(self, simulation_results):
+        print("Starting analysis of simulation results.")
+
         filtered_results = self.filter_simulation_results(simulation_results)
+        if not filtered_results:
+            print("No data available after filtering simulation results.")
+            return None, None, None
+
         range_of_outcomes = (min(filtered_results), max(filtered_results))
         std_deviation = np.std(filtered_results)
-        confidence_interval = self.compute_confidence_interval(simulation_results)
+        confidence_interval = self.compute_confidence_interval(filtered_results)
+
+        print(f"Range of outcomes: {range_of_outcomes}")
+        print(f"Standard deviation: {std_deviation}")
+        print(f"Confidence interval: {confidence_interval}")
 
         return range_of_outcomes, std_deviation, confidence_interval
     
