@@ -1,8 +1,6 @@
 # Standard library imports
-import io
 import os
 import pytz
-import time
 from datetime import datetime, timedelta
 from importlib import reload
 
@@ -107,12 +105,6 @@ class NFLPredictor:
             return None, None
 
     def get_historical_data(self, random_subset=None, get_current=False):
-        """
-        Prepare historical data for simulations.
-
-        :param random_subset: Number of random games to fetch. If None, fetch all games.
-        :return: DataFrame containing game data.
-        """
         df = self.database_operations.fetch_data_from_mongodb('games')
         historical_df = self.data_processing.flatten_and_merge_data(df)
 
@@ -129,21 +121,16 @@ class NFLPredictor:
         # Filter out games scheduled before CUTOFF_DATE
         historical_df = historical_df[historical_df['scheduled'] >= self.CUTOFF_DATE]
 
+        # Check for and drop rows with NaN values in 'summary.odds.spread' columns
         columns_to_check = [col for col in historical_df.columns if col.startswith('summary.odds.spread')]
         historical_df = historical_df.dropna(subset=columns_to_check, how='any')
+        print(f"Rows dropped due to NaN in 'summary.odds.spread' columns.")
 
         # Extract necessary columns
         columns_to_extract = [
-            'id',
-            'scheduled',
-            'summary.home.id',
-            'summary.home.name',
-            'summary.away.id',
-            'summary.away.name',
-            'summary.home.points',
-            'summary.away.points'
+            'id', 'scheduled', 'summary.home.id', 'summary.home.name',
+            'summary.away.id', 'summary.away.name', 'summary.home.points', 'summary.away.points'
         ]
-        # Extracting all columns under 'summary.odds'
         odds_columns = [col for col in historical_df.columns if col.startswith('summary.odds.')]
         columns_to_extract.extend(odds_columns)
 
@@ -152,13 +139,15 @@ class NFLPredictor:
         # Convert the 'scheduled' column to datetime format and strip time information
         game_data['scheduled'] = pd.to_datetime(game_data['scheduled']).dt.date
 
-        # If get_current is True, filter games for the next week
+        # Drop rows with any NaN values in the final dataset
+        game_data = game_data.dropna(how='any')
+        print("Rows with any NaN values in the final dataset dropped.")
+
+        # Additional filters based on get_current and random_subset
         if get_current:
             today = datetime.now().date()
             one_week_from_now = today + timedelta(days=6)
             game_data = game_data[(game_data['scheduled'] >= today) & (game_data['scheduled'] <= one_week_from_now)]
-
-        # If random_subset is specified, fetch a random subset of games
         elif random_subset:
             game_data = game_data.sample(n=random_subset, replace=True)
 
@@ -166,30 +155,17 @@ class NFLPredictor:
 
     def analyze_and_log_results(self, simulation_results, home_team, away_team):
         # Analyze simulation results
-        self.logger.info("Analyzing Simulation Results...")
+        self.logger.info("Starting analysis of simulation results.")
+
         range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
 
-        # Create a buffer to capture log messages
-        log_capture_buffer = io.StringIO()
-
-        # Set up the logger to write to the buffer
-        log_handler = logging.StreamHandler(log_capture_buffer)
-        log_handler.setLevel(logging.INFO)
-        self.logger.addHandler(log_handler)
-
-        # User-friendly output
-        self.logger.info("---------------------------")
+        # Log detailed results
         self.logger.info(f"Game: {away_team} at {home_team}")
-        print(f"Outcome Range: {range_of_outcomes}")
-        print(f"Standard Deviation: {standard_deviation}")
-        print(f"95% Confidence Interval: {confidence_interval}")
-        self.logger.info("---------------------------")
+        self.logger.info(f"Outcome Range: {range_of_outcomes}")
+        self.logger.info(f"Standard Deviation: {standard_deviation}")
+        self.logger.info(f"95% Confidence Interval: {confidence_interval}")
 
-        # Retrieve the log messages from the buffer
-        log_contents = log_capture_buffer.getvalue()
-        combined_output = log_contents
-        
-        return combined_output
+        return f"Analysis Complete: {away_team} at {home_team}, Outcome Range: {range_of_outcomes}, Standard Deviation: {standard_deviation}, 95% Confidence Interval: {confidence_interval}"
 
     def simulate_games(self, num_simulations=1000, random_subset=None, get_current=False):
         """Predicts the target value using Monte Carlo simulation and visualizes the results."""
@@ -203,9 +179,6 @@ class NFLPredictor:
         all_simulation_results = []
         all_actual_results = []
         params_list = []
-        # Lists to store home and away team names
-        home_teams = []
-        away_teams = []
 
         self.file_cleanup()
 
@@ -225,11 +198,7 @@ class NFLPredictor:
                 logging.info(f"Game prediction DataFrame is empty for {home_team} vs {away_team}")
                 continue
 
-            params_list.append((game_prediction_df, self.model))
-            
-            # Append the home and away team names to the lists
-            home_teams.append(home_team)
-            away_teams.append(away_team)
+            params_list.append((game_prediction_df, self.model, home_team, away_team))
 
         with Pool() as pool:
             args_list = [(param, num_simulations) for param in params_list]
@@ -240,11 +209,11 @@ class NFLPredictor:
                 return
             
             results = pool.map(run_simulation_wrapper, args_list)
-        print(results)
-        # Process results for each game
-        for idx, (simulation_results) in enumerate(results):
 
-            self.analyze_and_log_results(simulation_results, home_teams[idx], away_teams[idx])
+        # Process results for each game
+        for idx, (simulation_results, home_team, away_team) in enumerate(results):
+
+            self.analyze_and_log_results(simulation_results, home_team, away_team)
 
             # LOOK INTO THIS FOR PREDICTIONS
             # perceived_value_for_game = BREAK_EVEN_PROBABILITY
@@ -268,8 +237,8 @@ def run_simulation_wrapper(args):
 
 
 def run_simulation(params, num_simulations):
-    game_prediction_df, model = params
-    return model.monte_carlo_simulation(game_prediction_df, num_simulations)
+    game_prediction_df, model, home_team, away_team = params
+    return model.monte_carlo_simulation(game_prediction_df, home_team, away_team, num_simulations)
 
 
 if __name__ == "__main__":
