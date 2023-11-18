@@ -139,16 +139,16 @@ class NFLPredictor:
         # Convert the 'scheduled' column to datetime format and strip time information
         game_data['scheduled'] = pd.to_datetime(game_data['scheduled']).dt.date
 
-        # Drop rows with any NaN values in the final dataset
-        game_data = game_data.dropna(how='any')
-        print("Rows with any NaN values in the final dataset dropped.")
-
         # Additional filters based on get_current and random_subset
         if get_current:
             today = datetime.now().date()
             one_week_from_now = today + timedelta(days=6)
             game_data = game_data[(game_data['scheduled'] >= today) & (game_data['scheduled'] <= one_week_from_now)]
         elif random_subset:
+            # Drop rows with any NaN values in the final dataset
+            game_data = game_data.dropna(how='any')
+            print("Rows with any NaN values in the final dataset dropped.")
+            
             game_data = game_data.sample(n=random_subset, replace=True)
 
         return game_data
