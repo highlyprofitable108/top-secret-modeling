@@ -146,7 +146,6 @@ class NFLPredictor:
         elif random_subset:
             # Drop rows with any NaN values in the final dataset
             game_data = game_data.dropna(how='any')
-
             game_data = game_data.sample(n=random_subset, replace=True)
 
         return game_data
