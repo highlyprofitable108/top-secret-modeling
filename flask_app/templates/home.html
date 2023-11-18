@@ -4,41 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Tailwind CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css"
+      rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css"
+      rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <title>Top Secret Modeling</title>   
+    <title>Top Secret Modeling</title>
 
   </head>
-  <body>  
+  <body>
     {% include 'header.html' %}
 
-    <section class="hero bg-gray-800 text-white py-16 container mx-auto text-center">
+    <section
+      class="hero bg-gray-800 text-white py-16 container mx-auto text-center">
       <h2 class="text-4xl font-bold mb-4">Welcome to Top Secret Modeling</h2>
-      <p class="text-xl mb-8">Get insights, generate analysis, and explore football data at your fingertips</p>
+      <p class="text-xl mb-8">Get insights, generate analysis, and explore
+        football data at your fingertips</p>
       <div class="hero-buttons flex flex-col items-center space-y-4">
         <!-- First row with two same-sized buttons -->
         <div class="flex justify-center space-x-4">
-            <a href="{{ url_for('columns') }}" class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px text-center">Select Stats for Model</a>
-            
-            <form action="/generate_analysis" method="POST">
-              <div id="loading-spinner" style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
-                <div class="loader" style="margin: 0 auto 10px auto;"></div>
-                <p style="color: white; font-size: 16px;">Generating analysis. This process can take some time. Please do not close or refresh the page.</p>
-                <div id="countdown-timer" style="color: white; font-size: 16px; margin-top: 10px;"></div>
-              </div>              
-            </form>
+          <a href="{{ url_for('columns') }}"
+            class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px text-center">Select
+            Stats for Model</a>
+
+          <form action="/generate_analysis" method="POST">
+            <div id="loading-spinner"
+              style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
+              <div class="loader" style="margin: 0 auto 10px auto;"></div>
+              <p style="color: white; font-size: 16px;">Generating analysis.
+                This process can take some time. Please do not close or refresh
+                the page.</p>
+              <div id="countdown-timer"
+                style="color: white; font-size: 16px; margin-top: 10px;"></div>
+            </div>
+          </form>
 
         </div>
-      </div>       
-    </section>  
+      </div>
+    </section>
 
     <main class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
-         
+
       <section class="mb-10">
         <h2 class="text-2xl font-bold mb-4">About Us</h2>
-        <p>Your go-to platform for data-driven insights and competitive analysis in the world of football. From casual fans to serious analysts, we have something for everyone.</p>
-      </section>      
+        <p>Your go-to platform for data-driven insights and competitive analysis
+          in the world of football. From casual fans to serious analysts, we
+          have something for everyone.</p>
+      </section>
 
       <section class="mt-12">
         <h2 class="text-2xl font-bold mb-4">Features</h2>
@@ -55,7 +69,8 @@
               <i class="bi bi-speedometer2"></i>
             </div>
             <h4 class="text-xl font-bold mb-2">Simulation and Analysis</h4>
-            <p>Run thousands of simulations to predict potential outcomes and strategies.</p>
+            <p>Run thousands of simulations to predict potential outcomes and
+              strategies.</p>
           </div>
         </div>
       </section>
@@ -64,6 +79,6 @@
     <script src="{{ url_for('static', filename='home.js') }}"></script>
 
     {% include 'footer.html' %}
-    
+
   </body>
 </html>

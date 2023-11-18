@@ -24,7 +24,7 @@ class ConfigManager:
     def load_config(self) -> dict:
         """
         Loads the configuration data from the YAML file.
-        
+
         Returns:
             dict: The configuration data as a dictionary.
         """
@@ -41,11 +41,11 @@ class ConfigManager:
     def get_config(self, section: str = None, key: str = None) -> dict:
         """
         Gets a configuration setting from the specified section and key.
-        
+
         Args:
             section (str): The section in the configuration data. Defaults to None.
             key (str): The key in the section. Defaults to None.
-        
+
         Returns:
             dict: The configuration setting.
         """
@@ -94,7 +94,7 @@ class ConfigManager:
     def get_model_dir(self) -> str:
         """Gets the model directory path from the configuration data."""
         return self.get_config('paths', 'model_dir')
-    
+
     def get_static_dir(self) -> str:
         """Gets the static directory path from the configuration data."""
         return self.get_config('paths', 'static_dir')

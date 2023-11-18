@@ -124,7 +124,6 @@ class NFLPredictor:
         # Check for and drop rows with NaN values in 'summary.odds.spread' columns
         columns_to_check = [col for col in historical_df.columns if col.startswith('summary.odds.spread')]
         historical_df = historical_df.dropna(subset=columns_to_check, how='any')
-        print(f"Rows dropped due to NaN in 'summary.odds.spread' columns.")
 
         # Extract necessary columns
         columns_to_extract = [
@@ -147,8 +146,7 @@ class NFLPredictor:
         elif random_subset:
             # Drop rows with any NaN values in the final dataset
             game_data = game_data.dropna(how='any')
-            print("Rows with any NaN values in the final dataset dropped.")
-            
+
             game_data = game_data.sample(n=random_subset, replace=True)
 
         return game_data
@@ -207,7 +205,7 @@ class NFLPredictor:
             if not args_list:
                 logging.info("args_list for multiprocessing pool is empty.")
                 return
-            
+
             results = pool.map(run_simulation_wrapper, args_list)
 
         # Process results for each game

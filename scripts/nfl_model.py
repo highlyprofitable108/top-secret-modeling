@@ -30,7 +30,7 @@ class NFLModel:
         """Fetch constants and configurations from the configuration manager."""
         try:
             constants = [
-                'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX', 
+                'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX',
                 'HOME_PREFIX', 'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'PREGAME_DB_NAME', 'RANKS_DB_NAME', 'CUTOFF_DATE',
                 'TARGET_VARIABLE'
             ]

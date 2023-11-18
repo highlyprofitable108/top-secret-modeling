@@ -72,59 +72,59 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     function handleFormSubmission(event, isQuickTest = false) {
         event.preventDefault(); // Prevent default form submission
-        
+
         // Check if any checkboxes are selected
         const checkboxesSelected = Array.from(checkboxes).some(checkbox => checkbox.checked);
         if (!checkboxesSelected) {
             alert('Please select at least one column before running the simulation.');
             return; // Stop the function if no checkboxes are selected
         }
-        
+
         // Call the showLoadingSpinner function
         showLoadingSpinner();
-    
+
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
         formData.append('quick_test', isQuickTest); // Add the quick_test parameter to the form data
-    
+
         // First, send form data to /process_columns
         fetch('/process_columns', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // If /process_columns is successful, send a request to /generate_model
-                return fetch('/generate_model', {
-                    method: 'POST'
-                });
-            } else {
-                throw new Error('Error processing columns.');
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                // If /generate_power_ranks is successful, send a request to /sim_runner
-                return fetch('/sim_runner', {
-                    method: 'POST',
-                    body: formData // Send the updated formData with the quick_test parameter
-                });
-            } else {
-                throw new Error(data.error || 'Error generating power ranks.');
-            }
-        })
-        .then(() => {
-            // After /sim_runner call is successful, redirect to /view_analysis
-            window.location.href = '/view_analysis'; 
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-            document.getElementById('loading-spinner').style.display = 'none';
-        });
-    }      
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // If /process_columns is successful, send a request to /generate_model
+                    return fetch('/generate_model', {
+                        method: 'POST'
+                    });
+                } else {
+                    throw new Error('Error processing columns.');
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // If /generate_power_ranks is successful, send a request to /sim_runner
+                    return fetch('/sim_runner', {
+                        method: 'POST',
+                        body: formData // Send the updated formData with the quick_test parameter
+                    });
+                } else {
+                    throw new Error(data.error || 'Error generating power ranks.');
+                }
+            })
+            .then(() => {
+                // After /sim_runner call is successful, redirect to /view_analysis
+                window.location.href = '/view_analysis';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                document.getElementById('loading-spinner').style.display = 'none';
+            });
+    }
 
     function showLoadingSpinner() {
         document.getElementById('loading-spinner').style.display = 'block';
@@ -145,20 +145,20 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
 
     // Add event listener to clear all selections when the "Clear Selection" button is clicked
-    document.getElementById('clearSelection').addEventListener('click', function() {
-        document.querySelectorAll('.form-check-input').forEach(function(checkbox) {
+    document.getElementById('clearSelection').addEventListener('click', function () {
+        document.querySelectorAll('.form-check-input').forEach(function (checkbox) {
             checkbox.checked = false;
         });
         document.getElementById('selectedColumnsList').textContent = 'None';
     });
 });
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
     const columnContainers = document.querySelectorAll('.column-container');
     const noResults = document.getElementById('noResults');
 
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         const query = this.value.toLowerCase().trim();
 
         let hasResults = false;

@@ -6,6 +6,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import pandas as pd
 import numpy as np
 import shap
+import json
 import plotly.graph_objs as go
 import matplotlib
 import matplotlib.pyplot as plt
@@ -52,7 +53,7 @@ class ModelVisualization:
                 'data_types': df.dtypes,
                 'outliers': df.select_dtypes(include=[np.number]).apply(lambda x: np.abs(zscore(x)) > 3).sum()
             }
-            
+
             data_quality_df = pd.DataFrame(data_quality_report)
 
             # Translating to HTML using Tailwind CSS classes
@@ -82,7 +83,7 @@ class ModelVisualization:
                 'Coefficient': coefficients
             }
             coef_df = pd.DataFrame(coef_data)
-            
+
             html_content = coef_df.sort_values(by='Coefficient', key=abs, ascending=False).to_html(classes="custom-table", border=0, index=True)
 
             # Full HTML structure
@@ -204,7 +205,7 @@ class ModelVisualization:
         styled_html = styled_html.replace('<td>', '<td class="border px-4 py-2">')
 
         return styled_html
-    
+
     def check_data_leakage(self, df, feature_columns, target_column):
         # Check for direct correlation between features and target
         correlation_matrix = df[feature_columns + [target_column]].corr()
@@ -233,7 +234,7 @@ class ModelVisualization:
     def generate_consolidated_report(self, feature_coefficients_html, shap_html, performance_metrics_html, file_name='consolidated_model_report.html'):
         # Full path to the file
         full_file_path = os.path.join(self.template_dir, file_name)
-    
+
         html_content = f"""
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Model Analysis Report</h2>

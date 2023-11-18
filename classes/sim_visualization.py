@@ -19,11 +19,11 @@ class SimVisualization:
 
         a = 1.0 * np.array(data)
         n = len(a)
-        m, se = np.mean(a), np.std(a)/np.sqrt(n)
+        m, se = np.mean(a), np.std(a) / np.sqrt(n)
 
         h = se * norm.ppf((1 + confidence) / 2.)
 
-        confidence_interval = (m-h, m+h)
+        confidence_interval = (m - h, m + h)
         print(f"Computed confidence interval: {confidence_interval}")
 
         return confidence_interval
@@ -80,7 +80,7 @@ class SimVisualization:
         print(f"Confidence interval: {confidence_interval}")
 
         return range_of_outcomes, std_deviation, confidence_interval
-    
+
     def format_records(self, records):
         records = records.reindex(['win', 'loss', 'push'], fill_value=0)
         win_pct = records['win'] / (records['win'] + records['loss']) if (records['win'] + records['loss']) > 0 else 0
@@ -94,18 +94,18 @@ class SimVisualization:
         historical_df = historical_df.reset_index(drop=True)
 
         if get_current is True:
-            results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 
-                                            'Away Team', 'Recommended Bet', 'Expected Value (%)'])
+            results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds',
+                                               'Away Team', 'Recommended Bet', 'Expected Value (%)'])
         else:
-            results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 
-                                            'Away Team', 'Recommended Bet', 'Home Points', 'Away Points', 
-                                            'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'])
+            results_df = pd.DataFrame(columns=['Date', 'Home Team', 'Vegas Odds', 'Modeling Odds',
+                                               'Away Team', 'Recommended Bet', 'Home Points', 'Away Points',
+                                               'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'])
         return historical_df, results_df
-    
+
     def round_to_nearest_half(self, value):
         rounded = round(value * 2) / 2
         return rounded if value % 0.5 > 0.25 else round(value)
-    
+
     def create_custom_percentiles(self):
         # Non-linear distribution of percentiles
         # More percentiles around the center, fewer towards the extremes
@@ -141,7 +141,7 @@ class SimVisualization:
 
         # Create bins with unique edges
         extended_bins = np.concatenate(([-np.inf], unique_quantiles, [np.inf]))
-        labels = [f"{extended_bins[i]} to {extended_bins[i+1]}" for i in range(len(extended_bins)-1)]
+        labels = [f"{extended_bins[i]} to {extended_bins[i+1]}" for i in range(len(extended_bins) - 1)]
 
         # Assign each spread difference to a bin
         df['Spread Diff Bin'] = pd.cut(df['Spread Difference Rounded'], bins=extended_bins, labels=labels)
@@ -173,7 +173,7 @@ class SimVisualization:
         expected_value = (P_win * 100) - (P_loss * 110)
 
         return expected_value
-    
+
     def process_row(self, row, simulation_results, idx, get_current):
         actual_home_points = row['summary.home.points']
         actual_away_points = row['summary.away.points']
@@ -228,7 +228,7 @@ class SimVisualization:
                 else:
                     bet_outcome = "loss"
                     actual_value = -110
-        
+
         if get_current is True:
             expected_value = self.calculate_ev(np.mean(predicted_difference), vegas_line)
 
@@ -265,7 +265,7 @@ class SimVisualization:
         results_df = pd.concat([results_df, new_row], ignore_index=True)
 
         return results_df
-    
+
     def finalize_results(self, results_df, get_current):
         # Round all values in the DataFrame to 2 decimals
         results_df = results_df.round(2)
@@ -276,8 +276,8 @@ class SimVisualization:
                         fill_color='paleturquoise',
                         align='left'),
             cells=dict(values=[results_df[col].tolist() for col in results_df.columns],
-                    fill_color='lavender',
-                    align='left'))
+                       fill_color='lavender',
+                       align='left'))
         ])
 
         # Update layout for a better visual appearance

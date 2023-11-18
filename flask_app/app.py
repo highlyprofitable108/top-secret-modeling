@@ -3,13 +3,11 @@ from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
-import scripts.constants
 from flask import Flask, render_template, request, jsonify
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
 import importlib
-from importlib import reload
 import logging
 
 # Set up logging at the top of your app.py
@@ -155,7 +153,6 @@ def process_columns():
 
     # Reload constants
     importlib.reload(constants)
-    reload(scripts.constants)
 
     return jsonify(success=True)
 
@@ -207,15 +204,15 @@ def sim_runner():
 
     return jsonify(status="success")
 
-        # elif action == "customMatchups":
-        #     logger.info("Handling customMatchups action")
-        #     matchups = []
-        #     for i in range(1, 17):  # Assuming max 16 matchups
-        #         home_team = request.form.get(f'homeTeam{i}')
-        #         away_team = request.form.get(f'awayTeam{i}')
-        #         if home_team and away_team:
-        #             matchups.append((home_team, away_team))
-        #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)  
+    # elif action == "customMatchups":
+    #     logger.info("Handling customMatchups action")
+    #     matchups = []
+    #     for i in range(1, 17):  # Assuming max 16 matchups
+    #         home_team = request.form.get(f'homeTeam{i}')
+    #         away_team = request.form.get(f'awayTeam{i}')
+    #         if home_team and away_team:
+    #             matchups.append((home_team, away_team))
+    #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
 
 
 @app.route('/sim_results')

@@ -174,7 +174,7 @@ class StatsCalculator:
         """
         try:
             # Normalize the power_rank values within each week
-            df = df[df['name'].isin(['NFC', 'AFC', 'Team Irvin', 'Team Rice']) == False].copy()
+            df = df[df['name'].isin(['NFC', 'AFC', 'Team Irvin', 'Team Rice']) is False].copy()
 
             def normalize_within_week(group):
                 min_rank = group['power_rank'].min()
@@ -192,7 +192,7 @@ class StatsCalculator:
             columns.remove('power_rank')
             columns.remove('normalized_power_rank')
             idx = columns.index('update_date')
-            columns = columns[:idx+1] + ['normalized_power_rank', 'power_rank'] + columns[idx+1:]
+            columns = columns[:idx + 1] + ['normalized_power_rank', 'power_rank'] + columns[idx + 1:]
             df = df[columns]
 
             # Log the normalization of the random sample

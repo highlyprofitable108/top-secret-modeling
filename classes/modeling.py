@@ -170,7 +170,6 @@ class Modeling:
         shap_values = explainer.shap_values(X)
         return shap_values, explainer
 
-
     def analysis_explanation(self, range_of_outcomes, confidence_interval, most_likely_outcome, standard_deviation):
         explanation = """
             Let's imagine we're trying to guess how many candies are in a big jar!
@@ -248,8 +247,8 @@ class Modeling:
             model_errors = [mean_squared_error(y_val, model.predict(X_val)) for model in models]
 
             # Calculate weights inversely proportional to errors (models with lower error get higher weight)
-            weights = [1/error for error in model_errors]
-            normalized_weights = [weight/sum(weights) for weight in weights]
+            weights = [1 / error for error in model_errors]
+            normalized_weights = [weight / sum(weights) for weight in weights]
 
             return WeightedAveragingEnsemble(models, normalized_weights)
         else:

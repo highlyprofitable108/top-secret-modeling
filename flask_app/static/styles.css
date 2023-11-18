@@ -109,8 +109,8 @@ body {
 }
 
 .content-card {
-    width: 90%; 
-    max-width: 1200px; 
+    width: 90%;
+    max-width: 1200px;
     min-height: 400px;
     margin: 0 auto;
 }
@@ -132,6 +132,7 @@ h1 {
     text-align: center;
     margin-bottom: 20px;
 }
+
 .stats-card {
     background: #fff;
     padding: 20px;
@@ -139,27 +140,35 @@ h1 {
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
+
 .stats-card h2 {
     color: #333;
     font-size: 1.2em;
     margin-bottom: 10px;
 }
+
 .stats-card table {
     width: 100%;
     border-collapse: collapse;
 }
-.stats-card table, .stats-card th, .stats-card td {
+
+.stats-card table,
+.stats-card th,
+.stats-card td {
     border: 1px solid #ddd;
     text-align: left;
     padding: 8px;
 }
+
 .stats-card tr:nth-child(even) {
     background-color: #f2f2f2;
 }
+
 .stats-card th {
     background-color: #4CAF50;
     color: white;
 }
+
 .image-container {
     text-align: center;
     margin: 20px 0;
@@ -170,32 +179,47 @@ h1 {
 }
 
 @-webkit-keyframes spin {
-    0% { -webkit-transform: rotate(0deg); }
-    100% { -webkit-transform: rotate(360deg); }
+    0% {
+        -webkit-transform: rotate(0deg);
+    }
+
+    100% {
+        -webkit-transform: rotate(360deg);
+    }
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .custom-table {
     width: 100%;
     border-collapse: separate;
-    border-spacing: 0 0.5rem; /* Adjust spacing as needed */
+    border-spacing: 0 0.5rem;
+    /* Adjust spacing as needed */
 }
 
-.custom-table th, .custom-table td {
+.custom-table th,
+.custom-table td {
     border: 1px solid #ddd;
-    padding: 0.5rem; /* Adjust padding as needed */
+    padding: 0.5rem;
+    /* Adjust padding as needed */
     text-align: left;
 }
 
 .custom-table th {
-    background-color: #f8f9fa; /* Adjust header background color as needed */
+    background-color: #f8f9fa;
+    /* Adjust header background color as needed */
     color: #333;
 }
 
 .custom-table tbody tr:hover {
-    background-color: #f1f1f1; /* Adjust hover background color as needed */
+    background-color: #f1f1f1;
+    /* Adjust hover background color as needed */
 }
