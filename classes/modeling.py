@@ -155,35 +155,29 @@ class Modeling:
         simulation_results = []
         sampled_data_list = []  # Stores sampled data for each simulation
 
-        start_time = time.time()
-        with tqdm(total=num_simulations, ncols=1000, desc=f"Simulating {home_team} vs {away_team}", mininterval=10) as pbar:
-            for sim_num in range(num_simulations):
-                # Sampling new data for each simulation
-                sampled_df = game_prediction_df.copy()
-                for column in sampled_df.columns:
-                    base = column.replace('_difference', '').replace('_ratio', '')
-                    stddev_column = f"{base}_stddev"
-                    if stddev_column in stddev_df.columns:
-                        mean_value = sampled_df[column].iloc[0]
-                        stddev_value = stddev_df[stddev_column].iloc[0]
-                        sampled_df[column] = np.random.normal(mean_value, stddev_value)
+        logging.info(f"Started Monte Carlo Simulation for {home_team} vs {away_team}.")
+        for sim_num in range(num_simulations):
+            # Sampling new data for each simulation
+            sampled_df = game_prediction_df.copy()
+            for column in sampled_df.columns:
+                base = column.replace('_difference', '').replace('_ratio', '')
+                stddev_column = f"{base}_stddev"
+                if stddev_column in stddev_df.columns:
+                    mean_value = sampled_df[column].iloc[0]
+                    stddev_value = stddev_df[stddev_column].iloc[0]
+                    sampled_df[column] = np.random.normal(mean_value, stddev_value)
 
-                sampled_data_list.append(sampled_df)
+            sampled_data_list.append(sampled_df)
 
-                # Prepare data for prediction
-                modified_df = sampled_df.dropna(axis=1, how='any')
-                try:
-                    scaled_df = self.LOADED_SCALER.transform(modified_df)
-                    prediction = self.LOADED_MODEL.predict(scaled_df)
-                    simulation_results.append(prediction[0])
-                except Exception as e:
-                    logging.error(f"Error during prediction in simulation {sim_num}: {e}")
-                    continue
-
-                pbar.update(1)  # Update progress bar
-                if time.time() - start_time > 10:
-                    pbar.set_postfix_str("Running simulations...")
-                    start_time = time.time()
+            # Prepare data for prediction
+            modified_df = sampled_df.dropna(axis=1, how='any')
+            try:
+                scaled_df = self.LOADED_SCALER.transform(modified_df)
+                prediction = self.LOADED_MODEL.predict(scaled_df)
+                simulation_results.append(prediction[0])
+            except Exception as e:
+                logging.error(f"Error during prediction in simulation {sim_num}: {e}")
+                continue
 
         logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
 
