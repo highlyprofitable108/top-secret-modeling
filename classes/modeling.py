@@ -2,6 +2,7 @@ import os
 import logging
 import time
 import shap
+import warnings
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -12,6 +13,10 @@ from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib  # Moved to top as it's used in multiple methods
+
+# Suppress warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore', category=UserWarning)
 
 
 # Ensemble Classes
@@ -140,8 +145,8 @@ class Modeling:
         Returns:
             tuple: Simulation results, home team name, away team name.
         """
-        logging.info("Starting Monte Carlo Simulation...")
-
+        logging.info(f"Starting Monte Carlo Simulation for {home_team} vs {away_team}...")
+        
         # Identify and separate standard deviation columns for simulations
         stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
         stddev_df = game_prediction_df[stddev_columns].copy()
@@ -151,7 +156,7 @@ class Modeling:
         sampled_data_list = []  # Stores sampled data for each simulation
 
         start_time = time.time()
-        with tqdm(total=num_simulations, ncols=1000) as pbar:  # Progress bar for simulations
+        with tqdm(total=num_simulations, ncols=1000, desc=f"Simulating {home_team} vs {away_team}", mininterval=10) as pbar:
             for sim_num in range(num_simulations):
                 # Sampling new data for each simulation
                 sampled_df = game_prediction_df.copy()
@@ -179,6 +184,8 @@ class Modeling:
                 if time.time() - start_time > 10:
                     pbar.set_postfix_str("Running simulations...")
                     start_time = time.time()
+
+        logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
 
         # Save combined data and simulation results to CSV files
         combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)

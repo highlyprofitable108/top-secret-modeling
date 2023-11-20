@@ -286,7 +286,7 @@ class NFLPredictor:
 
         # Processing and analyzing results
         for idx, (simulation_results, home_team, away_team) in enumerate(results):
-            print(f"Processing game {idx + 1}/{len(results)}: {home_team} vs {away_team}")
+            self.logger.info(f"Processing game {idx + 1}/{len(results)}: {home_team} vs {away_team}")
             self.analyze_and_log_results(simulation_results, home_team, away_team)
             all_simulation_results.append(simulation_results)
 
@@ -294,8 +294,13 @@ class NFLPredictor:
             row = historical_df.iloc[idx]
             actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1) if row['summary.home.points'] is not None and row['summary.away.points'] is not None else None
             all_actual_results.append(actual_difference)
+            self.logger.info(f"Processing game {idx + 1}/{len(results)} complete.")
 
         # Evaluate and recommend based on simulations
+        self.logger.info("Evaluating results.")
+        print(all_simulation_results)
+        print(historical_df)
+        print(get_current)
         self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
 
 
