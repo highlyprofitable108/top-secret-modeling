@@ -1,11 +1,9 @@
 import os
 import logging
-import time
 import shap
 import warnings
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, Lasso, Ridge
@@ -146,7 +144,7 @@ class Modeling:
             tuple: Simulation results, home team name, away team name.
         """
         logging.info(f"Starting Monte Carlo Simulation for {home_team} vs {away_team}...")
-        
+
         # Identify and separate standard deviation columns for simulations
         stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
         stddev_df = game_prediction_df[stddev_columns].copy()

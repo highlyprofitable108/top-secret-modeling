@@ -6,8 +6,8 @@ from importlib import reload
 
 # Third-party imports
 import joblib
+import multiprocessing
 import pandas as pd
-from multiprocessing import Pool
 from pymongo import MongoClient
 
 # Local application imports
@@ -21,6 +21,13 @@ import scripts.constants
 # Set up logging
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Determine the percentage of CPU cores to use (e.g., 50%)
+cpu_usage_percentage = 0.76
+
+# Calculate the number of processes to use based on the percentage
+available_cores = multiprocessing.cpu_count()
+num_processes = max(1, int(available_cores * cpu_usage_percentage))
 
 # Constants
 HOME_FIELD_ADJUST = 0
@@ -274,7 +281,7 @@ class NFLPredictor:
             params_list.append((game_prediction_df, self.model, home_team, away_team))
 
         # Multiprocessing for simulation
-        with Pool(processes=7) as pool:
+        with multiprocessing.Pool(processes=num_processes) as pool:
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
@@ -297,10 +304,8 @@ class NFLPredictor:
             self.logger.info(f"Processing game {idx + 1}/{len(results)} complete.")
 
         # Evaluate and recommend based on simulations
-        self.logger.info("Evaluating results.")
-        print(all_simulation_results)
-        print(historical_df)
-        print(get_current)
+        self.logger.info("Evaluating results...")
+
         self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
 
 

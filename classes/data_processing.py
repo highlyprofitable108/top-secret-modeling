@@ -419,7 +419,7 @@ class DataProcessing:
         # Log any remaining duplicates
         remaining_duplicates = ranks_df.columns[ranks_df.columns.duplicated()]
         if len(remaining_duplicates) > 0:
-            print(f"Remaining duplicate columns: {remaining_duplicates}")
+            logging.info(f"Remaining duplicate columns: {remaining_duplicates}")
 
         return ranks_df
 
@@ -556,7 +556,7 @@ class DataProcessing:
             pd.DataFrame: The original DataFrame if valid, otherwise an empty DataFrame.
         """
         if 'scoring_differential' not in df.columns:
-            print("'scoring_differential' key does not exist. Dropping games.")
+            logging.info("'scoring_differential' key does not exist. Dropping games.")
             return pd.DataFrame()  # Return an empty dataframe
         else:
             return df

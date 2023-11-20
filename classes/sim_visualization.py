@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -31,7 +32,7 @@ class SimVisualization:
         Returns:
             tuple: Lower and upper bounds of the confidence interval.
         """
-        print("Starting confidence interval computation.")
+        logging.info("Starting confidence interval computation.")
 
         a = 1.0 * np.array(data)
         n = len(a)
@@ -39,7 +40,7 @@ class SimVisualization:
         h = se * norm.ppf((1 + confidence) / 2.)  # Margin of error
 
         confidence_interval = (mean - h, mean + h)
-        print(f"Computed confidence interval: {confidence_interval}")
+        logging.info(f"Computed confidence interval: {confidence_interval}")
 
         return confidence_interval
 
@@ -53,18 +54,18 @@ class SimVisualization:
         Returns:
             list: Filtered simulation results.
         """
-        print("Starting filtering of simulation results.")
+        logging.info("Starting filtering of simulation results.")
 
         # Handling empty or invalid simulation results
         if simulation_results is None or (isinstance(simulation_results, np.ndarray) and simulation_results.size <= 1):
-            print(f"Simulation results are empty or contain only a single value: {simulation_results}")
+            logging.info(f"Simulation results are empty or contain only a single value: {simulation_results}")
             return []
 
         # Replace NaN values with zero
         simulation_results = np.nan_to_num(simulation_results)
 
         if simulation_results.size == 0:
-            print("Simulation results are empty.")
+            logging.info("Simulation results are empty.")
             return []
 
         # Define bounds for filtering
@@ -88,11 +89,11 @@ class SimVisualization:
         Returns:
             tuple: Range of outcomes, standard deviation, and confidence interval.
         """
-        print("Starting analysis of simulation results.")
+        logging.info("Starting analysis of simulation results.")
 
         filtered_results = self.filter_simulation_results(simulation_results)
         if not filtered_results:
-            print("No data available after filtering simulation results.")
+            logging.info("No data available after filtering simulation results.")
             return None, None, None
 
         # Compute range, standard deviation, and confidence interval
@@ -100,9 +101,9 @@ class SimVisualization:
         std_deviation = np.std(filtered_results)
         confidence_interval = self.compute_confidence_interval(filtered_results)
 
-        print(f"Range of outcomes: {range_of_outcomes}")
-        print(f"Standard deviation: {std_deviation}")
-        print(f"Confidence interval: {confidence_interval}")
+        logging.info(f"Range of outcomes: {range_of_outcomes}")
+        logging.info(f"Standard deviation: {std_deviation}")
+        logging.info(f"Confidence interval: {confidence_interval}")
 
         return range_of_outcomes, std_deviation, confidence_interval
 
@@ -164,7 +165,8 @@ class SimVisualization:
             float: Value rounded to the nearest half.
         """
         rounded = round(value * 2) / 2
-        return rounded if value % 0.5 > 0.25 else round(value)
+        result = rounded if value % 0.5 > 0.25 else round(value)
+        return result
 
     def create_custom_percentiles(self):
         """
@@ -173,13 +175,12 @@ class SimVisualization:
         Returns:
             np.array: Array of percentiles.
         """
-        # Distribute percentiles with higher concentration near the center and less towards the extremes
-        close_to_center = np.linspace(30, 70, num=10)  # Adjust based on data distribution
+        logging.info("Creating custom percentiles.")
+        close_to_center = np.linspace(30, 70, num=10)
         extreme_lower = np.linspace(0, 30, num=5)
         extreme_upper = np.linspace(70, 100, num=5)
-
-        # Combine and sort all percentile ranges
         all_percentiles = np.sort(np.concatenate([extreme_lower, close_to_center, extreme_upper]))
+        logging.info(f"Custom percentiles created: {all_percentiles}")
         return all_percentiles
 
     def estimate_win_probability_based_on_spread_diff(self, predicted_spread, vegas_line, df):
@@ -194,30 +195,29 @@ class SimVisualization:
         Returns:
             float: Estimated win probability.
         """
-        # Calculate the difference between modeling and Vegas odds and round it
-        df['Spread Difference'] = df['Modeling Odds'] - df['Vegas Odds']
-        df['Spread Difference Rounded'] = df['Spread Difference'].apply(self.round_to_nearest_half)
+        logging.info(f"Estimating win probability for predicted spread: {predicted_spread}, Vegas line: {vegas_line}")
 
-        # Calculate current spread difference
+        df['Spread Difference'] = df['Modeling Odds'] - df['Vegas Odds']
+        df['Spread Difference Rounded'] = df['Spread Difference'].apply(lambda x: self.round_to_nearest_half(x) if not pd.isna(x) else x)
         predicted_spread_rounded = self.round_to_nearest_half(predicted_spread)
         vegas_line_rounded = self.round_to_nearest_half(vegas_line)
         spread_diff = predicted_spread_rounded - vegas_line_rounded
+        logging.info(f"Calculated spread difference: {spread_diff}")
 
-        # Generate and apply custom percentiles for quantile calculation
         custom_percentiles = self.create_custom_percentiles()
-        quantiles = np.percentile(df['Spread Difference Rounded'], custom_percentiles)
+        quantiles = np.percentile(df['Spread Difference Rounded'].dropna(), custom_percentiles)  # Drop NaN before calculating percentiles
         unique_quantiles = np.unique(quantiles)
-
-        # Create bins and calculate win rates for each bin
         extended_bins = np.concatenate(([-np.inf], unique_quantiles, [np.inf]))
         labels = [f"{extended_bins[i]} to {extended_bins[i+1]}" for i in range(len(extended_bins) - 1)]
         df['Spread Diff Bin'] = pd.cut(df['Spread Difference Rounded'], bins=extended_bins, labels=labels)
-        win_rates = df.groupby('Spread Diff Bin')['Bet Outcome'].apply(lambda x: (x == 'win').sum() / len(x))
+        win_rates = df.groupby('Spread Diff Bin', observed=True)['Bet Outcome'].apply(lambda x: (x == 'win').sum() / len(x) if len(x) > 0 else 0)
 
-        # Estimate win probability for the current spread difference
-        current_bin_label = labels[np.digitize([spread_diff], extended_bins)[0] - 1]
-        P_win = win_rates.get(current_bin_label, 0)
+        # Safely determine the bin label for current spread difference
+        digitized_index = np.digitize([spread_diff], extended_bins)[0] - 1
+        current_bin_label = labels[digitized_index] if digitized_index < len(labels) else None
+        P_win = win_rates.get(current_bin_label, 0) if current_bin_label is not None else 0
 
+        logging.info(f"Estimated win probability: {P_win}")
         return P_win
 
     def calculate_ev(self, predicted_spread, vegas_line):
@@ -231,15 +231,30 @@ class SimVisualization:
         Returns:
             float: Calculated Expected Value.
         """
+        logging.info(f"Calculating EV: Predicted Spread: {predicted_spread}, Vegas Line: {vegas_line}")
+
         # Load historical data
         historical_df = pd.read_csv(os.path.join(self.static_dir, 'historical.csv'))
+        logging.info("Historical data loaded for EV calculation.")
 
         # Estimate win probability based on spread difference
         P_win = self.estimate_win_probability_based_on_spread_diff(predicted_spread, vegas_line, historical_df)
+        logging.info(f"Estimated win probability: {P_win}")
+
+        # Check for NaN in win probability
+        if pd.isna(P_win):
+            logging.error("NaN found in win probability calculation.")
+            return None
 
         # Calculate loss probability and expected value
         P_loss = 1 - P_win
         expected_value = (P_win * 100) - (P_loss * 110)  # Assumes -110 odds
+        logging.info(f"Calculated Expected Value: {expected_value}")
+
+        # Check for NaN in expected value
+        if pd.isna(expected_value):
+            logging.error("NaN found in expected value calculation.")
+            return None
 
         return expected_value
 
@@ -256,14 +271,18 @@ class SimVisualization:
         Returns:
             dict: A dictionary containing processed game information.
         """
+        logging.info(f"Processing row {idx}.")
+
         # Extract game information from the row
-        actual_home_points = row['summary.home.points']
-        actual_away_points = row['summary.away.points']
-        home_team = row['summary.home.name']
-        away_team = row['summary.away.name']
-        vegas_line = row["summary." + self.TARGET_VARIABLE]
-        date = row['scheduled']
+        actual_home_points = row.get('summary.home.points')
+        actual_away_points = row.get('summary.away.points')
+        home_team = row.get('summary.home.name')
+        away_team = row.get('summary.away.name')
+        vegas_line = row.get("summary." + self.TARGET_VARIABLE)
+        date = row.get('scheduled')
         predicted_difference = simulation_results[idx]
+
+        logging.info(f"Extracted game info for row {idx}: Home Points: {actual_home_points}, Away Points: {actual_away_points}, Vegas Line: {vegas_line}, Date: {date}")
 
         # Convert 'date' to a datetime object if it's not already
         if isinstance(date, date_type) and not isinstance(date, datetime):
@@ -276,46 +295,21 @@ class SimVisualization:
         actual_value = None
         actual_difference = None
 
-        # Process for games with or without odds
-        if pd.isna(vegas_line):
-            recommended_bet = None
-        else:
-            actual_difference = (actual_home_points + vegas_line) - actual_away_points
+        # Skip processing for future games with no odds and no results
+        if get_current and pd.isna(vegas_line) and pd.isna(actual_home_points) and pd.isna(actual_away_points):
+            logging.info(f"Skipping row {idx} as it's a future game with no odds and no results.")
+            return {}
+
+        # Process for games with odds but no results (Future Games)
+        if get_current and not pd.isna(vegas_line) and pd.isna(actual_home_points) and pd.isna(actual_away_points):
+            logging.info(f"Mean: {np.mean(predicted_difference)}")
+            logging.info(f"Vegas Line: {vegas_line}")
+
             recommendation_calc = vegas_line - np.mean(predicted_difference)
+            recommended_bet = self.determine_recommended_bet(recommendation_calc)
+            logging.info(f"Recommended Bet: {recommended_bet}")
 
-            # Determine recommended bet
-            if recommendation_calc < 0:
-                recommended_bet = "away"
-            elif recommendation_calc > 0:
-                recommended_bet = "home"
-            elif recommendation_calc == 0:
-                recommended_bet = "push"
-            else:
-                recommended_bet = None
-
-            # Determine actual results
-            if actual_difference is not None:
-                if actual_difference < 0:
-                    actual_covered = "away"
-                elif actual_difference > 0:
-                    actual_covered = "home"
-                else:
-                    actual_covered = "push"
-
-                # Determine bet outcome and actual value
-                if recommended_bet == actual_covered:
-                    bet_outcome = "win"
-                    actual_value = 100
-                elif recommended_bet == "push" or actual_covered == "push":
-                    bet_outcome = "push"
-                    actual_value = 0
-                else:
-                    bet_outcome = "loss"
-                    actual_value = -110
-
-        if get_current is True:
             expected_value = self.calculate_ev(np.mean(predicted_difference), vegas_line)
-
             return {
                 'Date': date,
                 'Home Team': home_team,
@@ -325,7 +319,14 @@ class SimVisualization:
                 'Recommended Bet': recommended_bet,
                 'Expected Value (%)': expected_value
             }
-        else:
+
+        # Process for historical games (calculate everything except EV)
+        if not get_current:
+            actual_difference = (actual_home_points + vegas_line) - actual_away_points if not pd.isna(actual_home_points) and not pd.isna(vegas_line) else None
+            recommendation_calc = vegas_line - np.mean(predicted_difference) if not pd.isna(vegas_line) else None
+            recommended_bet = self.determine_recommended_bet(recommendation_calc) if recommendation_calc is not None else None
+            actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_difference, recommended_bet)
+
             return {
                 'Date': date,
                 'Home Team': home_team,
@@ -340,6 +341,29 @@ class SimVisualization:
                 'Bet Outcome': bet_outcome,
                 'Actual Value ($)': actual_value
             }
+
+        logging.warning(f"Row {idx} does not match any expected scenarios.")
+        return {}
+
+    def determine_recommended_bet(self, recommendation_calc):
+        if recommendation_calc < 0:
+            return "away"
+        elif recommendation_calc > 0:
+            return "home"
+        elif recommendation_calc == 0:
+            return "push"
+        return None
+
+    def determine_bet_outcome(self, actual_difference, recommended_bet):
+        if actual_difference is not None:
+            actual_covered = "away" if actual_difference < 0 else "home" if actual_difference > 0 else "push"
+            if recommended_bet == actual_covered:
+                return actual_covered, "win", 100
+            elif recommended_bet == "push" or actual_covered == "push":
+                return actual_covered, "push", 0
+            else:
+                return actual_covered, "loss", -110
+        return None, None, None
 
     def append_results(self, results_df, processed_data):
         """
@@ -405,7 +429,7 @@ class SimVisualization:
             with open(betting_results_path, "w") as f:
                 f.write(betting_results_html)
         except IOError as e:
-            print(f"Error writing to file: {e}")
+            logging.info(f"Error writing to file: {e}")
 
         return results_df
 
@@ -491,9 +515,9 @@ class SimVisualization:
         # Save the DataFrame as a CSV file
         try:
             results_df.to_csv(csv_results_path, index=False)
-            print(f"Results saved successfully to {csv_results_path}")
+            logging.info(f"Results saved successfully to {csv_results_path}")
         except Exception as e:
-            print(f"Error saving results to CSV: {e}")
+            logging.info(f"Error saving results to CSV: {e}")
 
     def evaluate_and_recommend(self, simulation_results, historical_df, get_current):
         """
@@ -509,15 +533,21 @@ class SimVisualization:
             float: Recommendation accuracy in percentage.
             float: Total actual value from all bets.
         """
+        logging.info("Starting evaluation and recommendation process.")
+
         # Prepare initial data
         historical_df, results_df = self.prepare_data(historical_df, get_current)
+        logging.info("Data preparation complete.")
 
         correct_recommendations, total_bets = 0, 0
         # Process each row in the historical data
         for idx, row in historical_df.iterrows():
             processed_data = self.process_row(row, simulation_results, idx, get_current)
+            logging.info(f"Processed data for row {idx}: {processed_data}")
 
             results_df = self.append_results(results_df, processed_data)
+            logging.info(f"Results appended for row {idx}.")
+
             if get_current is False:
                 # Update the count of correct recommendations and total bets
                 if processed_data['Bet Outcome'] == 'win':
@@ -525,13 +555,18 @@ class SimVisualization:
                 if processed_data['Bet Outcome'] in ['win', 'loss']:
                     total_bets += 1
 
+            logging.info(f"Correct recommendations: {correct_recommendations}, Total bets: {total_bets}")
+
         # Finalize results and calculate summary statistics
         final_df = self.finalize_results(results_df, get_current)
         recommendation_accuracy, total_actual_value = self.calculate_summary_statistics(final_df, total_bets, correct_recommendations, get_current)
+        logging.info("Finalized results and calculated summary statistics.")
 
         # Create a summary dashboard (if applicable)
         if get_current is False:
             self.save_results_as_csv(results_df)
             self.create_summary_dashboard(final_df, total_bets, recommendation_accuracy, total_actual_value)
+            logging.info("Summary dashboard created and saved.")
 
+        logging.info("Evaluation and recommendation process completed.")
         return final_df, recommendation_accuracy, total_actual_value

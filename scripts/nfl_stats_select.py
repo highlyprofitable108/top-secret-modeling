@@ -1,6 +1,7 @@
 from .all_columns import ALL_COLUMNS
 from classes.config_manager import ConfigManager
 import random
+import logging
 
 
 class ColumnSelector:
@@ -25,7 +26,7 @@ class ColumnSelector:
         start_index = page * self.PAGE_SIZE
         end_index = start_index + self.PAGE_SIZE
         for i, col in enumerate(columns[start_index:end_index], start=start_index):
-            print(f"{i+1}. {col}")
+            logging.info(f"{i+1}. {col}")
 
     def get_user_selection(self, selected_columns):
         """
@@ -79,7 +80,7 @@ def main():
     selected_columns = selector.get_user_selection()  # Update this line to fetch user input
     selector.generate_constants_file(selected_columns)
 
-    print("constants.py file has been generated.")
+    logging.info("constants.py file has been generated.")
 
 
 if __name__ == "__main__":

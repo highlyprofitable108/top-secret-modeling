@@ -125,7 +125,7 @@ def process_columns():
     selected_columns = request.form.getlist('columns')
     selected_columns = nfl_stats.get_user_selection(selected_columns)
 
-    print(selected_columns)
+    logger.info(selected_columns)
     ratio_columns = [
         "summary.avg_gain",
         "rushing.totals.avg_yards",
@@ -187,9 +187,9 @@ def sim_runner():
         nfl_sim = NFLPredictor()
 
         # Set the number of simulations based on quick_test value
-        historical_sims = 250 if quick_test else 2500
-        next_week_sims = 1000 if quick_test else 10000
-        random_subset = 100 if quick_test else 1000
+        historical_sims = 11 if quick_test else 110
+        next_week_sims = 110 if quick_test else 1100
+        random_subset = 2750 if quick_test else 27500
 
         # Execute the randomHistorical action.
         logger.info(f"Executing randomHistorical action with {historical_sims} simulations")
