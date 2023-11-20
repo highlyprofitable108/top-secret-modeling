@@ -23,7 +23,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Determine the percentage of CPU cores to use (e.g., 50%)
-cpu_usage_percentage = 0.76
+cpu_usage_percentage = 0.88
 
 # Calculate the number of processes to use based on the percentage
 available_cores = multiprocessing.cpu_count()

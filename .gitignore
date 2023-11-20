@@ -23,5 +23,4 @@ flask_app/templates/summary_dash.html
 models/data_scaler.pkl
 models/trained_nfl_model.pkl
 scripts/__pycache__/*
-scripts/constants*
 venv/*
