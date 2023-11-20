@@ -5,6 +5,7 @@ classes/__pycache__/*
 classes/api*
 data/blind_test_data.csv
 data/csvs/odds.csv
+data/game_schedule.json
 data/jsons/*
 flask_app/__pycache__/*
 flask_app/static/descriptive_statistics.csv
@@ -28,4 +29,3 @@ scripts/__pycache__/*
 scripts/*data*
 scripts/*db*
 venv/*
-data/game_schedule.json
