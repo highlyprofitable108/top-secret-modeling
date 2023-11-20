@@ -155,7 +155,6 @@ class Modeling:
         simulation_results = []
         sampled_data_list = []  # Stores sampled data for each simulation
 
-        logging.info(f"Started Monte Carlo Simulation for {home_team} vs {away_team}.")
         for sim_num in range(num_simulations):
             # Sampling new data for each simulation
             sampled_df = game_prediction_df.copy()
