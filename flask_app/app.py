@@ -187,9 +187,9 @@ def sim_runner():
         # Set the number of simulations based on quick_test value
         historical_sims = 250 if quick_test else 2500
         next_week_sims = 1000 if quick_test else 10000
-        random_subset = 1000 if quick_test else 1000
+        random_subset = 100 if quick_test else 1000
 
-        # Execute the randomHistorical action
+        # Execute the randomHistorical action.
         logger.info(f"Executing randomHistorical action with {historical_sims} simulations")
         nfl_sim.simulate_games(num_simulations=historical_sims, random_subset=random_subset)
 

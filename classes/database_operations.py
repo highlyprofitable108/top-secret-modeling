@@ -1,17 +1,17 @@
+import logging
 import pandas as pd
 from pymongo import MongoClient
 from classes.config_manager import ConfigManager
-import logging
 
 
 class DatabaseOperations:
     """
-    A class to manage operations such as fetching, inserting, updating, and deleting data in a MongoDB database.
+    Class to manage operations such as fetching, inserting, updating, and deleting data in MongoDB.
     """
 
     def __init__(self):
         """
-        Initializes the DatabaseOperations class with configurations for MongoDB connection.
+        Initializes the DatabaseOperations class with MongoDB configuration.
         """
         self.config = ConfigManager()
         self.mongo_uri = self.config.get_config('database', 'mongo_uri')
@@ -22,18 +22,18 @@ class DatabaseOperations:
 
     def fetch_data_from_mongodb(self, collection_name: str) -> pd.DataFrame:
         """
-        Fetch data from a MongoDB collection.
+        Fetches data from a specified MongoDB collection and converts it to a DataFrame.
 
         Args:
-            collection_name (str): The name of the MongoDB collection to fetch data from.
+            collection_name (str): Name of the MongoDB collection.
 
         Returns:
-            pd.DataFrame: The data fetched from the MongoDB collection as a DataFrame.
+            pd.DataFrame: DataFrame containing data from the collection.
         """
         try:
+            # Retrieve data from MongoDB collection
             cursor = self.db[collection_name].find()
             df = pd.DataFrame(list(cursor))
-
             return df
         except Exception as e:
             self.logger.error(f"Error fetching data from MongoDB: {e}")
@@ -41,16 +41,14 @@ class DatabaseOperations:
 
     def insert_data_into_mongodb(self, collection_name: str, data: dict) -> None:
         """
-        Insert data into a MongoDB collection.
+        Inserts data into a specified MongoDB collection.
 
         Args:
-            collection_name (str): The name of the MongoDB collection to insert data into.
-            data (dict): The data to insert into the MongoDB collection.
-
-        Returns:
-            None
+            collection_name (str): Name of the MongoDB collection.
+            data (dict): Data to be inserted into the collection.
         """
         try:
+            # Insert data into MongoDB collection
             self.db[collection_name].insert_many(data)
             self.logger.info(f"Data inserted successfully into {collection_name} collection.")
         except Exception as e:
@@ -58,17 +56,15 @@ class DatabaseOperations:
 
     def update_data_in_mongodb(self, collection_name: str, query: dict, new_values: dict) -> None:
         """
-        Update data in a MongoDB collection.
+        Updates data in a specified MongoDB collection.
 
         Args:
-            collection_name (str): The name of the MongoDB collection to update data in.
-            query (dict): The query to select the documents to update.
-            new_values (dict): The new values to update in the selected documents.
-
-        Returns:
-            None
+            collection_name (str): Name of the MongoDB collection.
+            query (dict): Query to identify the documents to update.
+            new_values (dict): New values to be updated in the documents.
         """
         try:
+            # Update data in MongoDB collection
             self.db[collection_name].update_many(query, {'$set': new_values})
             self.logger.info(f"Data updated successfully in {collection_name} collection.")
         except Exception as e:
@@ -76,28 +72,33 @@ class DatabaseOperations:
 
     def delete_data_from_mongodb(self, collection_name: str, query: dict) -> None:
         """
-        Delete data from a MongoDB collection.
+        Deletes data from a specified MongoDB collection.
 
         Args:
-            collection_name (str): The name of the MongoDB collection to delete data from.
-            query (dict): The query to select the documents to delete.
-
-        Returns:
-            None
+            collection_name (str): Name of the MongoDB collection.
+            query (dict): Query to identify the documents to delete.
         """
         try:
+            # Delete data from MongoDB collection
             self.db[collection_name].delete_many(query)
             self.logger.info(f"Data deleted successfully from {collection_name} collection.")
         except Exception as e:
             self.logger.error(f"Error deleting data from MongoDB: {e}")
 
     def fetch_game_data(self):
+        """
+        Fetches game data from the 'games' collection.
+
+        Returns:
+            pd.DataFrame: DataFrame containing game data.
+        """
         return self.fetch_data_from_mongodb("games")
 
     def fetch_team_data(self):
+        """
+        Fetches team data from the 'teams' collection.
+
+        Returns:
+            pd.DataFrame: DataFrame containing team data.
+        """
         return self.fetch_data_from_mongodb("teams")
-
-
-# Usage example:
-# db_operations = DatabaseOperations()
-# db_operations.fetch_data_from_mongodb('collection_name')

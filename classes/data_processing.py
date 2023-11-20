@@ -9,26 +9,30 @@ import scripts.all_columns
 
 class DataProcessing:
     """
-    A class to handle data processing tasks such as flattening nested data,
-    converting time strings to minutes, and calculating scoring differentials.
+    Class for handling data processing tasks such as flattening nested data,
+    converting time strings to minutes, collapsing dataframes, renaming columns,
+    and filtering and scaling data.
     """
 
     def __init__(self, target_variable):
         """
         Initializes the DataProcessing class.
+
+        Parameters:
+        target_variable (str): The target variable name used in data processing.
         """
         self.logger = logging.getLogger(__name__)
         self.TARGET_VARIABLE = target_variable
 
     def flatten_and_merge_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Flatten the nested MongoDB data.
+        Flattens nested MongoDB data into a pandas DataFrame.
 
         Args:
-            df (pd.DataFrame): The input data frame with nested data.
+            df (pd.DataFrame): The input DataFrame with potentially nested data.
 
         Returns:
-            pd.DataFrame: The flattened and merged data frame.
+            pd.DataFrame: The flattened and merged DataFrame, or an empty DataFrame in case of an error.
         """
         try:
             dataframes = []
@@ -47,7 +51,13 @@ class DataProcessing:
 
     def collapse_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Convert a dataframe with columns containing '.' into a dataframe with nested dictionaries.
+        Collapses a DataFrame with columns containing '.' into a DataFrame with nested dictionaries.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to collapse.
+
+        Returns:
+            pd.DataFrame: Collapsed DataFrame with nested dictionaries.
         """
         collapsed_data = []
         for _, row in df.iterrows():
@@ -62,117 +72,162 @@ class DataProcessing:
         return pd.DataFrame(collapsed_data)
 
     def rename_columns(self, data, prefix):
-        """Renames columns with a specified prefix."""
+        """
+        Renames columns of a DataFrame with a specified prefix.
+
+        Args:
+            data (pd.DataFrame): The DataFrame whose columns need to be renamed.
+            prefix (str): The prefix to prepend to column names.
+
+        Returns:
+            pd.DataFrame: DataFrame with renamed columns.
+        """
         reload(scripts.constants)
         columns_to_rename = [col.replace('ranks_home_', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('ranks_home_')]
         rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
         return data.rename(columns=rename_dict)
 
     def filter_and_scale_data(self, merged_data, date):
-        """Filters the merged data using the feature columns and scales the numeric features."""
+        """
+        Filters and scales data based on feature columns and a specific date.
+
+        Args:
+            merged_data (pd.DataFrame): The DataFrame to be filtered and scaled.
+            date (datetime): The date to filter the DataFrame on.
+
+        Returns:
+            pd.DataFrame: Filtered and scaled DataFrame.
+        """
         # Reload constants
         reload(scripts.constants)
 
         # Filter the DataFrame
         filtered_data = merged_data[merged_data['update_date'] == date]
 
-        # Filter columns with stripping whitespaces and exclude TARGET_VARIABLE
+        # Filter columns excluding TARGET_VARIABLE
         columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, filtered_data.columns) and col.strip() != self.TARGET_VARIABLE]
 
+        # Scaling the data
         filtered_data = filtered_data[columns_to_filter]
-        filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
+        if hasattr(self, 'LOADED_SCALER'):
+            filtered_data[columns_to_filter] = self.LOADED_SCALER.transform(filtered_data[columns_to_filter])
+        else:
+            self.logger.warning("LOADED_SCALER not found. Data will not be scaled.")
         return filtered_data
 
     def get_team_data(self, df, team, date):
-        """Fetches data for a specific team based on the alias from the provided DataFrame."""
-        # Convert the 'update_date' column to a datetime object and extract only the "yyyy-mm-dd" part
+        """
+        Fetches data for a specific team based on the alias from the provided DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing team data.
+            team (str): The team name or alias.
+            date (str): The cutoff date for filtering the data.
+
+        Returns:
+            pd.DataFrame: The row from the DataFrame with the most recent data for the specified team.
+        """
         df['update_date'] = pd.to_datetime(df['update_date']).dt.strftime('%Y-%m-%d')
         condition = df['update_date'] <= date
-
-        # Filter the DataFrame based on the team name and the date condition
         filtered_df = df[(df['name'].str.lower() == team.lower()) & condition]
-        # Get the index of the row with the most recent update_date
         idx = filtered_df['update_date'].idxmax()
-
-        # Return the row with the most recent update_date
         return df.loc[[idx]]
 
     def replace_team_name(self, team_name):
+        """
+        Replaces old team names with their current names.
+
+        Args:
+            team_name (str): The original team name.
+
+        Returns:
+            str: The current team name.
+        """
         if team_name in ["Redskins", "Football Team"]:
             return "Commanders"
         return team_name
 
     def get_standard_deviation(self, df):
-        """Fetches the standard deviation for each column in the provided DataFrame."""
-        # Exclude non-numeric columns
+        """
+        Computes the standard deviation for numeric columns in a DataFrame.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to compute standard deviation for.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the standard deviations.
+        """
         numeric_df = df.select_dtypes(include=[np.number])
-
-        # Compute the standard deviation for each numeric column
         standard_deviation_df = numeric_df.std().to_frame().transpose()
-
-        # Return the standard deviation DataFrame
-        print()
         return standard_deviation_df
 
     def prepare_data(self, df, features, home_team, away_team, date):
-        """Prepare data for simulation."""
-        # Create a dictionary with base column names as keys and arithmetic operations as values
+        """
+        Prepares data for simulation by calculating differences and ratios.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing team data.
+            features (list): List of features to process.
+            home_team (str): Home team name.
+            away_team (str): Away team name.
+            date (str): The date for filtering data.
+
+        Returns:
+            pd.DataFrame: DataFrame prepared for simulation.
+        """
+        # Create a mapping of base column names to their corresponding operations (difference or ratio)
         feature_operations = {col.rsplit('_', 1)[0]: col.rsplit('_', 1)[1] for col in features}
 
         # Extract unique base column names from the features list
         base_column_names = set(col.rsplit('_', 1)[0] for col in features)
 
-        # Find all columns in df that contain any of the base column names
+        # Identify columns in the DataFrame that match the base column names
         related_columns = [col for col in df.columns if any(base_col in col for base_col in base_column_names)]
 
-        # Filter the home_team_data and away_team_data DataFrames to retain only the related columns
+        # Fetch data for home and away teams for the given date
         home_data = self.get_team_data(df, home_team, date)[related_columns].reset_index(drop=True)
         away_data = self.get_team_data(df, away_team, date)[related_columns].reset_index(drop=True)
 
-        # Separate standard deviation columns for home and away data
+        # Extract columns representing standard deviations
         home_stddev = home_data.filter(regex='_stddev$').copy()
         away_stddev = away_data.filter(regex='_stddev$').copy()
 
-        # Drop standard deviation columns from home_features and away_features
+        # Remove standard deviation columns for subsequent operations
         home_features = home_data.drop(home_stddev.columns, axis=1)
         away_features = away_data.drop(away_stddev.columns, axis=1)
 
-        # List to hold the new columns
         new_columns = []
-
-        # Iterate over the columns using the dictionary
         for col, operation in feature_operations.items():
-            if operation == "difference":
-                new_col_name = col + "_difference"
-                new_columns.append(pd.Series(home_features[col] - away_features[col], name=new_col_name))
-            else:
-                new_col_name = col + "_ratio"
-                new_columns.append(pd.Series(home_features[col] / away_features[col], name=new_col_name))
+            new_col_name = col + "_difference" if operation == "difference" else col + "_ratio"
+            # Compute the difference or ratio as specified in feature_operations
+            new_series = pd.Series(home_features[col] - away_features[col], name=new_col_name) if operation == "difference" else pd.Series(home_features[col] / away_features[col], name=new_col_name)
+            new_columns.append(new_series)
 
-        # Concatenate all new columns at once
+        # Combine the newly computed columns into a single DataFrame
         game_prediction_df = pd.concat(new_columns, axis=1)
 
-        # Iterate over each column
-        for column in game_prediction_df.columns:
-            # Calculate the median of the current column, excluding infinite values
-            median = game_prediction_df[column].replace([np.inf, -np.inf], np.nan).median()
+        # Replace infinite values with median to avoid calculation issues
+        game_prediction_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        game_prediction_df.fillna(game_prediction_df.median(), inplace=True)
 
-            # Replace infinite values with the median of the column
-            game_prediction_df[column].replace([np.inf, -np.inf], median, inplace=True)
-
-        # Ensure that both home_stddev and away_stddev have the same columns
+        # Identify common columns in home and away stddev, and compute their absolute differences
         common_stddev_columns = home_stddev.columns.intersection(away_stddev.columns)
-
-        # Subtract home_stddev from away_stddev for common columns
         stddev_difference = abs(home_stddev[common_stddev_columns] - away_stddev[common_stddev_columns])
 
+        # Append the stddev differences to the main DataFrame
         game_prediction_df = pd.concat([game_prediction_df, stddev_difference], axis=1)
 
         return game_prediction_df
 
     def cleanup_ranks(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Convert a dataframe that has ranks_* > type.stats to ranks_* > type > stats
+        Reformats columns starting with 'ranks_' to have a nested dictionary structure.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to be cleaned.
+
+        Returns:
+            pd.DataFrame: The DataFrame with cleaned 'ranks_' columns.
         """
         cleaned_data = []
 
@@ -181,85 +236,74 @@ class DataProcessing:
 
             for col, value in row.items():
                 if col.startswith("ranks_") and isinstance(value, dict):
-                    # Process 'ranks_*' columns with nested dictionaries
+                    # For 'ranks_*' columns with nested dictionaries
                     nested_data = {}
 
                     for sub_col, sub_value in value.items():
+                        # Check if sub-column name contains a period
                         if '.' in sub_col:
-                            # Split the sub-column name by dot ('.') to get the hierarchy levels
                             keys = sub_col.split('.')
+                            # Nest sub-columns under 'type' if they have a hierarchy
+                            type_key = keys[0]
+                            sub_key = '.'.join(keys[1:])
 
-                            if len(keys) > 1:
-                                # If the sub-column contains a period, nest it under 'type'
-                                type_key = keys[0]
-                                sub_key = '.'.join(keys[1:])
+                            if type_key not in nested_data:
+                                nested_data[type_key] = {}
 
-                                if type_key not in nested_data:
-                                    nested_data[type_key] = {}
-
-                                # Access the 'type' dictionary and set the sub-values
-                                sub_nested_data = nested_data[type_key]
-                                sub_nested_data[sub_key] = sub_value
-                            else:
-                                # If there is no period in the sub-column, keep it as-is
-                                nested_data[sub_col] = sub_value
+                            nested_data[type_key][sub_key] = sub_value
                         else:
-                            # Keep non-'.' sub-columns as-is
                             nested_data[sub_col] = sub_value
 
                     cleaned_row[col] = nested_data
                 else:
-                    # If the column doesn't match the criteria, copy it as-is
                     cleaned_row[col] = value
 
             cleaned_data.append(cleaned_row)
 
-        # Create a new DataFrame from the cleaned data
-        cleaned_df = pd.DataFrame(cleaned_data)
-
-        return cleaned_df
+        return pd.DataFrame(cleaned_data)
 
     def time_to_minutes(self, time_str: str) -> float:
         """
-        Convert time string 'MM:SS' to minutes as a float.
+        Converts time in 'HH:MM:SS' format to minutes.
 
         Args:
-            time_str (str): The time string in 'MM:SS' format.
+            time_str (str): The time string in 'HH:MM:SS' format.
 
         Returns:
-            float: The time in minutes.
+            float: Time in minutes, or None if invalid format.
         """
         if pd.isna(time_str):
             return None
 
         try:
-            minutes, seconds = map(int, time_str.split(':'))
-            return minutes + seconds / 60
+            # Splitting the time string and converting to minutes
+            hours, minutes, seconds = map(int, time_str.split(':'))
+            return hours * 60 + minutes + seconds / 60
         except ValueError:
             self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
             return None
 
     def generate_weekdays_list(self, start_date, end_date, weekday=2, excluded_months=list(range(3, 9))):
         """
-        Generate a list of specific weekdays between start_date and end_date.
+        Generates a list of specific weekdays within a date range, excluding certain months.
 
-        Parameters:
-        - start_date (datetime): The start date.
-        - end_date (datetime): The end date.
-        - weekday (int): The desired weekday (0=Monday, 1=Tuesday, ..., 6=Sunday).
-        - excluded_months (list): List of months to exclude.
+        Args:
+            start_date (datetime): The starting date of the range.
+            end_date (datetime): The ending date of the range.
+            weekday (int): The desired weekday (0=Monday, 1=Tuesday, ..., 6=Sunday).
+            excluded_months (list): Months to exclude from the range.
 
         Returns:
-        - List[datetime]: List of desired weekdays.
+            List[datetime]: List of dates representing the desired weekdays.
         """
         current_date = start_date
         weekdays_list = []
 
-        # Adjust the start date to the next desired weekday
+        # Adjust to the next desired weekday
         days_to_next_weekday = (weekday - current_date.weekday() + 7) % 7
         current_date += timedelta(days=days_to_next_weekday)
 
-        # Append desired weekdays to the list until the end date, skipping excluded months
+        # Loop to generate list of weekdays, excluding specified months
         while current_date <= end_date:
             if current_date.month not in excluded_months:
                 weekdays_list.append(current_date)
@@ -269,18 +313,19 @@ class DataProcessing:
 
     def calculate_scoring_differential(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate the scoring differential between home and away points.
+        Calculates the scoring differential between home and away teams.
 
         Args:
-            df (pd.DataFrame): The input data frame with score data.
+            df (pd.DataFrame): DataFrame with home and away team points.
 
         Returns:
-            pd.DataFrame: The data frame with the calculated scoring differential.
+            pd.DataFrame: Updated DataFrame with a new column for scoring differential.
         """
         numeric_columns = ['summary_home.points', 'summary_away.points']
         df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
         df.dropna(subset=numeric_columns, inplace=True)
 
+        # Ensure columns are numeric before calculating differential
         if all(col in df.columns and pd.api.types.is_numeric_dtype(df[col]) for col in numeric_columns):
             df['scoring_differential'] = df['summary_home.points'] - df['summary_away.points']
             self.logger.info("Computed 'scoring_differential' successfully.")
@@ -295,48 +340,48 @@ class DataProcessing:
 
     def handle_data_types(self, df: pd.DataFrame) -> None:
         """
-        Handle different data types more efficiently during the flattening process.
+        Placeholder method for handling different data types during data processing.
 
         Args:
-            df (pd.DataFrame): The input data frame with various data types.
+            df (pd.DataFrame): The DataFrame with various data types.
 
         Returns:
             None
         """
-        # TODO: Implement data type handling logic here
+        # Placeholder for future implementation of data type handling logic
         pass
 
     def handle_null_values(self, df):
-        """Handles null values in the dataframe by dropping columns with high NaN count and filling others with mean."""
+        """
+        Handles null values in the DataFrame by dropping or imputing.
+
+        Args:
+            df (pd.DataFrame): DataFrame with potential null values.
+
+        Returns:
+            pd.DataFrame: DataFrame with null values handled.
+        """
         try:
             if 'scheduled' in df.columns:
-                # Ensure 'scheduled' column is in datetime format
+                # Convert 'scheduled' to datetime and remove future dates
                 df['scheduled'] = pd.to_datetime(df['scheduled'])
                 df['scheduled'] = df['scheduled'].dt.tz_localize(None)
-
-                # Drop rows where 'scheduled' is greater than the current date and time
                 df = df[df['scheduled'] <= pd.Timestamp.now()]
 
+            # Identify columns with high NaN count to drop
             nan_counts = df.isnull().sum()
             columns_to_drop = [col for col in nan_counts[nan_counts > 100].index.tolist() if 'odds' not in col]
             if columns_to_drop:
                 logging.warning(f"Dropping columns with more than 100 NaN values: {columns_to_drop}")
                 df = df.drop(columns=columns_to_drop).reset_index(drop=True)
+                # Consider updating constants file here to reflect the changes
 
-                # Update constants.py to remove dropped columns
-                self.update_constants_file(columns_to_drop)
-                self.update_columns_file(columns_to_drop)
-
-            # Fill NaN values in remaining columns with the mean of each column
-            nan_columns = nan_counts[nan_counts > 0].index.tolist()
-            nan_columns = [col for col in nan_columns if col not in columns_to_drop]
-            for col in nan_columns:
-                if df[col].dtype == 'float64' or df[col].dtype == 'int64':  # Check if the column has a numeric data type
-                    col_mean = df[col].mean()
-                    df[col].fillna(col_mean, inplace=True)
+            # Impute NaN values for remaining columns
+            for col in df.columns:
+                if df[col].dtype in ['float64', 'int64']:
+                    df[col].fillna(df[col].mean(), inplace=True)
                 else:
-                    col_most_frequent = df[col].mode().iloc[0]  # Fill non-numeric columns with the mode
-                    df[col].fillna(col_most_frequent, inplace=True)
+                    df[col].fillna(df[col].mode().iloc[0], inplace=True)
 
             return df
         except Exception as e:
@@ -345,33 +390,33 @@ class DataProcessing:
 
     def handle_duplicate_columns(self, ranks_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Handle duplicate columns in the provided DataFrame.
+        Resolves issues with duplicate column names in the DataFrame.
 
-        :param ranks_df: DataFrame with potential duplicate columns.
-        :return: DataFrame with duplicate columns handled.
+        Args:
+            ranks_df (pd.DataFrame): DataFrame with potential duplicate columns.
+
+        Returns:
+            pd.DataFrame: DataFrame with duplicates resolved.
         """
-        # Identify duplicate columns
+        # Identify and process duplicate columns
         is_duplicate = ranks_df.columns.duplicated(keep=False)
         duplicated_cols = ranks_df.columns[is_duplicate].unique()
 
         for col in duplicated_cols:
-            # If the column data is a DataFrame (multiple columns with the same name)
             if isinstance(ranks_df[col], pd.DataFrame):
-                # Combine the data from all duplicate columns (e.g., take the mean, sum, or any other operation)
-                # Here, I'm taking the last column as an example
+                # Example strategy: take the last column if duplicates are DataFrames
                 ranks_df.loc[:, col] = ranks_df[col].iloc[:, -1]
 
-            # Drop all but the last occurrence of the duplicated column
+            # Drop duplicate columns except for the last occurrence
             col_locs = ranks_df.columns.get_loc(col)
             if isinstance(col_locs, slice):
                 col_locs = list(range(col_locs.start, col_locs.stop))
             if isinstance(col_locs, list) and len(col_locs) > 1:
                 ranks_df = ranks_df.drop(ranks_df.columns[col_locs[:-1]], axis=1)
 
-        # De-fragment the DataFrame
         ranks_df = ranks_df.reset_index(drop=True)
 
-        # Check for any remaining duplicates
+        # Log any remaining duplicates
         remaining_duplicates = ranks_df.columns[ranks_df.columns.duplicated()]
         if len(remaining_duplicates) > 0:
             print(f"Remaining duplicate columns: {remaining_duplicates}")
@@ -379,56 +424,80 @@ class DataProcessing:
         return ranks_df
 
     def update_columns_file(self, columns_to_remove):
-        """Update the constants.py file to remove specified columns."""
+        """
+        Updates the all_columns.py file to remove specified columns.
+
+        Args:
+            columns_to_remove (list): List of columns to be removed from the file.
+        """
+        # Reload the current columns file to ensure up-to-date data
         reload(scripts.all_columns)
 
+        # Read the current file contents
         with open('./scripts/all_columns.py', 'r') as file:
             lines = file.readlines()
 
-        # Remove lines containing columns to remove
+        # Exclude lines containing columns to remove
         new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
 
+        # Write the updated lines back to the file
         with open('./scripts/all_columns.py', 'w') as file:
             file.writelines(new_lines)
 
+        # Reload the updated columns file to reflect changes
         reload(scripts.all_columns)
 
     def update_constants_file(self, columns_to_remove):
-        """Update the constants.py file to remove specified columns."""
+        """
+        Updates the constants.py file to remove specified columns.
+
+        Args:
+            columns_to_remove (list): List of columns to be removed from the file.
+        """
+        # Reload the current constants file
         reload(scripts.constants)
 
+        # Read the current file contents
         with open('./scripts/constants.py', 'r') as file:
             lines = file.readlines()
 
-        # Remove lines containing columns to remove
+        # Exclude lines containing columns to remove
         new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
 
+        # Write the updated lines back to the file
         with open('./scripts/constants.py', 'w') as file:
             file.writelines(new_lines)
 
+        # Reload the updated constants file to reflect changes
         reload(scripts.constants)
 
     def handle_prediction_values(self, df):
-        """Handles prediction values in the dataframe by dropping columns with high NaN count and filling others with mean."""
+        """
+        Handles NaN values in DataFrame for prediction purposes.
+
+        Args:
+            df (pd.DataFrame): DataFrame with prediction values.
+
+        Returns:
+            pd.DataFrame: DataFrame with NaN values handled.
+        """
+        # Reload constants to ensure up-to-date column information
         reload(scripts.constants)
 
         try:
+            # Drop columns with high NaN count and impute remaining NaN values
             nan_counts = df.isnull().sum()
             columns_to_drop = nan_counts[nan_counts > 1].index.tolist()
             if columns_to_drop:
                 logging.warning(f"Dropping columns with more NaN values: {columns_to_drop}")
                 df = df.drop(columns=columns_to_drop).reset_index(drop=True)
 
-            # Fill NaN values in remaining columns with the mean of each column
-            nan_columns = nan_counts[nan_counts > 0].index.tolist()
-            nan_columns = [col for col in nan_columns if col not in columns_to_drop]
-            for col in nan_columns:
-                if np.issubdtype(df[col].dtype, np.number):  # Check if the column has a numeric data type
-                    col_mean = df[col].mean()
-                    df[col].fillna(col_mean, inplace=True)
+            # Fill NaN values in remaining columns
+            for col in df.columns:
+                if np.issubdtype(df[col].dtype, np.number):
+                    df[col].fillna(df[col].mean(), inplace=True)
                 else:
-                    col_most_frequent = df[col].mode().iloc[0]  # Fill non-numeric columns with the mode
-                    df[col].fillna(col_most_frequent, inplace=True)
+                    df[col].fillna(df[col].mode().iloc[0], inplace=True)
 
             return df
         except Exception as e:
@@ -436,20 +505,56 @@ class DataProcessing:
             return df
 
     def process_game_data(self, df):
+        """
+        Processes game data by flattening nested structures and calculating scoring differentials.
+
+        Args:
+            df (pd.DataFrame): DataFrame with game data.
+
+        Returns:
+            pd.DataFrame: Processed DataFrame.
+        """
         processed_df = self.flatten_and_merge_data(df)
         processed_df = self.calculate_scoring_differential(processed_df)
         return processed_df
 
     def process_team_data(self, df):
+        """
+        Processes team data by flattening nested structures.
+
+        Args:
+            df (pd.DataFrame): DataFrame with team data.
+
+        Returns:
+            pd.DataFrame: Flattened DataFrame.
+        """
         return self.flatten_and_merge_data(df)
 
     def convert_list_columns_to_string(self, df):
+        """
+        Converts DataFrame columns that contain lists to string type.
+
+        Args:
+            df (pd.DataFrame): DataFrame with potential list columns.
+
+        Returns:
+            pd.DataFrame: DataFrame with list columns converted to strings.
+        """
         for col in df.columns:
-            if df[col].apply(type).eq(list).any():
+            if df[col].apply(lambda x: isinstance(x, list)).any():
                 df[col] = df[col].astype(str)
         return df
 
     def validate_data(self, df):
+        """
+        Validates the DataFrame to ensure certain key columns exist.
+
+        Args:
+            df (pd.DataFrame): DataFrame to be validated.
+
+        Returns:
+            pd.DataFrame: The original DataFrame if valid, otherwise an empty DataFrame.
+        """
         if 'scoring_differential' not in df.columns:
             print("'scoring_differential' key does not exist. Dropping games.")
             return pd.DataFrame()  # Return an empty dataframe
