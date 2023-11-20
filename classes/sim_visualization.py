@@ -1,10 +1,15 @@
 import os
+import mpld3
 import logging
+import matplotlib
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from scipy.stats import norm
-from datetime import datetime, date as date_type
+from datetime import datetime, timedelta, date as date_type
+
+matplotlib.use('Agg')
 
 
 class SimVisualization:
@@ -519,6 +524,178 @@ class SimVisualization:
         except Exception as e:
             logging.info(f"Error saving results to CSV: {e}")
 
+    def calculate_weekly_profit(self, df):
+        """
+        Calculate weekly profit from the historical data, considering weeks from Tuesday to Tuesday
+        and excluding weeks from March through August.
+
+        Args:
+            df (pd.DataFrame): DataFrame containing historical game data.
+
+        Returns:
+            pd.Series: Weekly profit values.
+        """
+        # Convert 'Date' to datetime and exclude games from March through August
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df[~df['Date'].dt.month.isin([3, 4, 5, 6, 7, 8])]
+
+        # Adjust the date to align weeks from Tuesday to Tuesday
+        df['Adjusted Week'] = df['Date'].apply(lambda x: x - timedelta(days=x.weekday()) + timedelta(days=1))
+
+        # Group by week and calculate cumulative sum of 'Actual Value ($)'
+        weekly_profit = df.groupby('Adjusted Week')['Actual Value ($)'].sum().cumsum()
+
+        return weekly_profit
+
+    def plot_weekly_profit_graph(self, weekly_profit):
+        """
+        Plot the graph for weekly profit, excluding March through August, and return as HTML string.
+        """
+        # Exclude months March through August
+        weekly_profit_filtered = weekly_profit[~weekly_profit.index.month.isin([3, 4, 5, 6, 7, 8])]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        weekly_profit_filtered.plot(kind='line', ax=ax)
+        ax.set_title("Weekly Profit Over Time (Excluding Mar-Aug)")
+        ax.set_xlabel("Week Starting Date")
+        ax.set_ylabel("Cumulative Profit")
+        ax.grid(True)
+        return mpld3.fig_to_html(fig)
+
+    def plot_profitable_weeks_chart(self, weekly_profit):
+        """
+        Create a chart for the top 5 most and least profitable weeks and return as HTML string.
+        """
+        # Convert index to string if it's in datetime format
+        weekly_profit.index = weekly_profit.index.strftime('%Y-%m-%d')
+
+        # Ensure the data is numeric
+        weekly_profit = weekly_profit.astype(float)
+
+        top_5_profitable = weekly_profit.nlargest(5)
+        least_5_profitable = weekly_profit.nsmallest(5)
+
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 6))
+
+        top_5_profitable.plot(kind='bar', ax=axes[0], color='green')
+        axes[0].set_title("Top 5 Most Profitable Weeks")
+        axes[0].set_xlabel("Week")
+        axes[0].set_ylabel("Profit")
+
+        least_5_profitable.plot(kind='bar', ax=axes[1], color='red')
+        axes[1].set_title("Top 5 Least Profitable Weeks")
+        axes[1].set_xlabel("Week")
+        axes[1].set_ylabel("Profit")
+
+        plt.tight_layout()
+        return mpld3.fig_to_html(fig)
+
+    def calculate_accuracy_metrics(self, df):
+        logging.info("Starting calculation of accuracy metrics.")
+
+        # Convert 'Date' to datetime and exclude games from March through August
+        df['Date'] = pd.to_datetime(df['Date'])
+        df = df[~df['Date'].dt.month.isin([3, 4, 5, 6, 7, 8])]
+        logging.info(f"DataFrame after excluding March-August: {df.head()}")
+
+        # Adjust the date to align weeks from Tuesday to Tuesday
+        df['Adjusted Week'] = df['Date'].apply(lambda x: x - timedelta(days=x.weekday()) + timedelta(days=1))
+        logging.info(f"DataFrame after adjusting weeks: {df.head()}")
+
+        # Calculate differences
+        df['Diff'] = df['Vegas Odds'] - df['Modeling Odds']
+        logging.info(f"DataFrame with 'Diff' column: {df.head()}")
+
+        # Aggregate by 'Adjusted Week'
+        aggregated = df.groupby('Adjusted Week').agg(
+            Mean=('Diff', 'mean'),
+            SquaredDiff=('Diff', lambda x: np.mean(x**2)),  # Mean of squared differences
+            AbsDiff=('Diff', lambda x: np.mean(np.abs(x))),  # Mean of absolute differences
+            Std=('Diff', 'std'),
+            Count=('Diff', 'count')
+        )
+        logging.info(f"Aggregated stats: {aggregated.head()}")
+
+        # Calculate cumulative MSE and MAE as averages
+        aggregated['Cumulative MSE'] = (aggregated['SquaredDiff'] * aggregated['Count']).cumsum() / aggregated['Count'].cumsum()
+        aggregated['Cumulative MAE'] = (aggregated['AbsDiff'] * aggregated['Count']).cumsum() / aggregated['Count'].cumsum()
+
+        # Standard deviation calculation remains the same
+        aggregated['Sum of Squares'] = (aggregated['Std'] ** 2) * (aggregated['Count'] - 1)
+        cumulative_sum_of_squares = aggregated['Sum of Squares'].cumsum()
+        cumulative_count = aggregated['Count'].cumsum()
+        aggregated['Cumulative Std Dev'] = np.sqrt(cumulative_sum_of_squares / (cumulative_count - 1))
+
+        logging.info(f"Cumulative statistics: {aggregated[['Cumulative MSE', 'Cumulative MAE', 'Cumulative Std Dev']].head()}")
+
+        return aggregated[['Cumulative MSE', 'Cumulative MAE', 'Cumulative Std Dev']].reset_index()
+
+    def plot_accuracy_trends(self, accuracy_df):
+        logging.info("Starting plotting of accuracy trends.")
+
+        fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(10, 15), sharex=True)
+
+        # Plotting Cumulative MSE
+        axes[0].plot(accuracy_df['Adjusted Week'], accuracy_df['Cumulative MSE'], color='blue')
+        axes[0].set_title("Cumulative MSE Trends Over Time")
+        axes[0].set_ylabel("Cumulative MSE")
+
+        # Plotting Cumulative MAE
+        axes[1].plot(accuracy_df['Adjusted Week'], accuracy_df['Cumulative MAE'], color='green')
+        axes[1].set_title("Cumulative MAE Trends Over Time")
+        axes[1].set_ylabel("Cumulative MAE")
+
+        # Plotting Cumulative Standard Deviation
+        axes[2].plot(accuracy_df['Adjusted Week'], accuracy_df['Cumulative Std Dev'], color='red')
+        axes[2].set_title("Cumulative Standard Deviation Trends Over Time")
+        axes[2].set_ylabel("Cumulative Standard Deviation")
+        axes[2].set_xlabel("Adjusted Week")  # Only set x-label for the bottommost subplot
+
+        for ax in axes:
+            ax.grid(True)
+            ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+
+        # Adjust subplot spacing and apply tight layout with padding
+        fig.subplots_adjust(hspace=0.5)
+        plt.tight_layout(pad=3.0)
+
+        logging.info("Plotting completed.")
+
+        return mpld3.fig_to_html(fig)
+
+    def create_trending_dashboard(self, results_df):
+        """
+        Create a separate dashboard for trending data including weekly profit tracking,
+        top profitable weeks, and model accuracy metrics.
+        """
+        # Calculate and plot weekly profit
+        weekly_profit = self.calculate_weekly_profit(results_df)
+        weekly_profit_graph = self.plot_weekly_profit_graph(weekly_profit)
+
+        # Calculate and plot accuracy metrics
+        accuracy_metrics_df = self.calculate_accuracy_metrics(results_df)
+        accuracy_metrics_graph = self.plot_accuracy_trends(accuracy_metrics_df)
+
+        # Combine all HTML content for the dashboard
+        html_content = f"""
+            <div class="container">
+                <div class="chart-card">
+                    <h2>Weekly Profit Tracking</h2>
+                    {weekly_profit_graph}
+                </div>
+                <div class="chart-card">
+                    <h2>Model Accuracy Over Time</h2>
+                    {accuracy_metrics_graph}
+                </div>
+            </div>
+        """
+
+        trending_dash_path = os.path.join(self.template_dir, 'trending_dash.html')
+
+        # Write the HTML content to a file
+        with open(trending_dash_path, 'w') as f:
+            f.write(html_content)
+
     def evaluate_and_recommend(self, simulation_results, historical_df, get_current):
         """
         Evaluate betting recommendations and create a summary dashboard.
@@ -540,6 +717,7 @@ class SimVisualization:
         logging.info("Data preparation complete.")
 
         correct_recommendations, total_bets = 0, 0
+
         # Process each row in the historical data
         for idx, row in historical_df.iterrows():
             processed_data = self.process_row(row, simulation_results, idx, get_current)
@@ -567,6 +745,10 @@ class SimVisualization:
             self.save_results_as_csv(results_df)
             self.create_summary_dashboard(final_df, total_bets, recommendation_accuracy, total_actual_value)
             logging.info("Summary dashboard created and saved.")
+
+            # Create and save the trending dashboard
+            self.create_trending_dashboard(results_df)
+            logging.info("Trending dashboard created and saved.")
 
         logging.info("Evaluation and recommendation process completed.")
         return final_df, recommendation_accuracy, total_actual_value

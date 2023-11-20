@@ -292,6 +292,11 @@ def future_betting_recommendations():
     return render_template('future_betting_recommendations.html')
 
 
+@app.route('/view_trending')
+def view_trending():
+    return render_template('trending_dash.html')
+
+
 @app.route('/view_summary_dash')
 def view_summary_dash():
     return render_template('summary_dash.html')
