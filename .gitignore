@@ -21,6 +21,7 @@ flask_app/templates/normalized_power_ranks.html
 flask_app/templates/shap*
 flask_app/templates/simulation_distribution.html
 flask_app/templates/summary_dash.html
+flask_app/templates/trending_dash.html
 models/data_scaler.pkl
 models/trained_nfl_model.pkl
 scripts/__pycache__/*
