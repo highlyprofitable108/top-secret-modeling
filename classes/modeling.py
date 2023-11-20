@@ -189,7 +189,6 @@ class Modeling:
         self._write_to_csv(combined_sampled_data, combined_file_path)
         self._write_to_csv(simulation_df, simulation_file_path)
 
-        logging.info("Monte Carlo Simulation Completed!")
         return simulation_results, home_team, away_team
 
     def compute_shap_values(self, model, X, model_type):
