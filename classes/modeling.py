@@ -322,17 +322,41 @@ class Modeling:
             return self.train_random_forest(X, y)
         elif model_type == "linear":
             return self.train_linear_regression(X, y)
-        # Remaining 'elif' blocks for other model types...
+        elif model_type == "svm":
+            return self.train_svm(X, y, grid_search_params)
+        elif model_type == "gradient_boosting":
+            return self.train_gradient_boosting(X, y, grid_search_params)
+        elif model_type == "lasso":
+            return self.train_lasso_regression(X, y, grid_search_params)
+        elif model_type == "ridge":
+            return self.train_ridge_regression(X, y, grid_search_params)
         elif model_type == "stacking_ensemble":
             base_models = [...]
             meta_model = GradientBoostingRegressor()
             return self.train_stacking_ensemble(base_models, meta_model, X, y)
+        elif model_type == "stacking_ensemble":
+            base_models = [
+                self.train_random_forest(X, y, grid_search_params),
+                self.train_linear_regression(X, y),
+                self.train_svm(X, y, grid_search_params)
+            ]
+            meta_model = GradientBoostingRegressor()
+            base_models, trained_meta_model = self.train_stacking_ensemble(base_models, meta_model, X, y)
+            return StackingEnsemble(base_models, trained_meta_model)
+        elif model_type == "simple_averaging_ensemble":
+            models = [
+                self.train_random_forest(X, y, grid_search_params),
+                self.train_linear_regression(X, y),
+                self.train_svm(X, y, grid_search_params),
+                self.train_gradient_boosting(X, y, grid_search_params)
+            ]
+            return SimpleAveragingEnsemble(models)
         elif model_type == "weighted_averaging_ensemble":
             return self.train_weighted_averaging_ensemble(X, y, grid_search_params)
         else:
             raise ValueError(f"The model type '{model_type}' specified is not supported.")
 
-    def train_random_forest(self, X, y, grid_search_params=None):
+    def train_random_forest(self, X, y):
         """
         Trains a RandomForestRegressor model, optionally with hyperparameter tuning.
 
@@ -345,11 +369,10 @@ class Modeling:
             RandomForestRegressor or GridSearchCV object: Trained model.
         """
         logging.info("Training RandomForestRegressor with hyperparameter tuning...")
-        if grid_search_params is None:
-            grid_search_params = {
-                'n_estimators': [100],
-                'max_depth': [None, 10],
-            }
+        grid_search_params = {
+            'n_estimators': [100],
+            'max_depth': [None, 10],
+        }
         model = GridSearchCV(RandomForestRegressor(random_state=108), grid_search_params, cv=3, verbose=2)
         model.fit(X, y)
         return model
@@ -415,7 +438,7 @@ class Modeling:
         model.fit(X, y)
         return model
 
-    def train_lasso_regression(self, X, y):
+    def train_lasso_regression(self, X, y, grid_search_params=None):
         """
         Trains a Lasso Regression model with hyperparameter tuning.
 
@@ -433,7 +456,7 @@ class Modeling:
         lasso.fit(X, y)
         return lasso
 
-    def train_ridge_regression(self, X, y):
+    def train_ridge_regression(self, X, y, grid_search_params=None):
         """
         Trains a Ridge Regression model with hyperparameter tuning.
 

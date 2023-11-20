@@ -1,4 +1,5 @@
-from scripts import nfl_stats_select, constants
+from scripts import constants, all_columns
+from scripts.nfl_stats_select import ColumnSelector
 from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
@@ -35,6 +36,7 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 config = ConfigManager()
 database_operations = DatabaseOperations()
 nfl_model = NFLModel()
+nfl_stats = ColumnSelector()
 
 # Fetch configurations using ConfigManager
 TARGET_VARIABLE = config.get_config('constants', 'TARGET_VARIABLE')
@@ -77,7 +79,7 @@ def home():
 
 @app.route('/columns')
 def columns():
-    columns = nfl_stats_select.ALL_COLUMNS
+    columns = all_columns.ALL_COLUMNS
     categorized_columns = defaultdict(list)
     for column in columns:
         prefix, rest = column.split('.', 1)
@@ -121,7 +123,7 @@ def get_model_update_time():
 @app.route('/process_columns', methods=['POST'])
 def process_columns():
     selected_columns = request.form.getlist('columns')
-    selected_columns = nfl_stats_select.get_user_selection(selected_columns)
+    selected_columns = nfl_stats.get_user_selection(selected_columns)
 
     print(selected_columns)
     ratio_columns = [
@@ -149,7 +151,7 @@ def process_columns():
         else:
             modified_columns.append(column + '_difference')
 
-    nfl_stats_select.generate_constants_file(modified_columns)
+    nfl_stats.generate_constants_file(modified_columns)
 
     # Reload constants
     importlib.reload(constants)

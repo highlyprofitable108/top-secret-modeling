@@ -1,6 +1,6 @@
+from .all_columns import ALL_COLUMNS
 from classes.config_manager import ConfigManager
 import random
-from .all_columns import ALL_COLUMNS
 
 
 class ColumnSelector:
