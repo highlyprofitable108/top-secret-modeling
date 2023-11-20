@@ -2,6 +2,7 @@
 *.csv
 .gitignore
 classes/__pycache__/*
+classes/api*
 data/blind_test_data.csv
 data/csvs/odds.csv
 data/jsons/*
@@ -23,4 +24,7 @@ flask_app/templates/summary_dash.html
 models/data_scaler.pkl
 models/trained_nfl_model.pkl
 scripts/__pycache__/*
+scripts/*data*
+scripts/*db*
 venv/*
+data/game_schedule.json
