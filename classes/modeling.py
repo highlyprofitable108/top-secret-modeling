@@ -176,7 +176,7 @@ class Modeling:
                 simulation_results.append(prediction[0])
             except Exception as e:
                 logging.error(f"Error during prediction in simulation {sim_num}: {e}")
-                continue
+                return simulation_results, home_team, away_team
 
         logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
 
