@@ -106,6 +106,10 @@
         <p id="noResults" style="display: none; color: red;">No results found.</p>
       </div>
       <form action="/process_columns" method="POST">
+        <!-- Add an input field for quick_test -->
+        <input type="hidden" name="quick_test" id="quick_test_input" value="false">
+
+
         <div class="mb-3 flex space-x-2">
           <button type="button" class="bg-gray-800 text-white py-2 px-4 rounded"
             id="selectAll">Select All</button>

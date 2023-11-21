@@ -205,6 +205,7 @@ def async_generate_model():
 @celery.task
 def async_sim_runner(quick_test):
     try:
+        print(quick_test)
         # Set the date to the current day
         date_input = datetime.today()
 
@@ -242,8 +243,9 @@ def generate_model():
 
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
-    quick_test = request.form.get('quick_test') == 'true'  # Correctly interpret the string
-    print(quick_test)
+    quick_test_str = request.form.get('quick_test')
+    quick_test = quick_test_str == 'true'  # Correctly interpret the string
+
     task = async_sim_runner.delay(quick_test)
     return jsonify({"status": "success", "task_id": task.id})
 

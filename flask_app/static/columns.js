@@ -1,3 +1,5 @@
+let globalIsQuickTest = false;  // Global variable to store the state of isQuickTest
+
 document.addEventListener('DOMContentLoaded', (event) => {
     // Get references to DOM elements
     const selectedColumnsList = document.getElementById('selectedColumnsList');
@@ -71,6 +73,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
 
     function handleFormSubmission(event, isQuickTest = false) {
+        globalIsQuickTest = isQuickTest;  // Set the global variable
         event.preventDefault(); // Prevent default form submission
     
         // Check if any checkboxes are selected
@@ -86,7 +89,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
         formData.append('quick_test', String(isQuickTest));
-        console.log('FormData:', Array.from(formData.entries()));
 
         // Send form data to /process_columns
         fetch('/process_columns', {
@@ -151,10 +153,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
     function startNextTask(endpoint) {
         const formData = new FormData(form); // Reconstruct formData
-        formData.append('quick_test', String(isQuickTest)); // Make sure to append quick_test
-    
+        formData.append('quick_test', String(globalIsQuickTest)); // Make sure to append quick_test
+
         // Start the next task and poll for its completion
-        fetch(endpoint, { method: 'POST', body: new FormData(form) })
+        fetch(endpoint, { method: 'POST', body: formData })
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
@@ -184,6 +186,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     const quickTestButton = document.getElementById('quickTestButton');
     if (quickTestButton) {
         quickTestButton.addEventListener('click', (event) => {
+            // Set the value of the quick_test input field to 'true' when Quick Test is clicked
+            document.getElementById('quick_test_input').value = 'true';
+
             // Call handleFormSubmission with isQuickTest set to true
             handleFormSubmission(event, true);
         });
