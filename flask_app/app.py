@@ -242,7 +242,8 @@ def generate_model():
 
 @app.route('/sim_runner', methods=['POST'])
 def sim_runner():
-    quick_test = request.form.get('quick_test', default=False, type=lambda v: v.lower() == 'true')
+    quick_test = request.form.get('quick_test') == 'true'  # Correctly interpret the string
+    print(quick_test)
     task = async_sim_runner.delay(quick_test)
     return jsonify({"status": "success", "task_id": task.id})
 

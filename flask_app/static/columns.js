@@ -85,8 +85,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
     
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
-        formData.append('quick_test', isQuickTest); // Add the quick_test parameter to the form data
-    
+        formData.append('quick_test', String(isQuickTest));
+        console.log('FormData:', Array.from(formData.entries()));
+
         // Send form data to /process_columns
         fetch('/process_columns', {
             method: 'POST',
@@ -145,10 +146,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     alert('An error occurred while checking the task status.');
                     document.getElementById('loading-spinner').style.display = 'none';
                 });
-        }, 2000); // Poll every 2 seconds, adjust as needed
+        }, 15000); // Poll every 15 seconds, adjust as needed
     }
     
     function startNextTask(endpoint) {
+        const formData = new FormData(form); // Reconstruct formData
+        formData.append('quick_test', String(isQuickTest)); // Make sure to append quick_test
+    
         // Start the next task and poll for its completion
         fetch(endpoint, { method: 'POST', body: new FormData(form) })
             .then(response => response.json())
