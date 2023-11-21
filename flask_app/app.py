@@ -4,6 +4,7 @@ from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
+from celery import Celery
 from flask import Flask, render_template, request, jsonify
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
@@ -28,9 +29,32 @@ if not logger.handlers:
     # Add the handler to the logger
     logger.addHandler(ch)
 
+
+def make_celery(app):
+    # Initialize Celery with Flask app's configurations
+    celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
+    celery.conf.update(app.config)
+
+    # Ensure that the task execution context is the same as Flask's
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# Set Celery configuration
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'  # Example for Redis
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+
+# Initialize Celery
+celery = make_celery(app)
 
 # Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
@@ -159,23 +183,28 @@ def process_columns():
     return jsonify(success=True)
 
 
-@app.route('/generate_model', methods=['POST'])
-def generate_model():
+@app.route('/task_status/<task_id>')
+def task_status(task_id):
+    task = celery.AsyncResult(task_id)
+    if task.status == 'SUCCESS':
+        response = {"status": task.status, "result": task.result}
+    else:
+        response = {"status": task.status}
+    return jsonify(response)
+
+
+@celery.task
+def async_generate_model():
     try:
         nfl_model.main()
-
+        return {"status": "success"}
     except Exception as e:
-        return jsonify(error=str(e)), 500
-
-    return jsonify(status="success")
+        return {"status": "failure", "error": str(e)}
 
 
-@app.route('/sim_runner', methods=['POST'])
-def sim_runner():
+@celery.task
+def async_sim_runner(quick_test):
     try:
-        # Retrieve the quick_test parameter from the POST request
-        quick_test = request.form.get('quick_test', default=False, type=lambda v: v.lower() == 'true')
-
         # Set the date to the current day
         date_input = datetime.today()
 
@@ -199,22 +228,23 @@ def sim_runner():
         logger.info(f"Executing nextWeek action with {next_week_sims} simulations")
         nfl_sim.simulate_games(num_simulations=next_week_sims, get_current=True)
 
+        return {"status": "success"}
+
     except Exception as e:
-        # If there is an error, log it and return an error message
-        logger.error(f"Error in sim_runner: {e}")
-        return jsonify(error=str(e)), 500
+        return {"status": "failure", "error": str(e)}
 
-    return jsonify(status="success")
 
-    # elif action == "customMatchups":
-    #     logger.info("Handling customMatchups action")
-    #     matchups = []
-    #     for i in range(1, 17):  # Assuming max 16 matchups
-    #         home_team = request.form.get(f'homeTeam{i}')
-    #         away_team = request.form.get(f'awayTeam{i}')
-    #         if home_team and away_team:
-    #             matchups.append((home_team, away_team))
-    #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
+@app.route('/generate_model', methods=['POST'])
+def generate_model():
+    task = async_generate_model.delay()
+    return jsonify({"status": "success", "task_id": task.id})
+
+
+@app.route('/sim_runner', methods=['POST'])
+def sim_runner():
+    quick_test = request.form.get('quick_test', default=False, type=lambda v: v.lower() == 'true')
+    task = async_sim_runner.delay(quick_test)
+    return jsonify({"status": "success", "task_id": task.id})
 
 
 @app.route('/sim_results')

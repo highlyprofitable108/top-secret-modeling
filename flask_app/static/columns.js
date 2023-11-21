@@ -72,59 +72,100 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     function handleFormSubmission(event, isQuickTest = false) {
         event.preventDefault(); // Prevent default form submission
-
+    
         // Check if any checkboxes are selected
         const checkboxesSelected = Array.from(checkboxes).some(checkbox => checkbox.checked);
         if (!checkboxesSelected) {
             alert('Please select at least one column before running the simulation.');
             return; // Stop the function if no checkboxes are selected
         }
-
+    
         // Call the showLoadingSpinner function
         showLoadingSpinner();
-
+    
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
         formData.append('quick_test', isQuickTest); // Add the quick_test parameter to the form data
-
-        // First, send form data to /process_columns
+    
+        // Send form data to /process_columns
         fetch('/process_columns', {
             method: 'POST',
             body: formData
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // If /process_columns is successful, send a request to /generate_model
-                    return fetch('/generate_model', {
-                        method: 'POST'
-                    });
-                } else {
-                    throw new Error('Error processing columns.');
-                }
-            })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // If /process_columns is successful, send a request to /generate_model
+                return fetch('/generate_model', { method: 'POST' });
+            } else {
+                throw new Error('Error processing columns.');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                // If /generate_model is successful, poll for task status
+                return pollTaskStatus(data.task_id, '/sim_runner');
+            } else {
+                throw new Error(data.error || 'Error generating model.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+            document.getElementById('loading-spinner').style.display = 'none';
+        });
+    }
+    
+    function pollTaskStatus(taskId, nextEndpoint) {
+        // Poll the task status every few seconds
+        const pollInterval = setInterval(() => {
+            fetch(`/task_status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'SUCCESS') {
+                        clearInterval(pollInterval);
+                        if (nextEndpoint) {
+                            // Start the next task
+                            startNextTask(nextEndpoint);
+                        } else {
+                            // Final step: redirect to /view_analysis
+                            window.location.href = '/view_analysis';
+                        }
+                    } else if (data.status === 'FAILURE') {
+                        clearInterval(pollInterval);
+                        alert('Simulation failed. Please try again.');
+                        document.getElementById('loading-spinner').style.display = 'none';
+                    }
+                    // Handle other statuses if necessary
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    clearInterval(pollInterval);
+                    alert('An error occurred while checking the task status.');
+                    document.getElementById('loading-spinner').style.display = 'none';
+                });
+        }, 2000); // Poll every 2 seconds, adjust as needed
+    }
+    
+    function startNextTask(endpoint) {
+        // Start the next task and poll for its completion
+        fetch(endpoint, { method: 'POST', body: new FormData(form) })
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
-                    // If /generate_power_ranks is successful, send a request to /sim_runner
-                    return fetch('/sim_runner', {
-                        method: 'POST',
-                        body: formData // Send the updated formData with the quick_test parameter
-                    });
+                    // If the task is successfully started, poll for its status
+                    pollTaskStatus(data.task_id);
                 } else {
-                    throw new Error(data.error || 'Error generating power ranks.');
+                    throw new Error(data.error || 'Error starting the next task.');
                 }
-            })
-            .then(() => {
-                // After /sim_runner call is successful, redirect to /view_analysis
-                window.location.href = '/view_analysis';
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('An error occurred. Please try again.');
                 document.getElementById('loading-spinner').style.display = 'none';
             });
-    }
+    }    
 
     function showLoadingSpinner() {
         document.getElementById('loading-spinner').style.display = 'block';
