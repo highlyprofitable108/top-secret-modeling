@@ -37,7 +37,7 @@ class SimVisualization:
         Returns:
             tuple: Lower and upper bounds of the confidence interval.
         """
-        logging.info(f"Data for confidence interval computation: {data}")
+        logging.debug(f"Data for confidence interval computation: {data}")
 
         a = 1.0 * np.array(data)
         n = len(a)

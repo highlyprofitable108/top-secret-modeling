@@ -212,7 +212,7 @@ class NFLPredictor:
         str: A summary string of the analysis results.
         """
         # Log the shape and type of simulation results before analysis
-        self.logger.info(f"Shape and type of simulation results for {home_team} vs {away_team}: {type(simulation_results)}, {np.shape(simulation_results)}")
+        self.logger.debug(f"Shape and type of simulation results for {home_team} vs {away_team}: {type(simulation_results)}, {np.shape(simulation_results)}")
 
         # Analysis of simulation results
         range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
