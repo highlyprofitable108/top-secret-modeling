@@ -37,7 +37,7 @@ class SimVisualization:
         Returns:
             tuple: Lower and upper bounds of the confidence interval.
         """
-        logging.info("Starting confidence interval computation.")
+        logging.info(f"Data for confidence interval computation: {data}")
 
         a = 1.0 * np.array(data)
         n = len(a)
@@ -59,7 +59,7 @@ class SimVisualization:
         Returns:
             list: Filtered simulation results.
         """
-        logging.info("Starting filtering of simulation results.")
+        logging.debug(f"Simulation results before filtering: {simulation_results}")
 
         # Handling empty or invalid simulation results
         if simulation_results is None or (isinstance(simulation_results, np.ndarray) and simulation_results.size <= 1):
@@ -94,7 +94,7 @@ class SimVisualization:
         Returns:
             tuple: Range of outcomes, standard deviation, and confidence interval.
         """
-        logging.info("Starting analysis of simulation results.")
+        logging.debug(f"Simulation results before analysis: {simulation_results}")
 
         filtered_results = self.filter_simulation_results(simulation_results)
         if not filtered_results:
@@ -276,7 +276,7 @@ class SimVisualization:
         Returns:
             dict: A dictionary containing processed game information.
         """
-        logging.info(f"Processing row {idx}.")
+        logging.debug(f"Processing row {idx}.")
 
         # Extract game information from the row
         actual_home_points = row.get('summary.home.points')
@@ -287,7 +287,7 @@ class SimVisualization:
         date = row.get('scheduled')
         predicted_difference = simulation_results[idx]
 
-        logging.info(f"Extracted game info for row {idx}: Home Points: {actual_home_points}, Away Points: {actual_away_points}, Vegas Line: {vegas_line}, Date: {date}")
+        logging.debug(f"Extracted game info for row {idx}: Home Points: {actual_home_points}, Away Points: {actual_away_points}, Vegas Line: {vegas_line}, Date: {date}")
 
         # Convert 'date' to a datetime object if it's not already
         if isinstance(date, date_type) and not isinstance(date, datetime):
@@ -719,12 +719,15 @@ class SimVisualization:
         correct_recommendations, total_bets = 0, 0
 
         # Process each row in the historical data
+        print(historical_df)
         for idx, row in historical_df.iterrows():
+            print(idx)
+            print(row)
             processed_data = self.process_row(row, simulation_results, idx, get_current)
-            logging.info(f"Processed data for row {idx}: {processed_data}")
+            logging.debug(f"Processed data for row {idx}: {processed_data}")
 
             results_df = self.append_results(results_df, processed_data)
-            logging.info(f"Results appended for row {idx}.")
+            logging.debug(f"Results appended for row {idx}.")
 
             if get_current is False:
                 # Update the count of correct recommendations and total bets
@@ -733,7 +736,7 @@ class SimVisualization:
                 if processed_data['Bet Outcome'] in ['win', 'loss']:
                     total_bets += 1
 
-            logging.info(f"Correct recommendations: {correct_recommendations}, Total bets: {total_bets}")
+            logging.debug(f"Correct recommendations: {correct_recommendations}, Total bets: {total_bets}")
 
         # Finalize results and calculate summary statistics
         final_df = self.finalize_results(results_df, get_current)

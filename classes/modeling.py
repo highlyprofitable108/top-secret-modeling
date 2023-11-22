@@ -130,7 +130,7 @@ class Modeling:
         """
         self.LOADED_MODEL, self.LOADED_SCALER = joblib.load(file_path)
 
-    def monte_carlo_simulation(self, game_prediction_df, home_team, away_team, num_simulations=250):
+    def monte_carlo_simulation(self, game_prediction_df, home_team, away_team, game_id, num_simulations=250):
         """
         Performs Monte Carlo simulations to predict game outcomes.
 
@@ -143,7 +143,7 @@ class Modeling:
         Returns:
             tuple: Simulation results, home team name, away team name.
         """
-        logging.info(f"Starting Monte Carlo Simulation for {home_team} vs {away_team}...")
+        logging.debug(f"Input DataFrame shape for {home_team} vs {away_team}: {game_prediction_df.shape}")
 
         # Identify and separate standard deviation columns for simulations
         stddev_columns = [col for col in game_prediction_df.columns if col.endswith('_stddev')]
@@ -164,30 +164,33 @@ class Modeling:
                     stddev_value = stddev_df[stddev_column].iloc[0]
                     sampled_df[column] = np.random.normal(mean_value, stddev_value)
 
+            logging.debug(f"Sampled DataFrame shape for simulation {sim_num}: {sampled_df.shape}")
+
             sampled_data_list.append(sampled_df)
 
             # Prepare data for prediction
             modified_df = sampled_df.dropna(axis=1, how='any')
             try:
                 scaled_df = self.LOADED_SCALER.transform(modified_df)
+                logging.debug(f"Scaled DataFrame shape for simulation {sim_num}: {scaled_df.shape}")
                 prediction = self.LOADED_MODEL.predict(scaled_df)
                 simulation_results.append(prediction[0])
             except Exception as e:
-                logging.error(f"Error during prediction in simulation {sim_num}: {e}")
-                return simulation_results, home_team, away_team
-
-        logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
+                logging.error(f"Error during prediction in simulation {sim_num}: {e}", exc_info=True)
+                return simulation_results, home_team, away_team, game_id
 
         # Save combined data and simulation results to CSV files
         combined_sampled_data = pd.concat(sampled_data_list, axis=0, ignore_index=True)
         combined_file_path = os.path.join(self.static_dir, 'combined_sampled_data.csv')
         simulation_df = pd.DataFrame(simulation_results, columns=['Simulation_Result'])
         simulation_file_path = os.path.join(self.static_dir, 'simulation_results.csv')
-        # Method to write data to CSV could be refactored into a separate utility function
+
         self._write_to_csv(combined_sampled_data, combined_file_path)
         self._write_to_csv(simulation_df, simulation_file_path)
 
-        return simulation_results, home_team, away_team
+        logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
+
+        return simulation_results, home_team, away_team, game_id
 
     def compute_shap_values(self, model, X, model_type):
         """

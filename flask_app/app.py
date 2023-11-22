@@ -9,8 +9,9 @@ from flask import Flask, render_template, request, jsonify
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
-import importlib
 import logging
+import importlib
+import subprocess
 
 # Set up logging at the top of your app.py
 logger = logging.getLogger(__name__)
@@ -30,6 +31,11 @@ if not logger.handlers:
     logger.addHandler(ch)
 
 
+def restart_celery_worker():
+    # Use subprocess to execute a command that sends a SIGHUP signal to the Celery worker
+    subprocess.call(["pkill", "-HUP", "-f", "celery -A your_app.celery worker"])
+
+
 def make_celery(app):
     # Initialize Celery with Flask app's configurations
     celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
@@ -45,6 +51,9 @@ def make_celery(app):
     return celery
 
 
+# Define a file path for the restart signal
+RESTART_SIGNAL_FILE = './flask_app/static/restart_signal.txt'
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -52,6 +61,10 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 # Set Celery configuration
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'  # Example for Redis
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+
+# Set the multiprocessing start method to 'spawn'
+app.config['CELERYD_CONCURRENCY'] = 8  # Adjust the number of concurrent tasks as needed
+app.config['CELERYD_POOL'] = 'threads'
 
 # Initialize Celery
 celery = make_celery(app)
@@ -180,6 +193,13 @@ def process_columns():
     # Reload constants
     importlib.reload(constants)
 
+    # Set the restart signal
+    with open(RESTART_SIGNAL_FILE, 'w') as signal_file:
+        signal_file.write('1')
+
+    # Restart the Celery worker
+    restart_celery_worker()
+
     return jsonify(success=True)
 
 
@@ -202,10 +222,20 @@ def async_generate_model():
         return {"status": "failure", "error": str(e)}
 
 
+def run_simulations(nfl_sim, num_sims, random_subset, get_current):
+    """
+    Wrapper function to run simulations with error handling.
+    """
+    try:
+        logger.info(f"Executing simulations with {num_sims} simulations")
+        nfl_sim.simulate_games(num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
+    except Exception as e:
+        logger.error(f"Error during simulation: {e}")
+
+
 @celery.task
 def async_sim_runner(quick_test):
     try:
-        print(quick_test)
         # Set the date to the current day
         date_input = datetime.today()
 
@@ -217,21 +247,18 @@ def async_sim_runner(quick_test):
         nfl_sim = NFLPredictor()
 
         # Set the number of simulations based on quick_test value
-        historical_sims = 11 if quick_test else 110
-        next_week_sims = 110 if quick_test else 1100
+        historical_sims = 110 if quick_test else 1100
+        next_week_sims = 1100 if quick_test else 11000
         random_subset = 2750 if quick_test else 27500
 
-        # Execute the randomHistorical action.
-        logger.info(f"Executing randomHistorical action with {historical_sims} simulations")
-        nfl_sim.simulate_games(num_simulations=historical_sims, random_subset=random_subset)
-
-        # Execute the nextWeek action
-        logger.info(f"Executing nextWeek action with {next_week_sims} simulations")
-        nfl_sim.simulate_games(num_simulations=next_week_sims, get_current=True)
+        # Run simulations
+        run_simulations(nfl_sim, historical_sims, random_subset, False)
+        run_simulations(nfl_sim, next_week_sims, None, True)
 
         return {"status": "success"}
 
     except Exception as e:
+        logger.error(f"Simulation failed: {e}")
         return {"status": "failure", "error": str(e)}
 
 
