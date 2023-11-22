@@ -243,7 +243,6 @@ class NFLPredictor:
         - Analyzes and logs the results of each simulation.
         - Evaluates betting recommendations and expected values.
         """
-        self.logger.info("Starting prediction process...")
         reload(scripts.constants)
 
         # Data retrieval and preparation
@@ -256,9 +255,11 @@ class NFLPredictor:
         # File cleanup before simulation
         self.file_cleanup()
 
+        self.logger.info("Starting prediction process...")
         self.logger.debug(f"Retrieved {len(df)} team aggregated metrics")
         self.logger.debug(f"Retrieved {len(historical_df)} historical data rows")
 
+        count = 0
         # Prepare data for each game
         for _, row in historical_df.iterrows():
             game_id, home_team, away_team = row['game_id'], row['summary.home.name'], row['summary.away.name']
@@ -277,13 +278,15 @@ class NFLPredictor:
                 continue
 
             params_list.append((game_prediction_df, self.model, home_team, away_team, game_id))  # Include game_id in params_list
+            count += 1
+            self.logger.info(f"Added game number {count}...")
 
         self.logger.debug(f"Starting simulations for {len(params_list)} games")
 
         all_simulation_results = []
 
         # Multithreading for simulation
-        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:  # Adjust max_workers as needed for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
