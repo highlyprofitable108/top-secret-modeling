@@ -250,7 +250,7 @@ def async_sim_runner(quick_test):
         # Set the number of simulations based on quick_test value
         historical_sims = 110 if quick_test else 1100
         next_week_sims = 1100 if quick_test else 11000
-        random_subset = 275 if quick_test else 27500
+        random_subset = 2750 if quick_test else 27500
 
         # Run simulations
         run_simulations(nfl_sim, historical_sims, random_subset, False)

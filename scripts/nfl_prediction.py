@@ -288,7 +288,7 @@ class NFLPredictor:
 
             # Diagnostic check for argument list
             if not args_list:
-                self.logger.warning("No games to simulate.")
+                self.logger.info("No games to simulate.")
                 return
 
             # Create a dictionary to map futures to game details
@@ -320,7 +320,7 @@ class NFLPredictor:
 
                         if filtered_historical_df.empty:
                             game_results_dict.append(game_id)
-                            self.logger.warning(f"No matching data found for game ID {game_id}")
+                            self.logger.info(f"No matching data found for game ID {game_id}")
 
                         self.logger.debug(f"Processing game {home_team} vs {away_team} complete.")
 
