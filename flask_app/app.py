@@ -4,15 +4,18 @@ from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
+from celery import Celery
 from flask import Flask, render_template, request, jsonify
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
-import importlib
 import logging
+import importlib
+import subprocess
 
 # Set up logging at the top of your app.py
 logger = logging.getLogger(__name__)
+logger.propagate = False
 if not logger.handlers:
     # Set the level of the logger. This is a one-time setup.
     logger.setLevel(logging.INFO)
@@ -28,9 +31,44 @@ if not logger.handlers:
     # Add the handler to the logger
     logger.addHandler(ch)
 
+
+def restart_celery_worker():
+    # Use subprocess to execute a command that sends a SIGHUP signal to the Celery worker
+    subprocess.call(["pkill", "-HUP", "-f", "celery -A your_app.celery worker"])
+
+
+def make_celery(app):
+    # Initialize Celery with Flask app's configurations
+    celery = Celery(app.import_name, broker=app.config['CELERY_BROKER_URL'])
+    celery.conf.update(app.config)
+
+    # Ensure that the task execution context is the same as Flask's
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
+
+# Define a file path for the restart signal
+RESTART_SIGNAL_FILE = './flask_app/static/restart_signal.txt'
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# Set Celery configuration
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'  # Example for Redis
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+
+# Set the multiprocessing start method to 'spawn'
+app.config['CELERYD_CONCURRENCY'] = 8  # Adjust the number of concurrent tasks as needed
+app.config['CELERYD_POOL'] = 'prefork'
+
+# Initialize Celery
+celery = make_celery(app)
 
 # Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
@@ -156,26 +194,49 @@ def process_columns():
     # Reload constants
     importlib.reload(constants)
 
+    # Set the restart signal
+    with open(RESTART_SIGNAL_FILE, 'w') as signal_file:
+        signal_file.write('1')
+
+    # Restart the Celery worker
+    restart_celery_worker()
+
     return jsonify(success=True)
 
 
-@app.route('/generate_model', methods=['POST'])
-def generate_model():
+@app.route('/task_status/<task_id>')
+def task_status(task_id):
+    task = celery.AsyncResult(task_id)
+    if task.status == 'SUCCESS':
+        response = {"status": task.status, "result": task.result}
+    else:
+        response = {"status": task.status}
+    return jsonify(response)
+
+
+@celery.task
+def async_generate_model():
     try:
         nfl_model.main()
-
+        return {"status": "success"}
     except Exception as e:
-        return jsonify(error=str(e)), 500
-
-    return jsonify(status="success")
+        return {"status": "failure", "error": str(e)}
 
 
-@app.route('/sim_runner', methods=['POST'])
-def sim_runner():
+def run_simulations(nfl_sim, num_sims, random_subset, get_current):
+    """
+    Wrapper function to run simulations with error handling.
+    """
     try:
-        # Retrieve the quick_test parameter from the POST request
-        quick_test = request.form.get('quick_test', default=False, type=lambda v: v.lower() == 'true')
+        logger.info(f"Executing simulations with {num_sims} simulations")
+        nfl_sim.simulate_games(num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
+    except Exception as e:
+        logger.error(f"Error during simulation: {e}")
 
+
+@celery.task
+def async_sim_runner(quick_test):
+    try:
         # Set the date to the current day
         date_input = datetime.today()
 
@@ -187,34 +248,34 @@ def sim_runner():
         nfl_sim = NFLPredictor()
 
         # Set the number of simulations based on quick_test value
-        historical_sims = 11 if quick_test else 110
-        next_week_sims = 110 if quick_test else 1100
-        random_subset = 2750 if quick_test else 27500
+        historical_sims = 11 if quick_test else 1100
+        next_week_sims = 110 if quick_test else 11000
+        random_subset = 275 if quick_test else 27500
 
-        # Execute the randomHistorical action.
-        logger.info(f"Executing randomHistorical action with {historical_sims} simulations")
-        nfl_sim.simulate_games(num_simulations=historical_sims, random_subset=random_subset)
+        # Run simulations
+        run_simulations(nfl_sim, historical_sims, random_subset, False)
+        run_simulations(nfl_sim, next_week_sims, None, True)
 
-        # Execute the nextWeek action
-        logger.info(f"Executing nextWeek action with {next_week_sims} simulations")
-        nfl_sim.simulate_games(num_simulations=next_week_sims, get_current=True)
+        return {"status": "success"}
 
     except Exception as e:
-        # If there is an error, log it and return an error message
-        logger.error(f"Error in sim_runner: {e}")
-        return jsonify(error=str(e)), 500
+        logger.error(f"Simulation failed: {e}")
+        return {"status": "failure", "error": str(e)}
 
-    return jsonify(status="success")
 
-    # elif action == "customMatchups":
-    #     logger.info("Handling customMatchups action")
-    #     matchups = []
-    #     for i in range(1, 17):  # Assuming max 16 matchups
-    #         home_team = request.form.get(f'homeTeam{i}')
-    #         away_team = request.form.get(f'awayTeam{i}')
-    #         if home_team and away_team:
-    #             matchups.append((home_team, away_team))
-    #     nfl_sim.simulate_games(num_simulations=num_simulations, date=date_input, adhoc=True, matchups=matchups)
+@app.route('/generate_model', methods=['POST'])
+def generate_model():
+    task = async_generate_model.delay()
+    return jsonify({"status": "success", "task_id": task.id})
+
+
+@app.route('/sim_runner', methods=['POST'])
+def sim_runner():
+    quick_test_str = request.form.get('quick_test')
+    quick_test = quick_test_str == 'true'  # Correctly interpret the string
+
+    task = async_sim_runner.delay(quick_test)
+    return jsonify({"status": "success", "task_id": task.id})
 
 
 @app.route('/sim_results')

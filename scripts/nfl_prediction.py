@@ -6,8 +6,9 @@ from importlib import reload
 
 # Third-party imports
 import joblib
-import multiprocessing
+import concurrent.futures
 import pandas as pd
+import numpy as np
 from pymongo import MongoClient
 
 # Local application imports
@@ -21,13 +22,6 @@ import scripts.constants
 # Set up logging
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Determine the percentage of CPU cores to use (e.g., 50%)
-cpu_usage_percentage = 0.88
-
-# Calculate the number of processes to use based on the percentage
-available_cores = multiprocessing.cpu_count()
-num_processes = max(1, int(available_cores * cpu_usage_percentage))
 
 # Constants
 HOME_FIELD_ADJUST = 0
@@ -80,6 +74,7 @@ class NFLPredictor:
         handler = logging.StreamHandler()
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
+        self.logger.propagate = False
 
         # Connect to MongoDB
         try:
@@ -121,7 +116,7 @@ class NFLPredictor:
         away_team (str): The name of the away team.
         date (str or datetime): The date of the game.
         """
-        self.logger.info(f"Setting game details for {home_team} vs {away_team} on {date}")
+        # self.logger.info(f"Setting game details for {home_team} vs {away_team} on {date}")
 
         # Team name update
         team_name_updates = {"Football Team": "Commanders", "Redskins": "Commanders"}
@@ -189,6 +184,8 @@ class NFLPredictor:
         columns_to_extract.extend(odds_columns)
         game_data = historical_df[columns_to_extract]
 
+        game_data['game_id'] = game_data.index.map(lambda x: x * 5)
+
         # Date format adjustment
         game_data['scheduled'] = pd.to_datetime(game_data['scheduled']).dt.date
 
@@ -214,21 +211,17 @@ class NFLPredictor:
 
         Returns:
         str: A summary string of the analysis results.
-
-        Notes:
-        - Calculates the range of outcomes, standard deviation, and confidence interval.
-        - Logs the detailed results for each game.
         """
-        self.logger.info("Starting analysis of simulation results.")
+        # Log the shape and type of simulation results before analysis
+        self.logger.debug(f"Shape and type of simulation results for {home_team} vs {away_team}: {type(simulation_results)}, {np.shape(simulation_results)}")
 
         # Analysis of simulation results
         range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
 
         # Log results
-        self.logger.info(f"Game: {away_team} at {home_team}")
-        self.logger.info(f"Outcome Range: {range_of_outcomes}")
-        self.logger.info(f"Standard Deviation: {standard_deviation}")
-        self.logger.info(f"95% Confidence Interval: {confidence_interval}")
+        self.logger.debug(f"Outcome Range: {range_of_outcomes}")
+        self.logger.debug(f"Standard Deviation: {standard_deviation}")
+        self.logger.debug(f"95% Confidence Interval: {confidence_interval}")
 
         return (f"Analysis Complete: {away_team} at {home_team}, "
                 f"Outcome Range: {range_of_outcomes}, "
@@ -250,7 +243,6 @@ class NFLPredictor:
         - Analyzes and logs the results of each simulation.
         - Evaluates betting recommendations and expected values.
         """
-        self.logger.info("Starting prediction process...")
         reload(scripts.constants)
 
         # Data retrieval and preparation
@@ -258,53 +250,89 @@ class NFLPredictor:
         historical_df = self.get_historical_data(random_subset, get_current)
 
         # Initialize lists for results
-        all_simulation_results = []
-        all_actual_results = []
         params_list = []
 
         # File cleanup before simulation
         self.file_cleanup()
 
+        self.logger.info("Starting prediction process...")
+        self.logger.debug(f"Retrieved {len(df)} team aggregated metrics")
+        self.logger.debug(f"Retrieved {len(historical_df)} historical data rows")
+
+        count = 0
         # Prepare data for each game
         for _, row in historical_df.iterrows():
-            home_team, away_team = row['summary.home.name'], row['summary.away.name']
+            game_id, home_team, away_team = row['game_id'], row['summary.home.name'], row['summary.away.name']
+            self.logger.debug(f"Preparing game: {home_team} vs {away_team}")
+
             home_team, away_team = self.data_processing.replace_team_name(home_team), self.data_processing.replace_team_name(away_team)
 
             self.set_game_details(home_team, away_team, row['scheduled'])
+
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
+            self.logger.debug(f"Prepared DataFrame for {home_team} vs {away_team}, shape: {game_prediction_df.shape}")
 
             # Diagnostic check for data availability
             if game_prediction_df.empty:
                 self.logger.info(f"Game prediction DataFrame is empty for {home_team} vs {away_team}")
                 continue
 
-            params_list.append((game_prediction_df, self.model, home_team, away_team))
+            params_list.append((game_prediction_df, self.model, home_team, away_team, game_id))  # Include game_id in params_list
+            count += 1
+            self.logger.info(f"Added game number {count}...")
 
-        # Multiprocessing for simulation
-        with multiprocessing.Pool(processes=num_processes) as pool:
+        self.logger.debug(f"Starting simulations for {len(params_list)} games")
+
+        all_simulation_results = []
+
+        # Multithreading for simulation
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
             if not args_list:
-                self.logger.info("args_list for multiprocessing pool is empty.")
+                self.logger.info("No games to simulate.")
                 return
 
-            results = pool.map(run_simulation_wrapper, args_list)
+            # Create a dictionary to map futures to game details
+            future_to_game = {executor.submit(run_simulation_wrapper, args): args[0][2:4] for args in args_list}
 
-        # Processing and analyzing results
-        for idx, (simulation_results, home_team, away_team) in enumerate(results):
-            self.logger.info(f"Processing game {idx + 1}/{len(results)}: {home_team} vs {away_team}")
-            self.analyze_and_log_results(simulation_results, home_team, away_team)
-            all_simulation_results.append(simulation_results)
+            game_results_dict = []  # A list to store results in the format (simulation_results, actual_difference, home_team, away_team)
 
-            # Process and store actual results
-            row = historical_df.iloc[idx]
-            actual_difference = (row['summary.home.points'] - row['summary.away.points']) * (-1) if row['summary.home.points'] is not None and row['summary.away.points'] is not None else None
-            all_actual_results.append(actual_difference)
-            self.logger.info(f"Processing game {idx + 1}/{len(results)} complete.")
+            # Iterate over the completed futures
+            for future in concurrent.futures.as_completed(future_to_game):
+                try:
+                    result = future.result()
+                    simulation_results = result[0]  # The actual simulation results
+                    home_team = result[1]           # Home team name
+                    away_team = result[2]           # Away team name
+                    game_id = result[3]             # Game ID
 
-        # Evaluate and recommend based on simulations
-        self.logger.info("Evaluating results...")
+                    if simulation_results is None:
+                        game_results_dict.append(game_id)
+
+                    else:
+                        self.logger.info(f"{game_id}: {away_team} at {home_team}")
+
+                        self.analyze_and_log_results(simulation_results, home_team, away_team)
+                        all_simulation_results.append(simulation_results)
+
+                        # Find the corresponding row in historical_df for actual results
+                        historical_df['game_id'] = historical_df['game_id'].astype(int)
+                        filtered_historical_df = historical_df[historical_df['game_id'] == game_id]
+
+                        if filtered_historical_df.empty:
+                            game_results_dict.append(game_id)
+                            self.logger.info(f"No matching data found for game ID {game_id}")
+
+                        self.logger.debug(f"Processing game {home_team} vs {away_team} complete.")
+
+                except Exception as exc:
+                    self.logger.error(f"{home_team} vs {away_team} simulation generated an exception: {exc}")
+
+            self.logger.info("Completed all simulations")
+
+        historical_df = historical_df[~historical_df['game_id'].isin(game_results_dict)]
 
         self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
 
@@ -339,8 +367,8 @@ def run_simulation(params, num_simulations):
     Notes:
     - The function is designed to be used with multiprocessing for efficiency.
     """
-    game_prediction_df, model, home_team, away_team = params
-    return model.monte_carlo_simulation(game_prediction_df, home_team, away_team, num_simulations)
+    game_prediction_df, model, home_team, away_team, game_id = params
+    return model.monte_carlo_simulation(game_prediction_df, home_team, away_team, game_id, num_simulations)
 
 
 # Main execution block

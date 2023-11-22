@@ -264,10 +264,10 @@ class DataProcessing:
 
     def time_to_minutes(self, time_str: str) -> float:
         """
-        Converts time in 'HH:MM:SS' format to minutes.
+        Converts time in 'HH:MM:SS' or 'MM:SS' format to minutes.
 
         Args:
-            time_str (str): The time string in 'HH:MM:SS' format.
+            time_str (str): The time string in 'HH:MM:SS' or 'MM:SS' format.
 
         Returns:
             float: Time in minutes, or None if invalid format.
@@ -276,11 +276,23 @@ class DataProcessing:
             return None
 
         try:
-            # Splitting the time string and converting to minutes
-            hours, minutes, seconds = map(int, time_str.split(':'))
+            parts = list(map(int, time_str.split(':')))
+
+            if len(parts) == 3:  # HH:MM:SS format
+                hours, minutes, seconds = parts
+                if hours >= 24 or minutes >= 60 or seconds >= 60:
+                    raise ValueError("Time components out of range.")
+            elif len(parts) == 2:  # MM:SS format
+                minutes, seconds = parts
+                hours = 0
+                if minutes >= 60 or seconds >= 60:
+                    raise ValueError("Time components out of range.")
+            else:
+                raise ValueError("Invalid time format.")
+
             return hours * 60 + minutes + seconds / 60
-        except ValueError:
-            self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes.")
+        except ValueError as e:
+            self.logger.error(f"Invalid time format: {time_str}. Unable to convert to minutes. Error: {e}")
             return None
 
     def generate_weekdays_list(self, start_date, end_date, weekday=2, excluded_months=list(range(3, 9))):
