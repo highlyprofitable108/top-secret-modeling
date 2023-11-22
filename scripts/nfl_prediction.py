@@ -74,6 +74,7 @@ class NFLPredictor:
         handler = logging.StreamHandler()
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
+        self.logger.propagate = False
 
         # Connect to MongoDB
         try:
@@ -218,7 +219,6 @@ class NFLPredictor:
         range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
 
         # Log results
-        self.logger.info(f"Game: {away_team} at {home_team}")
         self.logger.debug(f"Outcome Range: {range_of_outcomes}")
         self.logger.debug(f"Standard Deviation: {standard_deviation}")
         self.logger.debug(f"95% Confidence Interval: {confidence_interval}")
@@ -280,8 +280,10 @@ class NFLPredictor:
 
         self.logger.debug(f"Starting simulations for {len(params_list)} games")
 
+        all_simulation_results = []
+
         # Multithreading for simulation
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
@@ -292,7 +294,6 @@ class NFLPredictor:
             # Create a dictionary to map futures to game details
             future_to_game = {executor.submit(run_simulation_wrapper, args): args[0][2:4] for args in args_list}
 
-            all_simulation_results = []
             game_results_dict = []  # A list to store results in the format (simulation_results, actual_difference, home_team, away_team)
 
             # Iterate over the completed futures
@@ -308,6 +309,8 @@ class NFLPredictor:
                         game_results_dict.append(game_id)
 
                     else:
+                        self.logger.info(f"{game_id}: {away_team} at {home_team}")
+
                         self.analyze_and_log_results(simulation_results, home_team, away_team)
                         all_simulation_results.append(simulation_results)
 
@@ -319,14 +322,16 @@ class NFLPredictor:
                             game_results_dict.append(game_id)
                             self.logger.warning(f"No matching data found for game ID {game_id}")
 
-                        self.logger.info(f"Processing game {home_team} vs {away_team} complete.")
+                        self.logger.debug(f"Processing game {home_team} vs {away_team} complete.")
 
                 except Exception as exc:
                     self.logger.error(f"{home_team} vs {away_team} simulation generated an exception: {exc}")
 
             self.logger.info("Completed all simulations")
-            historical_df = historical_df[~historical_df['game_id'].isin(game_results_dict)]
-            self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
+
+        historical_df = historical_df[~historical_df['game_id'].isin(game_results_dict)]
+
+        self.sim_visualization.evaluate_and_recommend(all_simulation_results, historical_df, get_current)
 
 
 def run_simulation_wrapper(args):

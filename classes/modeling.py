@@ -188,7 +188,7 @@ class Modeling:
         self._write_to_csv(combined_sampled_data, combined_file_path)
         self._write_to_csv(simulation_df, simulation_file_path)
 
-        logging.info(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
+        logging.debug(f"Finished Monte Carlo Simulation for {home_team} vs {away_team}.")
 
         return simulation_results, home_team, away_team, game_id
 

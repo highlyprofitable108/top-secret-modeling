@@ -15,6 +15,7 @@ import subprocess
 
 # Set up logging at the top of your app.py
 logger = logging.getLogger(__name__)
+logger.propagate = False
 if not logger.handlers:
     # Set the level of the logger. This is a one-time setup.
     logger.setLevel(logging.INFO)
@@ -63,7 +64,7 @@ app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'  # Example for Redi
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 
 # Set the multiprocessing start method to 'spawn'
-app.config['CELERYD_CONCURRENCY'] = 8  # Adjust the number of concurrent tasks as needed
+app.config['CELERYD_CONCURRENCY'] = 16  # Adjust the number of concurrent tasks as needed
 app.config['CELERYD_POOL'] = 'threads'
 
 # Initialize Celery
@@ -249,7 +250,7 @@ def async_sim_runner(quick_test):
         # Set the number of simulations based on quick_test value
         historical_sims = 110 if quick_test else 1100
         next_week_sims = 1100 if quick_test else 11000
-        random_subset = 2750 if quick_test else 27500
+        random_subset = 275 if quick_test else 27500
 
         # Run simulations
         run_simulations(nfl_sim, historical_sims, random_subset, False)

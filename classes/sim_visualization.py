@@ -45,7 +45,6 @@ class SimVisualization:
         h = se * norm.ppf((1 + confidence) / 2.)  # Margin of error
 
         confidence_interval = (mean - h, mean + h)
-        logging.info(f"Computed confidence interval: {confidence_interval}")
 
         return confidence_interval
 
@@ -106,9 +105,9 @@ class SimVisualization:
         std_deviation = np.std(filtered_results)
         confidence_interval = self.compute_confidence_interval(filtered_results)
 
-        logging.info(f"Range of outcomes: {range_of_outcomes}")
-        logging.info(f"Standard deviation: {std_deviation}")
-        logging.info(f"Confidence interval: {confidence_interval}")
+        logging.debug(f"Range of outcomes: {range_of_outcomes}")
+        logging.debug(f"Standard deviation: {std_deviation}")
+        logging.debug(f"Confidence interval: {confidence_interval}")
 
         return range_of_outcomes, std_deviation, confidence_interval
 
@@ -719,10 +718,7 @@ class SimVisualization:
         correct_recommendations, total_bets = 0, 0
 
         # Process each row in the historical data
-        print(historical_df)
         for idx, row in historical_df.iterrows():
-            print(idx)
-            print(row)
             processed_data = self.process_row(row, simulation_results, idx, get_current)
             logging.debug(f"Processed data for row {idx}: {processed_data}")
 
