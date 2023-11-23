@@ -1,16 +1,16 @@
-from scripts import constants, all_columns
+from scripts import all_columns
 from scripts.nfl_stats_select import ColumnSelector
 from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from classes.config_manager import ConfigManager
 from classes.database_operations import DatabaseOperations
-from celery import Celery
-from flask import Flask, render_template, request, jsonify
+from celery import Celery, chain
+from flask import Flask, render_template, request, jsonify, abort
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 import os
+import yaml
 import logging
-import importlib
 import subprocess
 
 # Set up logging at the top of your app.py
@@ -34,7 +34,7 @@ if not logger.handlers:
 
 def restart_celery_worker():
     # Use subprocess to execute a command that sends a SIGHUP signal to the Celery worker
-    subprocess.call(["pkill", "-HUP", "-f", "celery -A your_app.celery worker"])
+    subprocess.call(["pkill", "-HUP", "-f", "celery -A flask_app.app.celery worker --loglevel=info"])
 
 
 def make_celery(app):
@@ -51,9 +51,6 @@ def make_celery(app):
     celery.Task = ContextTask
     return celery
 
-
-# Define a file path for the restart signal
-RESTART_SIGNAL_FILE = './flask_app/static/restart_signal.txt'
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default_secret_key')
@@ -73,22 +70,24 @@ celery = make_celery(app)
 # Initialize ConfigManager, DatabaseOperations, and DataProcessing
 config = ConfigManager()
 database_operations = DatabaseOperations()
-nfl_model = NFLModel()
 nfl_stats = ColumnSelector()
 
-# Fetch configurations using ConfigManager
+# Assuming 'config' is already defined and is an instance of ConfigManager
 TARGET_VARIABLE = config.get_config('constants', 'TARGET_VARIABLE')
 data_dir = config.get_config('paths', 'data_dir')
 model_dir = config.get_config('paths', 'model_dir')
+static_dir = config.get_config('paths', 'static_dir')  # Ensure you have this in your config
 database_name = config.get_config('database', 'database_name')
-feature_columns = list(set(col for col in constants.COLUMNS_TO_KEEP if col != TARGET_VARIABLE))
+
+
+# Global variable to hold constants
+constants = {}
+feature_columns = []
 
 
 def get_active_constants():
-    active_constants = list(set(col for col in constants.COLUMNS_TO_KEEP if col != TARGET_VARIABLE))
+    active_constants = list(set(col for col in feature_columns if col != TARGET_VARIABLE))
     active_constants.sort()
-
-    importlib.reload(constants)
 
     # Categorizing the constants
     categories = defaultdict(list)
@@ -190,48 +189,76 @@ def process_columns():
             modified_columns.append(column + '_difference')
 
     nfl_stats.generate_constants_file(modified_columns)
-
-    # Reload constants
-    importlib.reload(constants)
-
-    # Set the restart signal
-    with open(RESTART_SIGNAL_FILE, 'w') as signal_file:
-        signal_file.write('1')
-
-    # Restart the Celery worker
-    restart_celery_worker()
+    refresh_config()
 
     return jsonify(success=True)
+
+
+@app.route('/refresh-config')
+def refresh_config():
+    global constants, feature_columns
+    constants = load_constants()  # Reload constants from the YAML file
+
+    feature_columns = list(set(constants.get('feature_columns', [])) - {TARGET_VARIABLE})
+    return jsonify(feature_columns)
+
+
+def load_constants():
+    with open(os.path.join(static_dir, 'constants.yaml'), 'r') as file:
+        return yaml.safe_load(file)
+
+
+# Load constants at startup
+constants = load_constants()
+feature_columns = list(set(constants.get('feature_columns', [])) - {TARGET_VARIABLE})
+
+
+@app.route('/execute_combined_task', methods=['POST'])
+def execute_combined_task():
+    quick_test_str = request.form.get('quick_test')
+    quick_test = quick_test_str == 'true'
+    task = combined_task.delay(quick_test)
+    return jsonify({"status": "success", "task_id": task.id})
 
 
 @app.route('/task_status/<task_id>')
 def task_status(task_id):
     task = celery.AsyncResult(task_id)
-    if task.status == 'SUCCESS':
-        response = {"status": task.status, "result": task.result}
+    response = {"state": task.state}
+
+    if task.state == 'SUCCESS':
+        # Check if the task result contains another task ID (for chained tasks)
+        if isinstance(task.result, dict) and 'task_id' in task.result:
+            response['result'] = task.result
+        else:
+            response['status'] = 'Task completed successfully!'
     else:
-        response = {"status": task.status}
+        response['status'] = task.status
+
     return jsonify(response)
+
+
+@celery.task
+def combined_task(quick_test):
+    # Chain the tasks together and wait for the result
+    task_chain = chain(
+        async_generate_model.s(),
+        async_sim_runner.si(quick_test)
+    )
+
+    result = task_chain.apply_async()
+
+    return {"status": "success", "task_id": result.id}
 
 
 @celery.task
 def async_generate_model():
     try:
+        nfl_model = NFLModel()
         nfl_model.main()
         return {"status": "success"}
     except Exception as e:
         return {"status": "failure", "error": str(e)}
-
-
-def run_simulations(nfl_sim, num_sims, random_subset, get_current):
-    """
-    Wrapper function to run simulations with error handling.
-    """
-    try:
-        logger.info(f"Executing simulations with {num_sims} simulations")
-        nfl_sim.simulate_games(num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
-    except Exception as e:
-        logger.error(f"Error during simulation: {e}")
 
 
 @celery.task
@@ -248,9 +275,9 @@ def async_sim_runner(quick_test):
         nfl_sim = NFLPredictor()
 
         # Set the number of simulations based on quick_test value
-        historical_sims = 11 if quick_test else 1100
-        next_week_sims = 110 if quick_test else 11000
-        random_subset = 275 if quick_test else 27500
+        historical_sims = 110 if quick_test else 1100
+        next_week_sims = 1100 if quick_test else 11000
+        random_subset = 2750 if quick_test else 27500
 
         # Run simulations
         run_simulations(nfl_sim, historical_sims, random_subset, False)
@@ -263,10 +290,26 @@ def async_sim_runner(quick_test):
         return {"status": "failure", "error": str(e)}
 
 
+def run_simulations(nfl_sim, num_sims, random_subset, get_current):
+    """
+    Wrapper function to run simulations with error handling.
+    """
+    try:
+        logger.info(f"Executing simulations with {num_sims} simulations")
+        nfl_sim.simulate_games(num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
+    except Exception as e:
+        logger.error(f"Error during simulation: {e}")
+
+
 @app.route('/generate_model', methods=['POST'])
 def generate_model():
     task = async_generate_model.delay()
     return jsonify({"status": "success", "task_id": task.id})
+
+
+@app.route('/waiting')
+def waiting():
+    return render_template('waiting.html')
 
 
 @app.route('/sim_runner', methods=['POST'])
@@ -310,7 +353,16 @@ def descriptive_statistics():
 
 @app.route('/view_analysis')
 def view_analysis():
-    return render_template('view_analysis.html')
+    task_id = request.args.get('task_id')
+    if not task_id:
+        abort(404, description="Task ID not provided")
+
+    task = celery.AsyncResult(task_id)
+    if task.state == 'SUCCESS':
+        result_data = task.result
+        return render_template('view_analysis.html', data=result_data)
+    else:
+        abort(404, description="Resource not found")
 
 
 @app.route('/simulator_input')

@@ -1,18 +1,19 @@
 import os
+import yaml
 import joblib
 import logging
 import pandas as pd
-from importlib import reload
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 # Importing custom modules and classes
-import scripts.constants
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.model_visualization import ModelVisualization
 from classes.database_operations import DatabaseOperations
+from scripts.all_columns import ALL_COLUMNS
+
 
 # Configure logging for better debugging and monitoring
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,6 +35,7 @@ class NFLModel:
 
         # Load constants and configurations
         self._fetch_constants_and_configs()
+        self.load_constants()
 
         # Visualization component initialization
         # Consider adding a check or a try-except block to ensure template_dir and TARGET_VARIABLE are properly initialized
@@ -48,13 +50,14 @@ class NFLModel:
         """
         try:
             constants = [
-                'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'BASE_COLUMNS', 'AWAY_PREFIX',
-                'HOME_PREFIX', 'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'PREGAME_DB_NAME', 'RANKS_DB_NAME', 'CUTOFF_DATE',
+                'TWO_YEARS_IN_DAYS', 'MAX_DAYS_SINCE_GAME', 'AWAY_PREFIX', 'HOME_PREFIX',
+                'GAMES_DB_NAME', 'TEAMS_DB_NAME', 'PREGAME_DB_NAME', 'RANKS_DB_NAME', 'CUTOFF_DATE',
                 'TARGET_VARIABLE'
             ]
             for const in constants:
                 setattr(self, const, self.config.get_constant(const))
-            self.BASE_COLUMNS = eval(self.BASE_COLUMNS)
+
+            self.BASE_COLUMNS = ALL_COLUMNS
             self.CUTOFF_DATE = datetime.strptime(self.CUTOFF_DATE, '%Y-%m-%d')
             self.model_type = self.config.get_model_settings('model_type')
             self.grid_search_params = self.config.get_model_settings('grid_search')
@@ -70,6 +73,10 @@ class NFLModel:
 
         except Exception as e:
             raise ValueError(f"Error fetching configurations: {e}")
+
+    def load_constants(self):
+        with open(os.path.join(self.static_dir, 'constants.yaml'), 'r') as file:
+            self.constants = yaml.safe_load(file)
 
     def load_data(self, collection_name):
         """
@@ -128,7 +135,8 @@ class NFLModel:
         """
         try:
             # Filter columns with stripping whitespaces
-            columns_to_filter = [col for col in scripts.constants.COLUMNS_TO_KEEP if col.strip() in map(str.strip, df.columns)]
+            self.load_constants
+            columns_to_filter = [col for col in self.constants['COLUMNS_TO_KEEP'] if col.strip() in map(str.strip, df.columns)]
 
             # Check if any columns are filtered
             if not columns_to_filter:
@@ -237,7 +245,6 @@ class NFLModel:
         """
         try:
             logging.info("Starting main method")
-            reload(scripts.constants)
 
             # Data loading and processing
             collection_name = self.PREGAME_DB_NAME

@@ -1,7 +1,8 @@
+import yaml
+import logging
 from .all_columns import ALL_COLUMNS
 from classes.config_manager import ConfigManager
 import random
-import logging
 
 
 class ColumnSelector:
@@ -49,19 +50,17 @@ class ColumnSelector:
 
     def generate_constants_file(self, selected_columns):
         """
-        Generates a Python file defining constants based on selected columns.
+        Generates a YAML file defining constants based on selected columns.
 
         Parameters:
         selected_columns (list): The list of selected columns to include in the constants file.
         """
-        with open("./scripts/constants.py", "w") as file:
-            file.write("# constants.py\n\n")
-            file.write("# List of column names to keep\n")
-            file.write("COLUMNS_TO_KEEP = [\n")
-            file.write(f'    "{self.TARGET_VARIABLE}",\n')
-            for col in selected_columns:
-                file.write(f'    "{col}",\n')
-            file.write("]\n")
+        constants = {
+            'COLUMNS_TO_KEEP': [self.TARGET_VARIABLE] + selected_columns
+        }
+
+        with open("./flask_app/static/constants.yaml", "w") as file:
+            yaml.dump(constants, file)
 
 
 def main():
@@ -80,7 +79,7 @@ def main():
     selected_columns = selector.get_user_selection()  # Update this line to fetch user input
     selector.generate_constants_file(selected_columns)
 
-    logging.info("constants.py file has been generated.")
+    logging.info("constants.yaml file has been generated.")
 
 
 if __name__ == "__main__":

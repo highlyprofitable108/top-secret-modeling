@@ -1,8 +1,9 @@
 # Standard library imports
 import os
+import time
+import yaml
 import pytz
 from datetime import datetime, timedelta
-from importlib import reload
 
 # Third-party imports
 import joblib
@@ -17,7 +18,6 @@ from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.sim_visualization import SimVisualization
 from classes.database_operations import DatabaseOperations
-import scripts.constants
 
 # Set up logging
 import logging
@@ -46,19 +46,18 @@ class NFLPredictor:
         self.config = ConfigManager()
         self.database_operations = DatabaseOperations()
 
-        # Constants
-        self.features = [col for col in scripts.constants.COLUMNS_TO_KEEP if 'odd' not in col]
-        self.model_type = self.config.get_config('model_settings', 'model_type')
-
         # Directory paths
         self.data_dir = self.config.get_config('paths', 'data_dir')
         self.model_dir = self.config.get_config('paths', 'model_dir')
         self.static_dir = self.config.get_config('paths', 'static_dir')
         self.template_dir = self.config.get_config('paths', 'template_dir')
 
-        # Target variable and cutoff date
+        # Variables and cutoff date
+        self.load_constants()
         self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
         self.CUTOFF_DATE = self.config.get_config('constants', 'CUTOFF_DATE')
+        self.features = [col for col in self.features['COLUMNS_TO_KEEP'] if 'odd' not in col]
+        self.model_type = self.config.get_config('model_settings', 'model_type')
 
         # Class instances
         self.data_processing = DataProcessing(self.TARGET_VARIABLE)
@@ -87,6 +86,10 @@ class NFLPredictor:
         # Load model and scaler
         self.LOADED_MODEL, self.LOADED_SCALER = self.load_model_and_scaler()
         self.model = Modeling(self.LOADED_MODEL, self.LOADED_SCALER, HOME_FIELD_ADJUST, self.static_dir)
+
+    def load_constants(self):
+        with open(os.path.join(self.static_dir, 'constants.yaml'), 'r') as file:
+            self.features = yaml.safe_load(file)
 
     def file_cleanup(self):
         """
@@ -243,8 +246,6 @@ class NFLPredictor:
         - Analyzes and logs the results of each simulation.
         - Evaluates betting recommendations and expected values.
         """
-        reload(scripts.constants)
-
         # Data retrieval and preparation
         df = self.database_operations.fetch_data_from_mongodb('team_aggregated_metrics')
         historical_df = self.get_historical_data(random_subset, get_current)

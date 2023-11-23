@@ -1,0 +1,24 @@
+COLUMNS_TO_KEEP:
+- odds.spread_close
+- summary.avg_gain_ratio
+- summary.fumbles_difference
+- summary.lost_fumbles_difference
+- summary.penalties_difference
+- summary.penalty_yards_difference
+- summary.play_count_difference
+- summary.possession_time_difference
+- summary.return_yards_difference
+- summary.rush_plays_difference
+- summary.safeties_difference
+- summary.total_yards_difference
+- summary.turnovers_difference
+- efficiency.fourthdown.attempts_difference
+- efficiency.fourthdown.pct_ratio
+- efficiency.fourthdown.successes_difference
+- efficiency.goaltogo.attempts_difference
+- efficiency.goaltogo.successes_difference
+- efficiency.redzone.attempts_difference
+- efficiency.redzone.successes_difference
+- efficiency.thirddown.attempts_difference
+- efficiency.thirddown.pct_ratio
+- efficiency.thirddown.successes_difference
