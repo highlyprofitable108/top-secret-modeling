@@ -1,10 +1,22 @@
 from flask import abort, jsonify, render_template, request
 from .app_init import create_app
 from classes.celery_config import make_celery
+from classes.utils import setup_logging
 import logging
+
+# Configure logging using setup_logging
+logger = setup_logging()
 
 app, config = create_app()
 celery = make_celery(app)
+
+# Set log level
+app.logger.setLevel(logging.INFO)
+
+# Add file handler
+file_handler = logging.FileHandler('my_app.log')
+file_handler.setLevel(logging.INFO)
+app.logger.addHandler(file_handler)
 
 # Set configuration values in app.config
 app.config['TARGET_VARIABLE'] = config.get_config('constants', 'TARGET_VARIABLE')
@@ -21,39 +33,62 @@ app.register_blueprint(model_bp, url_prefix='/model')
 app.register_blueprint(general_bp)
 
 
+@app.route('/get_logs')
+def get_logs():
+    """
+    Endpoint to retrieve logs stored in memory.
+    """
+    log_file_path = 'my_app.log'  # Update this with your log file path
+    try:
+        with open(log_file_path, 'r') as file:
+            logs = file.readlines()
+    except FileNotFoundError:
+        logs = ["Log file not found."]
+    return jsonify(logs)
+
+
+@app.route('/flush_logs')
+def flush_logs():
+    """
+    Endpoint to manually flush the logs from memory.
+    """
+    logger.handlers[0].flush()
+    return jsonify({"message": "Logs flushed successfully"})
+
+
 @app.route('/execute_combined_task', methods=['POST'])
 def execute_combined_task():
-    logging.info("Executing combined task")
+    logging.debug("Executing combined task")
 
     quick_test_str = request.form.get('quick_test')
     quick_test = quick_test_str == 'true'
     task = combined_task.delay(quick_test)
 
-    logging.info(f"Combined task initiated with ID: {task.id}")
+    logging.debug(f"Combined task initiated with ID: {task.id}")
     return jsonify({"status": "success", "task_id": task.id})
 
 
 @app.route('/task_status/<task_id>')
 def task_status(task_id):
-    logging.info(f"Checking status for task ID: {task_id}")
+    logging.debug(f"Checking status for task ID: {task_id}")
     task = celery.AsyncResult(task_id)
-    logging.info(f"Task state: {task.state}, Task info: {task.info}")
+    logging.debug(f"Task state: {task.state}, Task info: {task.info}")
 
     response = {"state": task.state, "info": task.info}
 
     if task.state == 'SUCCESS':
-        logging.info(f"Task {task_id} completed successfully.")
+        logging.debug(f"Task {task_id} completed successfully.")
         # Check if there is a next task in the chain
         if task.children:
             next_task = task.children[0]
             next_task_state = next_task.state
-            logging.info(f"Found next task in chain: {next_task.id} with state {next_task_state}")
-            response.update({"next_task_id": next_task.id, "next_task_state": next_task_state})
+            logging.debug(f"Found next task in chain: {next_task.id} with state {next_task_state}")
+            response.update({"task_id": next_task.id, "next_task_state": next_task_state})
         else:
             response['message'] = 'Task completed successfully!'
-            logging.info(f"No more tasks in the chain. Final task {task_id} completed.")
+            logging.debug(f"No more tasks in the chain. Final task {task_id} completed.")
     elif task.state in ['PROGRESS', 'INITIALIZING', 'PROCESSING', 'FINALIZING', 'FAILURE']:
-        logging.info(f"Task {task_id} is in state {task.state}.")
+        logging.debug(f"Task {task_id} is in state {task.state}.")
     else:
         response['status'] = task.status
         logging.warning(f"Task {task_id} is in an unexpected state: {task.state}")
@@ -63,7 +98,7 @@ def task_status(task_id):
 
 @celery.task
 def combined_task(quick_test):
-    logging.info("Starting combined task")
+    logging.debug("Starting combined task")
     try:
         # Create an instance of async_generate_model task
         async_generate_model_task = async_generate_model.s()
@@ -75,10 +110,10 @@ def combined_task(quick_test):
         task_chain = async_generate_model_task | async_sim_runner_task
 
         result = task_chain.apply_async()
-        logging.info(f"Task chain initiated with result: {result}")
+        logging.debug(f"Task chain initiated with result: {result}")
 
         if result:
-            logging.info(f"Task chain initiated with result: {result}")
+            logging.debug(f"Task chain initiated with result: {result}")
             # Return the ID of the first task in the chain for monitoring
             return {"status": "initiated", "task_id": result.id}
         else:

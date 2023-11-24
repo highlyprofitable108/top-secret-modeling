@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 
@@ -19,3 +20,18 @@ def get_active_constants(feature_columns, TARGET_VARIABLE):
 
     sorted_categories = {category: sorted(sub_categories, key=sort_key) for category, sub_categories in categories.items()}
     return sorted_categories
+
+
+def setup_logging():
+    logger = logging.getLogger('my_app')
+    logger.setLevel(logging.INFO)
+
+    # Create a file handler or stream handler
+    handler = logging.FileHandler('my_app.log')
+    # Or for stdout: handler = logging.StreamHandler(sys.stdout)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    logger.addHandler(handler)
+    return logger

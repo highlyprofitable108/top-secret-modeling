@@ -105,7 +105,7 @@
           id="searchInput" placeholder="Search columns...">
         <p id="noResults" style="display: none; color: red;">No results found.</p>
       </div>
-      <form action="{{ url_for('stats.process_columns') }}" method="POST">
+      <form action="/stats/process_columns" method="POST">
         <!-- Add an input field for quick_test -->
         <input type="hidden" name="quick_test" id="quick_test_input" value="false">
 

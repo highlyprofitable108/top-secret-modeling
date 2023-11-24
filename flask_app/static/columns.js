@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         formData.append('quick_test', String(isQuickTest));
     
         // Send form data to /process_columns
-        fetch('/process_columns', {
+        fetch('/stats/process_columns', {
             method: 'POST',
             body: formData
         })

@@ -12,15 +12,12 @@ import numpy as np
 from pymongo import MongoClient
 
 # Local application imports
+from flask_app.app import app
 from classes.modeling import Modeling
 from classes.config_manager import ConfigManager
 from classes.data_processing import DataProcessing
 from classes.sim_visualization import SimVisualization
 from classes.database_operations import DatabaseOperations
-
-# Set up logging
-import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 HOME_FIELD_ADJUST = 0
@@ -66,20 +63,12 @@ class NFLPredictor:
         self.MONGO_URI = self.config.get_config('database', 'mongo_uri')
         self.DATABASE_NAME = self.config.get_config('database', 'database_name')
 
-        # Logger setup
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
-        self.logger.addHandler(handler)
-        self.logger.propagate = False
-
         # Connect to MongoDB
         try:
             self.client = MongoClient(self.MONGO_URI)
             self.db = self.client[self.DATABASE_NAME]
         except Exception as e:
-            self.logger.info(f"Error connecting to MongoDB: {e}")
+            app.logger.info(f"Error connecting to MongoDB: {e}")
             raise
 
         # Load model and scaler
@@ -105,9 +94,9 @@ class NFLPredictor:
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
-                    self.logger.info(f"Deleted file: {filename}")
+                    app.logger.info(f"Deleted file: {filename}")
                 except Exception as e:
-                    self.logger.error(f"Error deleting file {filename}: {e}")
+                    app.logger.error(f"Error deleting file {filename}: {e}")
 
     def set_game_details(self, home_team, away_team, date):
         """
@@ -118,7 +107,7 @@ class NFLPredictor:
         away_team (str): The name of the away team.
         date (str or datetime): The date of the game.
         """
-        # self.logger.info(f"Setting game details for {home_team} vs {away_team} on {date}")
+        # app.logger.info(f"Setting game details for {home_team} vs {away_team} on {date}")
 
         # Team name update
         team_name_updates = {"Football Team": "Commanders", "Redskins": "Commanders"}
@@ -146,7 +135,7 @@ class NFLPredictor:
             scaler = joblib.load(os.path.join(self.model_dir, 'data_scaler.pkl'))
             return model, scaler
         except FileNotFoundError as e:
-            self.logger.info(f"Error loading files: {e}")
+            app.logger.info(f"Error loading files: {e}")
             return None, None
 
     def get_historical_data(self, random_subset=None, get_current=False):
@@ -215,22 +204,22 @@ class NFLPredictor:
         str: A summary string of the analysis results.
         """
         # Log the shape and type of simulation results before analysis
-        self.logger.debug(f"Shape and type of simulation results for {home_team} vs {away_team}: {type(simulation_results)}, {np.shape(simulation_results)}")
+        app.logger.debug(f"Shape and type of simulation results for {home_team} vs {away_team}: {type(simulation_results)}, {np.shape(simulation_results)}")
 
         # Analysis of simulation results
         range_of_outcomes, standard_deviation, confidence_interval = self.sim_visualization.analyze_simulation_results(simulation_results)
 
         # Log results
-        self.logger.debug(f"Outcome Range: {range_of_outcomes}")
-        self.logger.debug(f"Standard Deviation: {standard_deviation}")
-        self.logger.debug(f"95% Confidence Interval: {confidence_interval}")
+        app.logger.debug(f"Outcome Range: {range_of_outcomes}")
+        app.logger.debug(f"Standard Deviation: {standard_deviation}")
+        app.logger.debug(f"95% Confidence Interval: {confidence_interval}")
 
         return (f"Analysis Complete: {away_team} at {home_team}, "
                 f"Outcome Range: {range_of_outcomes}, "
                 f"Standard Deviation: {standard_deviation}, "
                 f"95% Confidence Interval: {confidence_interval}")
 
-    def simulate_games(self, update_callback=None, num_simulations=1000, random_subset=None, get_current=False):
+    def simulate_games(self, num_simulations=1000, random_subset=None, get_current=False):
         """
         Simulates NFL games using Monte Carlo methods and evaluates the results.
 
@@ -255,55 +244,57 @@ class NFLPredictor:
         # File cleanup before simulation
         self.file_cleanup()
 
-        self.logger.info("Starting prediction process...")
-        self.logger.debug(f"Retrieved {len(df)} team aggregated metrics")
-        self.logger.debug(f"Retrieved {len(historical_df)} historical data rows")
+        app.logger.info("Starting prediction process...")
+        app.logger.debug(f"Retrieved {len(df)} team aggregated metrics")
+        app.logger.debug(f"Retrieved {len(historical_df)} historical data rows")
 
         count = 0
         # Prepare data for each game
         for _, row in historical_df.iterrows():
             game_id, home_team, away_team = row['game_id'], row['summary.home.name'], row['summary.away.name']
-            self.logger.debug(f"Preparing game: {home_team} vs {away_team}")
+            app.logger.debug(f"Preparing game: {home_team} vs {away_team}")
 
             home_team, away_team = self.data_processing.replace_team_name(home_team), self.data_processing.replace_team_name(away_team)
 
             self.set_game_details(home_team, away_team, row['scheduled'])
 
             game_prediction_df = self.data_processing.prepare_data(df, self.features, home_team, away_team, self.date)
-            self.logger.debug(f"Prepared DataFrame for {home_team} vs {away_team}, shape: {game_prediction_df.shape}")
+            app.logger.debug(f"Prepared DataFrame for {home_team} vs {away_team}, shape: {game_prediction_df.shape}")
 
             # Diagnostic check for data availability
             if game_prediction_df.empty:
-                self.logger.info(f"Game prediction DataFrame is empty for {home_team} vs {away_team}")
+                app.logger.info(f"Game prediction DataFrame is empty for {home_team} vs {away_team}")
                 continue
 
             params_list.append((game_prediction_df, self.model, home_team, away_team, game_id))  # Include game_id in params_list
             count += 1
-            if update_callback:
-                update_callback(f"Added game number {count} to sim...")
 
-            self.logger.info(f"Added game number {count}...")
+            if random_subset is None:
+                random_subset = 16
 
-        self.logger.debug(f"Starting simulations for {len(params_list)} games")
+            app.logger.info(f"Added game {count} of {random_subset}")
+
+        app.logger.debug(f"Starting simulations for {len(params_list)} games")
 
         all_simulation_results = []
 
         # Multithreading for simulation
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
             if not args_list:
-                self.logger.info("No games to simulate.")
+                app.logger.info("No games to simulate.")
                 return
 
             # Create a dictionary to map futures to game details
             future_to_game = {executor.submit(run_simulation_wrapper, args): args[0][2:4] for args in args_list}
 
             game_results_dict = []  # A list to store results in the format (simulation_results, actual_difference, home_team, away_team)
+            i = 0
 
             # Iterate over the completed futures
-            for future in concurrent.futures.as_completed(future_to_game):
+            for i, future in concurrent.futures.as_completed(future_to_game):
                 try:
                     result = future.result()
                     simulation_results = result[0]  # The actual simulation results
@@ -315,9 +306,7 @@ class NFLPredictor:
                         game_results_dict.append(game_id)
 
                     else:
-                        self.logger.info(f"{game_id}: {away_team} at {home_team}")
-                        if update_callback:
-                            update_callback(f"Analyzing {game_id}: {away_team} at {home_team}")
+                        app.logger.info(f"Simulating Matchup {i} of {random_subset}: {away_team} at {home_team}")
 
                         self.analyze_and_log_results(simulation_results, home_team, away_team)
                         all_simulation_results.append(simulation_results)
@@ -328,14 +317,14 @@ class NFLPredictor:
 
                         if filtered_historical_df.empty:
                             game_results_dict.append(game_id)
-                            self.logger.info(f"No matching data found for game ID {game_id}")
+                            app.logger.info(f"No matching data found for game ID {game_id}")
 
-                        self.logger.debug(f"Processing game {home_team} vs {away_team} complete.")
+                        app.logger.debug(f"Processing game {home_team} vs {away_team} complete.")
 
                 except Exception as exc:
-                    self.logger.error(f"{home_team} vs {away_team} simulation generated an exception: {exc}")
+                    app.logger.error(f"{home_team} vs {away_team} simulation generated an exception: {exc}")
 
-            self.logger.info("Completed all simulations")
+            app.logger.info("Completed all simulations")
 
         historical_df = historical_df[~historical_df['game_id'].isin(game_results_dict)]
 
@@ -373,6 +362,8 @@ def run_simulation(params, num_simulations):
     - The function is designed to be used with multiprocessing for efficiency.
     """
     game_prediction_df, model, home_team, away_team, game_id = params
+    app.logger.info(f"Analyzing Statistical Makeup: {away_team} at {home_team}")
+
     return model.monte_carlo_simulation(game_prediction_df, home_team, away_team, game_id, num_simulations)
 
 

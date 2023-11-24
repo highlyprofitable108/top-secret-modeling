@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from scripts.nfl_model import NFLModel
 from scripts.nfl_prediction import NFLPredictor
 from .app import celery, app
@@ -16,24 +16,24 @@ def async_generate_model(self, max_depth=10):
         try:
             if max_depth <= 0:
                 self.update_state(state='FAILURE', meta={'info': 'Max recursion depth reached'})
-                app.logger.error("Max recursion depth reached")
+                current_app.logger.error("Max recursion depth reached")
                 return {"status": "failure", "error": "Max recursion depth reached"}
 
             self.update_state(state='INITIALIZING', meta={'info': 'Initializing model generation'})
-            app.logger.info("Initializing model generation")
+            current_app.logger.info("Initializing model generation")
             nfl_model = NFLModel()
             nfl_model.main()
             self.update_state(state='FINALIZING', meta={'info': 'Finalizing model generation'})
-            app.logger.info("Finalizing model generation")
+            current_app.logger.info("Finalizing model generation")
 
             # Fetch the next task ID from the current task's children
             next_task_id = self.request.children[0].id if self.request.children else None
-            app.logger.info(f"Next task ID: {next_task_id}")
+            current_app.logger.info(f"Next task ID: {next_task_id}")
 
             return {"status": "success", "next_task_id": next_task_id}
         except Exception as e:
             self.update_state(state='FAILURE', meta={'info': str(e)})
-            app.logger.error(f"Model generation failed: {e}")
+            current_app.logger.error(f"Model generation failed: {e}")
             return {"status": "failure", "error": str(e)}
 
 
@@ -43,15 +43,15 @@ def generate_model():
     return jsonify({"status": "success", "task_id": task.id})
 
 
-def run_simulations(nfl_sim, num_sims, random_subset, get_current, update_callback=None):
+def run_simulations(nfl_sim, num_sims, random_subset, get_current):
     """
     Wrapper function to run simulations with error handling.
     """
     try:
-        app.logger.info(f"Executing simulations with {num_sims} simulations")
-        nfl_sim.simulate_games(update_callback, num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
+        current_app.logger.info(f"Executing {num_sims} simulations per game")
+        nfl_sim.simulate_games(num_simulations=num_sims, random_subset=random_subset, get_current=get_current)
     except Exception as e:
-        app.logger.error(f"Error during simulation: {e}")
+        current_app.logger.error(f"Error during simulation: {e}")
 
 
 # Celery task for running simulations
@@ -61,11 +61,11 @@ def async_sim_runner(self, quick_test, max_depth=10):
         try:
             if max_depth <= 0:
                 self.update_state(state='FAILURE', meta={'info': 'Max recursion depth reached'})
-                app.logger.error("Max recursion depth reached")
+                current_app.logger.error("Max recursion depth reached")
                 return {"status": "failure", "error": "Max recursion depth reached"}
 
             self.update_state(state='INITIALIZING', meta={'info': 'Setting up simulations'})
-            app.logger.info("Setting up simulations")
+            current_app.logger.info("Setting up simulations")
 
             # Set the date to the current day
             date_input = datetime.today()
@@ -74,32 +74,22 @@ def async_sim_runner(self, quick_test, max_depth=10):
             while date_input.weekday() != 1:  # 1 represents Tuesday
                 date_input -= timedelta(days=1)
 
-            nfl_sim = NFLPredictor()
             self.update_state(state='PROCESSING', meta={'info': 'Running historical simulations'})
-            app.logger.info("Running historical simulations")
-
-            # Define a callback function to update task state
-            def update_state(message):
-                nonlocal max_depth
-                if max_depth > 0:
-                    max_depth -= 1
-                    self.apply_async(args=[quick_test, max_depth])  # Re-run the task with decremented max_depth
-                self.update_state(state='PROGRESS', meta={'info': message})
-                app.logger.info(message)
+            current_app.logger.info("Running historical simulations")
 
             # Run simulations
-            run_simulations(nfl_sim, 11 if quick_test else 1100, 27 if quick_test else 27500, False, update_state)
+            run_simulations(NFLPredictor(), 110 if quick_test else 1100, 2750 if quick_test else 27500, False)
 
             self.update_state(state='PROCESSING', meta={'info': 'Running future predictions'})
-            app.logger.info("Running future predictions")
-            run_simulations(nfl_sim, 110 if quick_test else 11000, None, True, update_state)
+            current_app.logger.info("Running future predictions")
+            run_simulations(NFLPredictor(), 1100 if quick_test else 11000, None, True)
 
             self.update_state(state='FINALIZING', meta={'info': 'Finalizing simulations'})
-            app.logger.info("Finalizing simulations")
+            current_app.logger.info("Finalizing simulations")
             return {"status": "success", "next_task_id": self.request.id}
         except Exception as e:
             self.update_state(state='FAILURE', meta={'info': str(e)})
-            app.logger.error(f"Simulation failed: {e}")
+            current_app.logger.error(f"Simulation failed: {e}")
             return {"status": "failure", "error": str(e)}
 
 
