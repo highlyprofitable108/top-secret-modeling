@@ -1,6 +1,5 @@
 # Standard library imports
 import os
-import time
 import yaml
 import pytz
 from datetime import datetime, timedelta
@@ -231,7 +230,7 @@ class NFLPredictor:
                 f"Standard Deviation: {standard_deviation}, "
                 f"95% Confidence Interval: {confidence_interval}")
 
-    def simulate_games(self, num_simulations=1000, random_subset=None, get_current=False):
+    def simulate_games(self, update_callback=None, num_simulations=1000, random_subset=None, get_current=False):
         """
         Simulates NFL games using Monte Carlo methods and evaluates the results.
 
@@ -280,6 +279,9 @@ class NFLPredictor:
 
             params_list.append((game_prediction_df, self.model, home_team, away_team, game_id))  # Include game_id in params_list
             count += 1
+            if update_callback:
+                update_callback(f"Added game number {count} to sim...")
+
             self.logger.info(f"Added game number {count}...")
 
         self.logger.debug(f"Starting simulations for {len(params_list)} games")
@@ -314,6 +316,8 @@ class NFLPredictor:
 
                     else:
                         self.logger.info(f"{game_id}: {away_team} at {home_team}")
+                        if update_callback:
+                            update_callback(f"Analyzing {game_id}: {away_team} at {home_team}")
 
                         self.analyze_and_log_results(simulation_results, home_team, away_team)
                         all_simulation_results.append(simulation_results)

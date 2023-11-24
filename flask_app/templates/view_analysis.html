@@ -83,35 +83,35 @@
             <div id="summaryContent" class="tab-content">
                 {% include 'consolidated_model_report.html' %}
 
-                <a href="/summary" target="_blank"
+                <a href="{{ url_for('general.summary') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View
                     in New Tab</a>
             </div>
             <div id="featureContent" class="tab-content hidden">
                 {% include 'feature_coef_report.html' %}
 
-                <a href="/feature_coef" target="_blank"
+                <a href="{{ url_for('general.feature_coef') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View
                     in New Tab</a>
             </div>
             <div id="heatmapContent" class="tab-content hidden">
                 {% include 'interactive_heatmap.html' %}
 
-                <a href="/interactive_heatmap" target="_blank"
+                <a href="{{ url_for('general.interactive_heatmap') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View
                     in New Tab</a>
             </div>
             <div id="dataQualityContent" class="tab-content hidden">
                 {% include 'data_quality_report.html' %}
 
-                <a href="/data_quality_report" target="_blank"
+                <a href="{{ url_for('general.data_quality_report') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View
                     in New Tab</a>
             </div>
             <div id="descriptiveStatsContent" class="tab-content hidden">
                 {% include 'descriptive_statistics.html' %}
 
-                <a href="/descriptive_statistics" target="_blank"
+                <a href="{{ url_for('general.descriptive_statistics') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">View
                     in New Tab</a>
             </div>
@@ -125,13 +125,13 @@
                 <!-- Betting Recommendation Results Content -->
                 <div class="mt-4">
                     {% include 'historical_results_backtesting.html' %}
-                    <a href="/historical_results_backtesting" target="_blank"
+                    <a href="{{ url_for('general.historical_results_backtesting') }}" target="_blank"
                         class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open
                         in New Tab</a>
                 </div>
                 <div class="mt-4">
                     {% include 'trending_dash.html' %}
-                    <a href="/view_trending" target="_blank"
+                    <a href="{{ url_for('general.view_trending') }}" target="_blank"
                         class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open
                         in New Tab</a>
                 </div>
@@ -139,7 +139,7 @@
 
             <div id="futurePredictionsContent" class="tab-content hidden">
                 {% include 'future_betting_recommendations.html' %}
-                <a href="/future_betting_recommendations" target="_blank"
+                <a href="{{ url_for('general.future_betting_recommendations') }}" target="_blank"
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open
                     in New Tab</a>
             </div>

@@ -25,10 +25,6 @@
       </div>
     </main>
 
-    <script>
-      // Pass the task ID to the JavaScript file
-      const taskId = "{{ task_id }}"; // Ensure this is the correct variable from your Flask context
-    </script>
     <script src="{{ url_for('static', filename='waiting.js') }}"></script>
     {% include 'footer.html' %}
   </body>

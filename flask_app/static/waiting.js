@@ -1,40 +1,50 @@
 document.addEventListener('DOMContentLoaded', function() {
     let taskId = new URLSearchParams(window.location.search).get('task_id');
+    console.log(`Task ID retrieved: ${taskId}`); // Added logging
     const statusElement = document.getElementById('task-status');
     const resultsLink = document.getElementById('results-link');
-  
+
     // Function to check task status
     function checkTaskStatus() {
-        fetch(`/task_status/${taskId}`)
-            .then(response => response.json())
+        console.log(`Checking status for task: ${taskId}`); // Added logging
+        fetch(`/task_status/${taskId}?_=${Date.now()}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.state === 'PROGRESS') {
-                    statusElement.textContent = `Current Status: ${data.status} (${data.current}/${data.total})`;
+                console.log(`Status response for task ID ${taskId}:`, data); // Added logging
+                if (['PROGRESS', 'INITIALIZING', 'PROCESSING', 'FINALIZING'].includes(data.state)) {
+                    const statusText = data.info ? `Current Status: ${data.info}` : 'Current Status: Loading...';
+                    statusElement.textContent = statusText;
                 } else if (data.state === 'SUCCESS') {
-                    if (data.result && data.result.task_id) {
-                        // Update taskId to the ID of the next task in the chain
-                        taskId = data.result.task_id;
-                        // Continue checking the status of the new task
-                        setTimeout(checkTaskStatus, 5000);
+                    if (data.task_id && data.task_id !== taskId) {
+                        console.log(`Moving to next task in chain: ${data.task_id}`); // Debugging log
+                        taskId = data.task_id; // Update taskId with the new task ID
+                        statusElement.textContent = `Moving to next task: ${taskId}`;
+                        setTimeout(checkTaskStatus, 15000); // Delay for 15 seconds before checking the new task
                     } else {
-                        // Final task completed
+                        console.log('Final task in the chain completed'); // Debugging log
                         statusElement.textContent = 'Task completed successfully!';
                         resultsLink.querySelector('a').href = `/view_analysis?task_id=${taskId}`;
                         resultsLink.classList.remove('hidden');
                     }
+                } else if (data.state === 'FAILURE') {
+                    const errorText = data.info ? `Task failed: ${data.info}` : 'Task failed: An error occurred.';
+                    statusElement.textContent = errorText;
                 } else {
-                    statusElement.textContent = `Status: ${data.status}`;
+                    const defaultStatus = data.status ? `Status: ${data.status}` : 'Status: Unknown';
+                    statusElement.textContent = defaultStatus;
                 }
             })
             .catch(error => {
                 statusElement.textContent = 'Error fetching status. Please refresh the page.';
                 console.error('Error:', error);
             });
-    }
+    } 
     
-    // Start the initial status check
-    checkTaskStatus();    
-  
-    // Poll the task status every 15 seconds
-    setInterval(checkTaskStatus, 1500);
+    // Start the initial status check and poll every 5 seconds
+    setInterval(checkTaskStatus, 5000);
 });

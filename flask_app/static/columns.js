@@ -83,9 +83,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
             return; // Stop the function if no checkboxes are selected
         }
     
-        // Call the showLoadingSpinner function
-        showLoadingSpinner();
-    
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
         formData.append('quick_test', String(isQuickTest));
@@ -120,14 +117,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         .catch(error => {
             console.error('Error:', error);
             alert('An error occurred. Please try again.');
-            document.getElementById('loading-spinner').style.display = 'none';
         });
-    }
-
-    function showLoadingSpinner() {
-        document.getElementById('loading-spinner').style.display = 'block';
-
-        return true; // Show the spinner
     }
 
     // Attach the handleFormSubmission function to the form's submit event
