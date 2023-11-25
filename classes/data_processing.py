@@ -4,7 +4,6 @@ import logging
 from datetime import timedelta
 from importlib import reload
 import scripts.all_columns
-from flask_app.app import app
 
 
 class DataProcessing:

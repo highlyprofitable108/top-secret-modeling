@@ -2,7 +2,7 @@ default:
   base_dir: .
 
 constants:
-  TARGET_VARIABLE: "results.home_spread_val"
+  TARGET_VARIABLE: "results.home_actual"
   TWO_YEARS_IN_DAYS: 730
   MAX_DAYS_SINCE_GAME: 728
   CUTOFF_DATE: '2015-09-01'

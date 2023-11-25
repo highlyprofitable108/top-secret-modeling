@@ -10,10 +10,8 @@ logger = setup_logging()
 app, config = create_app()
 celery = make_celery(app)
 
-# Set log level
-app.logger.setLevel(logging.INFO)
-
 # Add file handler
+app.logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler('my_app.log')
 file_handler.setLevel(logging.INFO)
 app.logger.addHandler(file_handler)
@@ -39,11 +37,23 @@ def get_logs():
     Endpoint to retrieve logs stored in memory.
     """
     log_file_path = 'my_app.log'  # Update this with your log file path
+    max_lines = 10000  # Maximum number of lines to keep
+
     try:
-        with open(log_file_path, 'r') as file:
+        with open(log_file_path, 'r+') as file:
             logs = file.readlines()
+
+            # Check if the number of lines exceeds max_lines
+            if len(logs) > max_lines:
+                # Keep only the last max_lines lines
+                logs = logs[-max_lines:]
+                file.seek(0)  # Go to the beginning of the file
+                file.writelines(logs)  # Write the truncated logs
+                file.truncate()  # Truncate the file to the current size
+
     except FileNotFoundError:
         logs = ["Log file not found."]
+
     return jsonify(logs)
 
 
@@ -53,6 +63,7 @@ def flush_logs():
     Endpoint to manually flush the logs from memory.
     """
     logger.handlers[0].flush()
+
     return jsonify({"message": "Logs flushed successfully"})
 
 

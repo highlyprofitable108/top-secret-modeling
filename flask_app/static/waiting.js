@@ -37,10 +37,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         statusElement.textContent = `Moving to next task: ${taskId}`;
                         setTimeout(checkTaskStatus, 15000);
                     } else {
-                        console.log('Final task in the chain completed');
-                        statusElement.textContent = 'Task completed successfully!';
-                        resultsLink.querySelector('a').href = `/view_analysis?task_id=${taskId}`;
-                        resultsLink.classList.remove('hidden');
+                        // Temporarily show a success message for the current task
+                        console.log(`Task ID ${taskId} completed. Checking for more tasks...`);
+                        statusElement.textContent = 'Task completed successfully. Checking for more tasks...';
+                
+                        // Brief delay to allow for any new task ID to be received
+                        setTimeout(() => {
+                            if (!nextTaskReceived) { // Assuming nextTaskReceived is a flag indicating new task
+                                console.log('Final task in the chain completed');
+                                statusElement.textContent = 'All tasks completed successfully!';
+                                resultsLink.querySelector('a').href = `/view_analysis?task_id=${taskId}`;
+                                resultsLink.classList.remove('hidden');
+                            }
+                        }, 3000); // Adjust the delay as needed
                     }
                 } else if (data.state === 'FAILURE') {
                     const errorText = data.info ? `Task failed: ${data.info}` : 'Task failed: An error occurred.';

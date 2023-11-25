@@ -133,6 +133,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             // Call handleFormSubmission with isQuickTest set to true
             handleFormSubmission(event, true);
         });
+    } else {
+        document.getElementById('quick_test_input').value = 'false';
+        handleFormSubmission(event, true);
+
     }
 
     // Add event listener to clear all selections when the "Clear Selection" button is clicked

@@ -201,7 +201,7 @@ class SimVisualization:
         """
         logging.info(f"Estimating win probability for predicted spread: {predicted_spread}, Vegas line: {vegas_line}")
 
-        df['Spread Difference'] = df['Modeling Odds'] - df['Vegas Odds']
+        df['Spread Difference'] = df['Simulation Results Mean'] - df['Vegas Odds']
         df['Spread Difference Rounded'] = df['Spread Difference'].apply(lambda x: self.round_to_nearest_half(x) if not pd.isna(x) else x)
         predicted_spread_rounded = self.round_to_nearest_half(predicted_spread)
         vegas_line_rounded = self.round_to_nearest_half(vegas_line)
@@ -327,7 +327,7 @@ class SimVisualization:
 
         # Process for historical games (calculate everything except EV)
         if not get_current:
-            actual_difference = actual_away_points - actual_home_points if not pd.isna(actual_home_points) and not pd.isna(vegas_line) else None
+            actual_difference = actual_away_points - actual_home_points if not pd.isna(actual_home_points) and not pd.isna(actual_away_points) else None
             recommendation_calc = vegas_line - np.mean(predicted_difference) if not pd.isna(vegas_line) else None
             recommended_bet = self.determine_recommended_bet(recommendation_calc) if recommendation_calc is not None else None
             actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_home_points, actual_away_points, vegas_line, recommended_bet)
@@ -619,7 +619,7 @@ class SimVisualization:
         logging.info(f"DataFrame after adjusting weeks: {df.head()}")
 
         # Calculate differences
-        df['Diff'] = df['Vegas Odds'] - df['Modeling Odds']
+        df['Diff'] = df['Simulation Results Mean'] - df['Vegas Odds']
         logging.info(f"DataFrame with 'Diff' column: {df.head()}")
 
         # Aggregate by 'Adjusted Week'

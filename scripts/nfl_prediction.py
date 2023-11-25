@@ -279,7 +279,7 @@ class NFLPredictor:
         all_simulation_results = []
 
         # Multithreading for simulation
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
