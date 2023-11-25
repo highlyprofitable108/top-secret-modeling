@@ -4,7 +4,7 @@ import joblib
 import logging
 import pandas as pd
 from datetime import datetime
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 # Importing custom modules and classes
 from classes.modeling import Modeling
@@ -214,8 +214,8 @@ class NFLModel:
             X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.2, random_state=108)
             X_test, X_blind_test, y_test, y_blind_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=108)
 
-            # Scale the features
-            scaler = MinMaxScaler()
+            # Scale the features using StandardScaler
+            scaler = StandardScaler()
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
             X_blind_test = scaler.transform(X_blind_test)

@@ -14,7 +14,7 @@ def create_app():
     # Celery configuration
     app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
     app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
-    app.config['CELERYD_CONCURRENCY'] = 12
+    app.config['CELERYD_CONCURRENCY'] = 8
     app.config['CELERYD_POOL'] = 'prefork'
 
     # Initialize ConfigManager, DatabaseOperations

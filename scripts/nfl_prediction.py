@@ -52,7 +52,7 @@ class NFLPredictor:
         self.load_constants()
         self.TARGET_VARIABLE = self.config.get_config('constants', 'TARGET_VARIABLE')
         self.CUTOFF_DATE = self.config.get_config('constants', 'CUTOFF_DATE')
-        self.features = [col for col in self.features['COLUMNS_TO_KEEP'] if 'odd' not in col]
+        self.features = [col for col in self.features['COLUMNS_TO_KEEP'] if 'odd' not in col and 'result' not in col]
         self.model_type = self.config.get_config('model_settings', 'model_type')
 
         # Class instances
@@ -279,7 +279,7 @@ class NFLPredictor:
         all_simulation_results = []
 
         # Multithreading for simulation
-        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:  # Adjust max_workers as needed for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:  # Adjust max_workers as needed for parallel processing
             args_list = [(param, num_simulations) for param in params_list]
 
             # Diagnostic check for argument list
@@ -292,9 +292,9 @@ class NFLPredictor:
 
             game_results_dict = []  # A list to store results in the format (simulation_results, actual_difference, home_team, away_team)
             i = 0
-
             # Iterate over the completed futures
-            for i, future in concurrent.futures.as_completed(future_to_game):
+            for future in concurrent.futures.as_completed(future_to_game):
+                i += 1
                 try:
                     result = future.result()
                     simulation_results = result[0]  # The actual simulation results

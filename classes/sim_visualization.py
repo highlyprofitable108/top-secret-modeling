@@ -149,12 +149,12 @@ class SimVisualization:
         # Define different column sets based on the 'get_current' flag
         if get_current is True:
             results_df = pd.DataFrame(columns=[
-                'Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet', 'Expected Value (%)'
+                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet', 'Expected Value (%)'
             ])
         else:
             results_df = pd.DataFrame(columns=[
-                'Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet',
-                'Home Points', 'Away Points', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'
+                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet',
+                'Home Points', 'Away Points', 'Home Actual Diff', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'
             ])
         return historical_df, results_df
 
@@ -282,11 +282,12 @@ class SimVisualization:
         actual_away_points = row.get('summary.away.points')
         home_team = row.get('summary.home.name')
         away_team = row.get('summary.away.name')
-        vegas_line = row.get("summary." + self.TARGET_VARIABLE)
+        home_actual = row.get('summary.results.home_actual')
+        vegas_line = row.get('summary.odds.spread_close')
         date = row.get('scheduled')
         predicted_difference = simulation_results[idx]
 
-        logging.debug(f"Extracted game info for row {idx}: Home Points: {actual_home_points}, Away Points: {actual_away_points}, Vegas Line: {vegas_line}, Date: {date}")
+        logging.debug(f"Extracted game info for row {idx}: Home Actual Result {home_actual}, Vegas Line: {vegas_line}, Date: {date}")
 
         # Convert 'date' to a datetime object if it's not already
         if isinstance(date, date_type) and not isinstance(date, datetime):
@@ -318,7 +319,7 @@ class SimVisualization:
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': vegas_line,
-                'Modeling Odds': np.median(predicted_difference),
+                'Simulation Results Mean': np.median(predicted_difference),
                 'Away Team': away_team,
                 'Recommended Bet': recommended_bet,
                 'Expected Value (%)': expected_value
@@ -326,21 +327,21 @@ class SimVisualization:
 
         # Process for historical games (calculate everything except EV)
         if not get_current:
-            actual_difference = (actual_home_points + vegas_line) - actual_away_points if not pd.isna(actual_home_points) and not pd.isna(vegas_line) else None
+            actual_difference = actual_away_points - actual_home_points if not pd.isna(actual_home_points) and not pd.isna(vegas_line) else None
             recommendation_calc = vegas_line - np.mean(predicted_difference) if not pd.isna(vegas_line) else None
             recommended_bet = self.determine_recommended_bet(recommendation_calc) if recommendation_calc is not None else None
-            actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_difference, recommended_bet)
+            actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_home_points, actual_away_points, vegas_line, recommended_bet)
 
             return {
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': vegas_line,
-                'Modeling Odds': np.median(predicted_difference),
+                'Simulation Results Mean': np.median(predicted_difference),
                 'Away Team': away_team,
                 'Recommended Bet': recommended_bet,
                 'Home Points': actual_home_points,
                 'Away Points': actual_away_points,
-                'Result with Spread': actual_difference,
+                'Home Actual Diff': actual_difference,
                 'Actual Covered': actual_covered,
                 'Bet Outcome': bet_outcome,
                 'Actual Value ($)': actual_value
@@ -358,16 +359,32 @@ class SimVisualization:
             return "push"
         return None
 
-    def determine_bet_outcome(self, actual_difference, recommended_bet):
-        if actual_difference is not None:
-            actual_covered = "away" if actual_difference < 0 else "home" if actual_difference > 0 else "push"
-            if recommended_bet == actual_covered:
-                return actual_covered, "win", 100
-            elif recommended_bet == "push" or actual_covered == "push":
-                return actual_covered, "push", 0
-            else:
-                return actual_covered, "loss", -110
-        return None, None, None
+    def determine_bet_outcome(self, actual_home_points, actual_away_points, vegas_line, recommended_bet):
+        if actual_home_points is None or actual_away_points is None or vegas_line is None:
+            return None, None, None
+
+        point_difference = actual_away_points - actual_home_points
+        actual_covered = None
+
+        # Determine which team covered the spread
+        if point_difference < vegas_line:
+            actual_covered = "home"
+        elif point_difference > vegas_line:
+            actual_covered = "away"
+        elif point_difference == vegas_line:
+            actual_covered = "push"
+
+        # Determine bet outcome
+        bet_outcome = "loss"  # Default to loss
+        actual_value = -110   # Default loss value
+        if actual_covered == recommended_bet:
+            bet_outcome = "win"
+            actual_value = 100  # Assuming a win returns $100
+        elif actual_covered == "push" or recommended_bet == "push":
+            bet_outcome = "push"
+            actual_value = 0    # No gain or loss in a push
+
+        return actual_covered, bet_outcome, actual_value
 
     def append_results(self, results_df, processed_data):
         """
