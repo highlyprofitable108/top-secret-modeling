@@ -10,6 +10,12 @@ def home():
     return render_template('home.html')
 
 
+# Remaining routes and functions
+@general_bp.route('/user_guide')
+def user_guide():
+    return render_template('user_guide.html')
+
+
 @general_bp.route('/waiting')
 def waiting():
     return render_template('waiting.html')

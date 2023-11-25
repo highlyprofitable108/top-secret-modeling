@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>NFL Data Analysis</title>
+        <title>Full Monte: Football Data Analysis</title>
 
         <!-- Favicon 
         <link rel="icon" href="path_to_your_favicon.ico" type="image/x-icon">
@@ -29,36 +29,6 @@
     </head>
     <body>
         {% include 'header.html' %}
-
-        <!-- OVERVIEW FOR DUMMIES SECTION -->
-        <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
-            <h3 class="text-2xl font-bold mb-4 text-gray-800">Overview for
-                Dummies:</h3>
-            <p class="text-gray-700 mb-4">Building a model is like cooking a
-                delicious dish. Just as you'd pick the best ingredients for your
-                recipe, in data analysis, you choose the best pieces of
-                information (called features) to predict something. In our case,
-                we're trying to predict the vegas odds of game spread or total –
-                that's the difference in scores between two teams in a game.</p>
-            <p class="text-gray-700 mb-4">That's where these reports come in!
-                They help you understand which features are essential and which
-                ones might not be. But remember, just like in cooking,
-                understanding your ingredients (or in this case, football) is
-                crucial. Knowing the game can help you make better decisions.</p>
-            <p class="text-gray-700 mb-4">Later on, we'll use the vegas odds and
-                the features we select to run simulations. These simulations
-                will help us see how different scenarios might play out in real
-                games.</p>
-            <p class="text-gray-700"><b>Here's a quick tip:</b> When selecting
-                features, search for those that have a strong relationship,
-                either positive or negative, with the vegas odds. However,
-                exercise caution! If two features are closely related, like rush
-                yards and carries, it's often better to choose just one.
-                Alternatively, you can use a combined metric like yards per
-                carry if it offers valuable insight. The exception is when two
-                similar features represent data for different teams; in such
-                cases, both can be considered.</p>
-        </div>
 
         <!-- Model and Sim Data -->
         <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
@@ -149,173 +119,16 @@
         <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
             <h3 class="text-2xl font-bold mb-4 text-gray-800">Reviewing Reports:</h3>
 
-            <!-- Calculation Method Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Why
-                    Differences and Ratios?</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> Imagine you have two boxes of
-                    crayons. If you want to know how many more crayons one box
-                    has than the other, you subtract (this is a difference). But
-                    if you want to know how many times bigger one box is than
-                    the other, you divide (this is a ratio).</p>
-                <p class="bg-gray-300 p-4 rounded">In data analysis, differences
-                    are used to measure the absolute change between two values,
-                    which can be useful to understand the scale of change.
-                    Ratios, on the other hand, provide a relative measure,
-                    indicating how many times one value is compared to another.
-                    This can be particularly useful when comparing values of
-                    different scales or when looking for proportional changes.</p>
-            </div>
-
-            <!-- SHAP Value Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">SHAP
-                    Values:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> Think of SHAP values as a way to
-                    see inside a magic ball that can guess things. It shows us
-                    what things inside the ball (features) make the ball guess
-                    one way or another.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> SHAP (SHapley Additive exPlanations)
-                    values provide detailed insights into how each feature in
-                    the model contributes to each prediction. They help in
-                    understanding the model's behavior on a granular level,
-                    revealing the impact of each feature on the model's output
-                    for individual predictions.</p>
-            </div>
-
-            <!-- Feature Coefficient Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Feature
-                    Coefficients:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> Imagine each feature in our data as
-                    a player in a team. Some players have a big impact on the
-                    game's score, and others have less. Feature coefficients
-                    tell us how much each player (feature) helps in winning the
-                    game (predicting the outcome).</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> Feature coefficients represent the
-                    importance and direction of each feature's impact on the
-                    model's prediction. A high positive or negative coefficient
-                    suggests a strong influence on the outcome. These
-                    coefficients are crucial for understanding which features
-                    contribute most to the model's predictions and in which
-                    direction.</p>
-            </div>
-
-            <!-- Mean Absolute Error (MAE) Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Mean
-                    Absolute Error (MAE):</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> Imagine you are guessing the number
-                    of candies in a jar. If your guess is not exact, MAE tells
-                    us how far off your guess was on average.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> MAE measures the average magnitude of
-                    errors in predictions, regardless of direction. It's the
-                    average over the test sample of the absolute differences
-                    between predicted and actual values. A lower MAE value
-                    indicates higher accuracy. In an ideal scenario, an MAE of 0
-                    means perfect predictions, but in practice, a 'good' MAE
-                    depends on the context and range of your target variable.</p>
-            </div>
-
-            <!-- Mean Squared Error (MSE) Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Mean
-                    Squared Error (MSE):</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> If you try to hit a target with a
-                    ball, MSE tells us how close you get to the target each
-                    time, on average. The closer you are, the better your aim.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> MSE is similar to MAE but squares the
-                    difference between predicted and actual values. It penalizes
-                    larger errors more severely than MAE, making it sensitive to
-                    outliers. Like MAE, a lower MSE indicates better
-                    performance. However, since MSE is in squared units of the
-                    target variable, it should be interpreted in the context of
-                    the data's scale and variance.</p>
-            </div>
-
-            <!-- R-squared (R2) Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">R-squared
-                    (R2):</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> If you have a bunch of dots on a
-                    paper and draw a line through them, R2 tells us how well the
-                    line goes through all the dots. A perfect line would go
-                    through every dot.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> R2 is a statistical measure representing
-                    the proportion of the variance for the dependent variable
-                    that's explained by the independent variables in the model.
-                    It ranges from 0 to 1, with higher values indicating a
-                    better fit between prediction and reality. An R2 of 1
-                    implies perfect prediction. While a higher R2 is generally
-                    better, it's crucial to consider the complexity of the model
-                    and the risk of overfitting, especially with high R2 values.</p>
-            </div>
-
             <!-- Interactive Heatmap Explanation -->
             <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
                 <h4 class="text-lg font-semibold mb-2 text-gray-800">Interactive
                     Heatmap:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> This report is like a colorful
-                    puzzle. The colors show if two pieces (or features) like to
-                    play together or not.</p>
-                <p class="bg-yellow-200 p-4 rounded italic font-normal text-xs">Important
-                    Note: For the puzzle to load quickly, we only use up to 50
-                    pieces. If you have more than 10 pieces, it's best to
-                    download and look at the puzzle on your own computer for the
-                    best view.</p>
                 <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> The heatmap visualizes the correlation
-                    between different features. High positive or negative
-                    correlation indicates related features. Avoid
-                    multicollinearity by not selecting features that are highly
-                    correlated. For optimal performance and clarity, especially
-                    with datasets having more than 50 columns, we recommend
-                    downloading the heatmap and reviewing it locally.</p>
+                        Users:</strong> For optimal performance and clarity, 
+                        especially with datasets having more than 10 columns, 
+                        we recommend downloading the heatmap and reviewing it 
+                        locally. The heatmap reviews only the top 50 features.</p>
             </div>
-
-            <!-- Data Quality Report Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Data
-                    Quality Report:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> This report is like a toy
-                    inspector. It checks if any toys (or data) are broken or
-                    missing.</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> The report provides insights into data
-                    quality, highlighting missing values, outliers, and
-                    potential errors. Ensure data cleanliness and address
-                    identified issues for better model accuracy.</p>
-            </div>
-
-            <!-- Descriptive Statistics Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Descriptive
-                    Statistics:</h4>
-                <p class="bg-blue-200 p-4 rounded"><strong>Explain it to a
-                        5-year-old:</strong> This report is like a storybook. It
-                    tells us about the main characters (or data) and their
-                    adventures (or patterns).</p>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> The report summarizes the central
-                    tendency, dispersion, and shape of the dataset's
-                    distribution. Use this information for understanding and
-                    consider techniques like normalization or transformation if
-                    needed.</p>
-            </div>
-        </div>
 
         <script src="{{ url_for('static', filename='view_analysis.js') }}"></script>
 

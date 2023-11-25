@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Full Monte: Football Sim Comprehensive User Guide</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css" rel="stylesheet">
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+    <body>
+        
+        {% include 'header.html' %}
+
+        <main class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
+            <h1 class="text-4xl font-bold mb-4">Comprehensive User Guide</h1>
+            <p class="text-xl mb-8">Explore our platform with this guide, designed for everyone from Noobs to Nerds.</p>
+        
+            <!-- Weighted Statistics Calculation Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Weighted Statistics Calculation</h2>
+                <p>Our approach gives more importance to recent game data, ensuring a more accurate reflection of current team performance.</p>
+                
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Imagine a photo album where recent pictures tell you more about what's happening now than the old ones. That's how we look at the latest games to understand a team's current form.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Weekly collection and analysis of game data.</li>
+                            <li>Application of exponential decay function for recent game significance.</li>
+                            <li>Weighted averages and standard deviations calculation for performance metrics.</li>
+                            <li>Use of normalization and decay rate adjustments in predictive analytics.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+        
+            <!-- Building a Model Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Building a Model: The Basics</h2>
+                <p>In data analysis, building a model involves selecting relevant data points (features) to predict outcomes, like predicting the spread in a game.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Think of building a model like cooking. You pick the best ingredients (features) to make a yummy dish (predict the spread in a game).</li>
+                    <li><strong>For Nerds:</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Feature selection and regression analysis to impact predictive accuracy.</li>
+                            <li>Emphasis on variables that significantly influence game outcomes.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Modeling Methodology Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Modeling Methodology</h2>
+                <p>Our modeling methodology uses advanced statistical techniques to predict game outcomes.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Think of our modeling method like a wizard's spell to predict the future of games. We gather lots of information about past games, mix it all together in a smart way, and then use a special kind of magic (called ridge regression) to make our predictions.</li>
+                    <li><strong>For Nerds:</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Employment of ridge regression for scenarios with high multicollinearity among features.</li>
+                            <li>Regularization of coefficients to prevent overfitting and enhance reliability.</li>
+                            <li>Comprehensive data preprocessing including feature scaling and data splitting.</li>
+                            <li>Use of a StandardScaler for feature normalization.</li>
+                            <li>Training with a blend of relevant features identified through EDA and descriptive statistics.</li>
+                            <li>Rigorous model performance evaluation, including blind test set analysis.</li>
+                            <li>Hyperparameter tuning via grid search for optimal predictive accuracy.</li>
+                            <li>Model interpretability through SHAP values and feature coefficients.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Understanding Reports Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Understanding Reports</h2>
+                <p>Reports provide insights into which features are most influential in the model's predictions.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Our reports are like a cookbook, helping you understand which ingredients (features) are important.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Includes statistical significance tests and correlation matrices.</li>
+                            <li>Offers detailed view of feature relevance and interaction.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Running Simulations Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Running Simulations: Overview</h2>
+                <p>Simulations forecast outcomes based on selected features, helping to understand potential future scenarios.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Running simulations is like playing a guessing game, trying to guess the outcome of a game.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Utilizes stochastic modeling.</li>
+                            <li>Employs historical data to predict future events under various conditions.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Data Analysis: Differences and Ratios Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Data Analysis: Differences and Ratios</h2>
+                <p>Differences and ratios are used to measure changes and relative comparisons between values in data analysis.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> Think of differences as subtracting crayons in two boxes to find how many more one has, and ratios as dividing to see how many times bigger one box is than the other.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Differences measure absolute change, useful for scale understanding.</li>
+                            <li>Ratios provide relative measures, crucial for comparing values of different scales or proportional changes.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- SHAP Values and Feature Coefficients Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">SHAP Values and Feature Coefficients</h2>
+                <p>SHAP values and feature coefficients help in understanding the impact of each feature in the predictive model.</p>
+
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> SHAP values are like seeing inside a magic ball that guesses things, showing what makes it guess one way or another. Feature coefficients are like players in a team, showing how much each one helps in winning the game.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>SHAP values provide insight into feature importance and contribution.</li>
+                            <li>Feature coefficients quantify the influence of each variable in the model.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Error Measurements: MAE and MSE Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Error Measurements: MAE and MSE</h2>
+                <p>Mean Absolute Error (MAE) and Mean Squared Error (MSE) are metrics used to measure the accuracy of predictions.</p>
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> MAE is like guessing the number of candies in a jar and seeing how far off your guess was, while MSE is like trying to hit a target and seeing how close you get each time.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>MAE provides an average of the absolute errors, useful for understanding prediction accuracy.</li>
+                            <li>MSE emphasizes larger errors by squaring them before averaging, highlighting significant discrepancies.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- R-squared (R2) Explanation Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">R-squared (R2): Understanding Model Fit</h2>
+                <p>R-squared measures how well the predictive model fits the actual data.</p>
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> R2 is like drawing a line through dots on paper and seeing how well it fits all the dots.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>R2 quantifies the proportion of variance in the dependent variable that is predictable from the independent variables.</li>
+                            <li>It's crucial for assessing model performance and reliability.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Interactive Heatmap and Data Quality Report Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Interactive Heatmap and Data Quality Report</h2>
+                <p>The heatmap visualizes feature relationships, while the data quality report assesses data integrity.</p>
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> The heatmap is like a colorful puzzle showing how features play together, and the data quality report is like a toy inspector checking for broken or missing pieces.</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>The heatmap provides a correlation matrix for feature interaction analysis.</li>
+                            <li>The data quality report highlights missing values, outliers, and data consistency issues.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Descriptive Statistics Section -->
+            <section class="mb-10 p-6 bg-gray-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Descriptive Statistics: The Story of Data</h2>
+                <p>Descriptive statistics summarize and describe the main features of a dataset.</p>
+                <ul class="list-disc list-inside">
+                    <li><strong>For Noobs:</strong> This report is like a storybook, telling us about the main characters (data points) and their adventures (patterns).</li>
+                    <li><strong>For Nerds:</strong> 
+                        <ul class="list-disc list-inside ml-4">
+                            <li>Includes measures like mean, median, mode, variance, and standard deviation.</li>
+                            <li>Provides a comprehensive overview of data distribution and central tendencies.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+        </main>
+
+        {% include 'footer.html' %}
+
+    </body>
+</html>

@@ -233,7 +233,7 @@ class SimVisualization:
             vegas_line (float): The Vegas line spread.
 
         Returns:
-            float: Calculated Expected Value.
+            float or None: Calculated Expected Value, or None if insufficient historical data.
         """
         logging.info(f"Calculating EV: Predicted Spread: {predicted_spread}, Vegas Line: {vegas_line}")
 
@@ -241,13 +241,16 @@ class SimVisualization:
         historical_df = pd.read_csv(os.path.join(self.static_dir, 'historical.csv'))
         logging.info("Historical data loaded for EV calculation.")
 
+        # Check if historical data has less than 1000 rows
+        if historical_df.shape[0] < 1000:
+            return None
+
         # Estimate win probability based on spread difference
         P_win = self.estimate_win_probability_based_on_spread_diff(predicted_spread, vegas_line, historical_df)
         logging.info(f"Estimated win probability: {P_win}")
 
         # Check for NaN in win probability
         if pd.isna(P_win):
-            logging.error("NaN found in win probability calculation.")
             return None
 
         # Calculate loss probability and expected value
@@ -257,7 +260,6 @@ class SimVisualization:
 
         # Check for NaN in expected value
         if pd.isna(expected_value):
-            logging.error("NaN found in expected value calculation.")
             return None
 
         return expected_value
@@ -315,15 +317,21 @@ class SimVisualization:
             logging.info(f"Recommended Bet: {recommended_bet}")
 
             expected_value = self.calculate_ev(np.mean(predicted_difference), vegas_line)
-            return {
+            # Prepare the results dictionary
+            results = {
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': vegas_line,
                 'Simulation Results Mean': np.median(predicted_difference),
                 'Away Team': away_team,
-                'Recommended Bet': recommended_bet,
-                'Expected Value (%)': expected_value
+                'Recommended Bet': recommended_bet
             }
+
+            # Include 'Expected Value (%)' only if it's not None or NaN
+            if expected_value is not None and not pd.isna(expected_value):
+                results['Expected Value (%)'] = expected_value
+
+            return results
 
         # Process for historical games (calculate everything except EV)
         if not get_current:
@@ -419,6 +427,11 @@ class SimVisualization:
         # Round all values in the DataFrame to 2 decimals
         results_df = results_df.round(2)
 
+        # Check if 'Expected Value (%)' column exists and contains null values
+        if 'Expected Value (%)' in results_df.columns and results_df['Expected Value (%)'].isnull().all():
+            # Drop the 'Expected Value (%)' column
+            results_df = results_df.drop(columns=['Expected Value (%)'])
+
         # Create a Plotly table for visualization
         fig = go.Figure(data=[go.Table(
             header=dict(values=list(results_df.columns),
@@ -454,7 +467,7 @@ class SimVisualization:
 
         return results_df
 
-    def calculate_summary_statistics(self, results_df, total_bets, correct_recommendations, get_current):
+    def calculate_summary_statistics(self, results_df, total_bets, correct_recommendations):
         """
         Calculate summary statistics including recommendation accuracy and total actual value.
 
@@ -629,7 +642,7 @@ class SimVisualization:
             AbsDiff=('Diff', lambda x: np.mean(np.abs(x))),  # Mean of absolute differences
             Std=('Diff', 'std'),
             Count=('Diff', 'count')
-        )
+        ).fillna(method='ffill')  # Forward fill missing values
         logging.info(f"Aggregated stats: {aggregated.head()}")
 
         # Calculate cumulative MSE and MAE as averages
@@ -753,7 +766,7 @@ class SimVisualization:
 
         # Finalize results and calculate summary statistics
         final_df = self.finalize_results(results_df, get_current)
-        recommendation_accuracy, total_actual_value = self.calculate_summary_statistics(final_df, total_bets, correct_recommendations, get_current)
+        recommendation_accuracy, total_actual_value = self.calculate_summary_statistics(final_df, total_bets, correct_recommendations)
         logging.info("Finalized results and calculated summary statistics.")
 
         # Create a summary dashboard (if applicable)

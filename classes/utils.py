@@ -26,12 +26,16 @@ def setup_logging():
     logger = logging.getLogger('my_app')
     logger.setLevel(logging.INFO)
 
-    # Create a file handler or stream handler
-    handler = logging.FileHandler('my_app.log')
+    # Create a file handler with 'w' mode to overwrite the existing file
+    handler = logging.FileHandler('my_app.log', mode='w')
     # Or for stdout: handler = logging.StreamHandler(sys.stdout)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
+
+    # Remove all handlers associated with the logger object.
+    for hdlr in logger.handlers[:]:
+        logger.removeHandler(hdlr)
 
     logger.addHandler(handler)
     return logger

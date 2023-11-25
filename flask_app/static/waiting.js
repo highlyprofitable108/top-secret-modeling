@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const statusText = data.info ? `Current Status: ${capitalizedState}` : 'Current Status: Loading...';
                     statusElement.textContent = statusText;
                 } else if (data.state === 'SUCCESS') {
+                    console.log(`Updated task ID to: ${taskId}`);
+                    console.log(`OLD task ID to: ${data.task_id}`);
+
                     if (data.task_id && data.task_id !== taskId) { 
                         console.log(`Current task ID ${taskId} completed. Moving to next task in chain: ${data.task_id}`);
                         taskId = data.task_id;
@@ -37,19 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         statusElement.textContent = `Moving to next task: ${taskId}`;
                         setTimeout(checkTaskStatus, 15000);
                     } else {
-                        // Temporarily show a success message for the current task
-                        console.log(`Task ID ${taskId} completed. Checking for more tasks...`);
-                        statusElement.textContent = 'Task completed successfully. Checking for more tasks...';
-                
-                        // Brief delay to allow for any new task ID to be received
-                        setTimeout(() => {
-                            if (!nextTaskReceived) { // Assuming nextTaskReceived is a flag indicating new task
-                                console.log('Final task in the chain completed');
-                                statusElement.textContent = 'All tasks completed successfully!';
-                                resultsLink.querySelector('a').href = `/view_analysis?task_id=${taskId}`;
-                                resultsLink.classList.remove('hidden');
-                            }
-                        }, 3000); // Adjust the delay as needed
+                        console.log('Final task in the chain completed');
+                        statusElement.textContent = 'Task completed successfully!';
+                        resultsLink.querySelector('a').href = `/view_analysis?task_id=${taskId}`;
+                        resultsLink.classList.remove('hidden');
                     }
                 } else if (data.state === 'FAILURE') {
                     const errorText = data.info ? `Task failed: ${data.info}` : 'Task failed: An error occurred.';
