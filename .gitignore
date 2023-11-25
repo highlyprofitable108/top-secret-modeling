@@ -25,6 +25,7 @@ flask_app/templates/summary_dash.html
 flask_app/templates/trending_dash.html
 models/data_scaler.pkl
 models/trained_nfl_model.pkl
+my_app.log
 scripts/__pycache__/*
 scripts/*data*
 scripts/*db*
