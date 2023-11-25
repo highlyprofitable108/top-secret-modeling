@@ -149,12 +149,12 @@ class SimVisualization:
         # Define different column sets based on the 'get_current' flag
         if get_current is True:
             results_df = pd.DataFrame(columns=[
-                'Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet', 'Expected Value (%)'
+                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet', 'Expected Value (%)'
             ])
         else:
             results_df = pd.DataFrame(columns=[
-                'Date', 'Home Team', 'Vegas Odds', 'Modeling Odds', 'Away Team', 'Recommended Bet',
-                'Home Points', 'Away Points', 'Result with Spread', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'
+                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet',
+                'Home Points', 'Away Points', 'Home Actual Diff', 'Actual Covered', 'Bet Outcome', 'Actual Value ($)'
             ])
         return historical_df, results_df
 
@@ -201,7 +201,7 @@ class SimVisualization:
         """
         logging.info(f"Estimating win probability for predicted spread: {predicted_spread}, Vegas line: {vegas_line}")
 
-        df['Spread Difference'] = df['Modeling Odds'] - df['Vegas Odds']
+        df['Spread Difference'] = df['Simulation Results Mean'] - df['Vegas Odds']
         df['Spread Difference Rounded'] = df['Spread Difference'].apply(lambda x: self.round_to_nearest_half(x) if not pd.isna(x) else x)
         predicted_spread_rounded = self.round_to_nearest_half(predicted_spread)
         vegas_line_rounded = self.round_to_nearest_half(vegas_line)
@@ -233,7 +233,7 @@ class SimVisualization:
             vegas_line (float): The Vegas line spread.
 
         Returns:
-            float: Calculated Expected Value.
+            float or None: Calculated Expected Value, or None if insufficient historical data.
         """
         logging.info(f"Calculating EV: Predicted Spread: {predicted_spread}, Vegas Line: {vegas_line}")
 
@@ -241,13 +241,16 @@ class SimVisualization:
         historical_df = pd.read_csv(os.path.join(self.static_dir, 'historical.csv'))
         logging.info("Historical data loaded for EV calculation.")
 
+        # Check if historical data has less than 1000 rows
+        if historical_df.shape[0] < 1000:
+            return None
+
         # Estimate win probability based on spread difference
         P_win = self.estimate_win_probability_based_on_spread_diff(predicted_spread, vegas_line, historical_df)
         logging.info(f"Estimated win probability: {P_win}")
 
         # Check for NaN in win probability
         if pd.isna(P_win):
-            logging.error("NaN found in win probability calculation.")
             return None
 
         # Calculate loss probability and expected value
@@ -257,7 +260,6 @@ class SimVisualization:
 
         # Check for NaN in expected value
         if pd.isna(expected_value):
-            logging.error("NaN found in expected value calculation.")
             return None
 
         return expected_value
@@ -282,11 +284,12 @@ class SimVisualization:
         actual_away_points = row.get('summary.away.points')
         home_team = row.get('summary.home.name')
         away_team = row.get('summary.away.name')
-        vegas_line = row.get("summary." + self.TARGET_VARIABLE)
+        home_actual = row.get('summary.results.home_actual')
+        vegas_line = row.get('summary.odds.spread_close')
         date = row.get('scheduled')
         predicted_difference = simulation_results[idx]
 
-        logging.debug(f"Extracted game info for row {idx}: Home Points: {actual_home_points}, Away Points: {actual_away_points}, Vegas Line: {vegas_line}, Date: {date}")
+        logging.debug(f"Extracted game info for row {idx}: Home Actual Result {home_actual}, Vegas Line: {vegas_line}, Date: {date}")
 
         # Convert 'date' to a datetime object if it's not already
         if isinstance(date, date_type) and not isinstance(date, datetime):
@@ -314,33 +317,39 @@ class SimVisualization:
             logging.info(f"Recommended Bet: {recommended_bet}")
 
             expected_value = self.calculate_ev(np.mean(predicted_difference), vegas_line)
-            return {
+            # Prepare the results dictionary
+            results = {
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': vegas_line,
-                'Modeling Odds': np.median(predicted_difference),
+                'Simulation Results Mean': np.median(predicted_difference),
                 'Away Team': away_team,
-                'Recommended Bet': recommended_bet,
-                'Expected Value (%)': expected_value
+                'Recommended Bet': recommended_bet
             }
+
+            # Include 'Expected Value (%)' only if it's not None or NaN
+            if expected_value is not None and not pd.isna(expected_value):
+                results['Expected Value (%)'] = expected_value
+
+            return results
 
         # Process for historical games (calculate everything except EV)
         if not get_current:
-            actual_difference = (actual_home_points + vegas_line) - actual_away_points if not pd.isna(actual_home_points) and not pd.isna(vegas_line) else None
+            actual_difference = actual_away_points - actual_home_points if not pd.isna(actual_home_points) and not pd.isna(actual_away_points) else None
             recommendation_calc = vegas_line - np.mean(predicted_difference) if not pd.isna(vegas_line) else None
             recommended_bet = self.determine_recommended_bet(recommendation_calc) if recommendation_calc is not None else None
-            actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_difference, recommended_bet)
+            actual_covered, bet_outcome, actual_value = self.determine_bet_outcome(actual_home_points, actual_away_points, vegas_line, recommended_bet)
 
             return {
                 'Date': date,
                 'Home Team': home_team,
                 'Vegas Odds': vegas_line,
-                'Modeling Odds': np.median(predicted_difference),
+                'Simulation Results Mean': np.median(predicted_difference),
                 'Away Team': away_team,
                 'Recommended Bet': recommended_bet,
                 'Home Points': actual_home_points,
                 'Away Points': actual_away_points,
-                'Result with Spread': actual_difference,
+                'Home Actual Diff': actual_difference,
                 'Actual Covered': actual_covered,
                 'Bet Outcome': bet_outcome,
                 'Actual Value ($)': actual_value
@@ -358,16 +367,32 @@ class SimVisualization:
             return "push"
         return None
 
-    def determine_bet_outcome(self, actual_difference, recommended_bet):
-        if actual_difference is not None:
-            actual_covered = "away" if actual_difference < 0 else "home" if actual_difference > 0 else "push"
-            if recommended_bet == actual_covered:
-                return actual_covered, "win", 100
-            elif recommended_bet == "push" or actual_covered == "push":
-                return actual_covered, "push", 0
-            else:
-                return actual_covered, "loss", -110
-        return None, None, None
+    def determine_bet_outcome(self, actual_home_points, actual_away_points, vegas_line, recommended_bet):
+        if actual_home_points is None or actual_away_points is None or vegas_line is None:
+            return None, None, None
+
+        point_difference = actual_away_points - actual_home_points
+        actual_covered = None
+
+        # Determine which team covered the spread
+        if point_difference < vegas_line:
+            actual_covered = "home"
+        elif point_difference > vegas_line:
+            actual_covered = "away"
+        elif point_difference == vegas_line:
+            actual_covered = "push"
+
+        # Determine bet outcome
+        bet_outcome = "loss"  # Default to loss
+        actual_value = -110   # Default loss value
+        if actual_covered == recommended_bet:
+            bet_outcome = "win"
+            actual_value = 100  # Assuming a win returns $100
+        elif actual_covered == "push" or recommended_bet == "push":
+            bet_outcome = "push"
+            actual_value = 0    # No gain or loss in a push
+
+        return actual_covered, bet_outcome, actual_value
 
     def append_results(self, results_df, processed_data):
         """
@@ -401,6 +426,11 @@ class SimVisualization:
         """
         # Round all values in the DataFrame to 2 decimals
         results_df = results_df.round(2)
+
+        # Check if 'Expected Value (%)' column exists and contains null values
+        if 'Expected Value (%)' in results_df.columns and results_df['Expected Value (%)'].isnull().all():
+            # Drop the 'Expected Value (%)' column
+            results_df = results_df.drop(columns=['Expected Value (%)'])
 
         # Create a Plotly table for visualization
         fig = go.Figure(data=[go.Table(
@@ -437,7 +467,7 @@ class SimVisualization:
 
         return results_df
 
-    def calculate_summary_statistics(self, results_df, total_bets, correct_recommendations, get_current):
+    def calculate_summary_statistics(self, results_df, total_bets, correct_recommendations):
         """
         Calculate summary statistics including recommendation accuracy and total actual value.
 
@@ -602,7 +632,7 @@ class SimVisualization:
         logging.info(f"DataFrame after adjusting weeks: {df.head()}")
 
         # Calculate differences
-        df['Diff'] = df['Vegas Odds'] - df['Modeling Odds']
+        df['Diff'] = df['Simulation Results Mean'] - df['Vegas Odds']
         logging.info(f"DataFrame with 'Diff' column: {df.head()}")
 
         # Aggregate by 'Adjusted Week'
@@ -612,7 +642,7 @@ class SimVisualization:
             AbsDiff=('Diff', lambda x: np.mean(np.abs(x))),  # Mean of absolute differences
             Std=('Diff', 'std'),
             Count=('Diff', 'count')
-        )
+        ).fillna(method='ffill')  # Forward fill missing values
         logging.info(f"Aggregated stats: {aggregated.head()}")
 
         # Calculate cumulative MSE and MAE as averages
@@ -736,7 +766,7 @@ class SimVisualization:
 
         # Finalize results and calculate summary statistics
         final_df = self.finalize_results(results_df, get_current)
-        recommendation_accuracy, total_actual_value = self.calculate_summary_statistics(final_df, total_bets, correct_recommendations, get_current)
+        recommendation_accuracy, total_actual_value = self.calculate_summary_statistics(final_df, total_bets, correct_recommendations)
         logging.info("Finalized results and calculated summary statistics.")
 
         # Create a summary dashboard (if applicable)

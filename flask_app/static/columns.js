@@ -83,23 +83,23 @@ document.addEventListener('DOMContentLoaded', (event) => {
             return; // Stop the function if no checkboxes are selected
         }
     
-        // Call the showLoadingSpinner function
-        showLoadingSpinner();
-    
         // Prepare the data to be sent to the server
         const formData = new FormData(form);
         formData.append('quick_test', String(isQuickTest));
-
+    
         // Send form data to /process_columns
-        fetch('/process_columns', {
+        fetch('/stats/process_columns', {
             method: 'POST',
             body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // If /process_columns is successful, send a request to /generate_model
-                return fetch('/generate_model', { method: 'POST' });
+                // If /process_columns is successful, send a request to /execute_combined_task
+                return fetch('/execute_combined_task', { 
+                    method: 'POST', 
+                    body: formData 
+                });
             } else {
                 throw new Error('Error processing columns.');
             }
@@ -107,76 +107,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
         .then(response => response.json())
         .then(data => {
             if (data.status === "success") {
-                // If /generate_model is successful, poll for task status
-                return pollTaskStatus(data.task_id, '/sim_runner');
+                // If /execute_combined_task is successful, poll for task status
+                window.location.href = `/waiting?task_id=${data.task_id}`;
+
             } else {
-                throw new Error(data.error || 'Error generating model.');
+                throw new Error(data.error || 'Error executing combined task.');
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('An error occurred. Please try again.');
-            document.getElementById('loading-spinner').style.display = 'none';
         });
-    }
-    
-    function pollTaskStatus(taskId, nextEndpoint) {
-        // Poll the task status every few seconds
-        const pollInterval = setInterval(() => {
-            fetch(`/task_status/${taskId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'SUCCESS') {
-                        clearInterval(pollInterval);
-                        if (nextEndpoint) {
-                            // Start the next task
-                            startNextTask(nextEndpoint);
-                        } else {
-                            // Final step: redirect to /view_analysis
-                            window.location.href = '/view_analysis';
-                        }
-                    } else if (data.status === 'FAILURE') {
-                        clearInterval(pollInterval);
-                        alert('Simulation failed. Please try again.');
-                        document.getElementById('loading-spinner').style.display = 'none';
-                    }
-                    // Handle other statuses if necessary
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    clearInterval(pollInterval);
-                    alert('An error occurred while checking the task status.');
-                    document.getElementById('loading-spinner').style.display = 'none';
-                });
-        }, 15000); // Poll every 15 seconds, adjust as needed
-    }
-    
-    function startNextTask(endpoint) {
-        const formData = new FormData(form); // Reconstruct formData
-        formData.append('quick_test', String(globalIsQuickTest)); // Make sure to append quick_test
-
-        // Start the next task and poll for its completion
-        fetch(endpoint, { method: 'POST', body: formData })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    // If the task is successfully started, poll for its status
-                    pollTaskStatus(data.task_id);
-                } else {
-                    throw new Error(data.error || 'Error starting the next task.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-                document.getElementById('loading-spinner').style.display = 'none';
-            });
-    }    
-
-    function showLoadingSpinner() {
-        document.getElementById('loading-spinner').style.display = 'block';
-
-        return true; // Show the spinner
     }
 
     // Attach the handleFormSubmission function to the form's submit event
@@ -192,6 +133,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             // Call handleFormSubmission with isQuickTest set to true
             handleFormSubmission(event, true);
         });
+    } else {
+        document.getElementById('quick_test_input').value = 'false';
+        handleFormSubmission(event, true);
+
     }
 
     // Add event listener to clear all selections when the "Clear Selection" button is clicked
