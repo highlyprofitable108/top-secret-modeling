@@ -3,7 +3,6 @@ import numpy as np
 import logging
 from datetime import timedelta
 from importlib import reload
-import scripts.constants
 import scripts.all_columns
 
 
@@ -82,7 +81,8 @@ class DataProcessing:
         Returns:
             pd.DataFrame: DataFrame with renamed columns.
         """
-        reload(scripts.constants)
+        print("RENAME COLUMNS NEEDS FIXING")
+
         columns_to_rename = [col.replace('ranks_home_', '') for col in scripts.constants.COLUMNS_TO_KEEP if col.startswith('ranks_home_')]
         rename_dict = {col: f"{prefix}{col}" for col in columns_to_rename}
         return data.rename(columns=rename_dict)
@@ -98,6 +98,7 @@ class DataProcessing:
         Returns:
             pd.DataFrame: Filtered and scaled DataFrame.
         """
+        print("FILTER AND SCALE NEEDS FIXING")
         # Reload constants
         reload(scripts.constants)
 
@@ -435,54 +436,6 @@ class DataProcessing:
 
         return ranks_df
 
-    def update_columns_file(self, columns_to_remove):
-        """
-        Updates the all_columns.py file to remove specified columns.
-
-        Args:
-            columns_to_remove (list): List of columns to be removed from the file.
-        """
-        # Reload the current columns file to ensure up-to-date data
-        reload(scripts.all_columns)
-
-        # Read the current file contents
-        with open('./scripts/all_columns.py', 'r') as file:
-            lines = file.readlines()
-
-        # Exclude lines containing columns to remove
-        new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
-
-        # Write the updated lines back to the file
-        with open('./scripts/all_columns.py', 'w') as file:
-            file.writelines(new_lines)
-
-        # Reload the updated columns file to reflect changes
-        reload(scripts.all_columns)
-
-    def update_constants_file(self, columns_to_remove):
-        """
-        Updates the constants.py file to remove specified columns.
-
-        Args:
-            columns_to_remove (list): List of columns to be removed from the file.
-        """
-        # Reload the current constants file
-        reload(scripts.constants)
-
-        # Read the current file contents
-        with open('./scripts/constants.py', 'r') as file:
-            lines = file.readlines()
-
-        # Exclude lines containing columns to remove
-        new_lines = [line for line in lines if not any(col in line for col in columns_to_remove)]
-
-        # Write the updated lines back to the file
-        with open('./scripts/constants.py', 'w') as file:
-            file.writelines(new_lines)
-
-        # Reload the updated constants file to reflect changes
-        reload(scripts.constants)
-
     def handle_prediction_values(self, df):
         """
         Handles NaN values in DataFrame for prediction purposes.
@@ -493,9 +446,6 @@ class DataProcessing:
         Returns:
             pd.DataFrame: DataFrame with NaN values handled.
         """
-        # Reload constants to ensure up-to-date column information
-        reload(scripts.constants)
-
         try:
             # Drop columns with high NaN count and impute remaining NaN values
             nan_counts = df.isnull().sum()

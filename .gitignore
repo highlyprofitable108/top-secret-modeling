@@ -29,3 +29,4 @@ scripts/__pycache__/*
 scripts/*data*
 scripts/*db*
 venv/*
+*.log*
