@@ -326,6 +326,9 @@ class SimVisualization:
             logging.info(f"Recommended Bet: {recommended_bet}")
 
             expected_value, kelly_criterion = self.calculate_ev(np.mean(predicted_difference), vegas_line)
+            if kelly_criterion < 0:
+                kelly_criterion = 0
+                
             # Prepare the results dictionary
             results = {
                 'Date': date,
