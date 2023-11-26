@@ -31,6 +31,11 @@ def future_betting_recommendations():
     return render_template('future_betting_recommendations.html')
 
 
+@general_bp.route('/raw_data')
+def raw_data():
+    return render_template('raw_data.html')
+
+
 @general_bp.route('/view_trending')
 def view_trending():
     return render_template('trending_dash.html')

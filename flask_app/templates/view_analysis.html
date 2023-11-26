@@ -47,6 +47,8 @@
                     class="tab-button">Historical Data Testing</button>
                 <button onclick="showTab('futurePredictionsContent')"
                     class="tab-button">Future Predictions</button>
+                    <button onclick="showTab('rawDataContent')"
+                    class="tab-button">Raw Sim Data</button>
             </div>
 
             <!-- Tab Contents -->
@@ -113,22 +115,25 @@
                     class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open
                     in New Tab</a>
             </div>
+
+            <div id="rawDataContent" class="tab-content hidden">
+                {% include 'raw_data.html' %}
+                <a href="{{ url_for('general.raw_data') }}" target="_blank"
+                    class="block mt-4 text-center py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Open
+                    in New Tab</a>
+            </div>
         </div>
 
-        <!-- EXPLANATION SECTION -->
-        <div class="container mx-auto mt-8 bg-white p-8 rounded-lg shadow-md">
-            <h3 class="text-2xl font-bold mb-4 text-gray-800">Reviewing Reports:</h3>
-
-            <!-- Interactive Heatmap Explanation -->
-            <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
-                <h4 class="text-lg font-semibold mb-2 text-gray-800">Interactive
-                    Heatmap:</h4>
-                <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
-                        Users:</strong> For optimal performance and clarity, 
-                        especially with datasets having more than 10 columns, 
-                        we recommend downloading the heatmap and reviewing it 
-                        locally. The heatmap reviews only the top 50 features.</p>
-            </div>
+        <!-- Interactive Heatmap Explanation -->
+        <div class="p-6 bg-gray-100 rounded-lg mb-6 space-y-4">
+            <h4 class="text-lg font-semibold mb-2 text-gray-800">Interactive
+                Heatmap:</h4>
+            <p class="bg-gray-300 p-4 rounded"><strong>Note for Advanced
+                    Users:</strong> For optimal performance and clarity, 
+                    especially with datasets having more than 10 columns, 
+                    we recommend downloading the heatmap and reviewing it 
+                    locally. The heatmap reviews only the top 50 features.</p>
+        </div>
 
         <script src="{{ url_for('static', filename='view_analysis.js') }}"></script>
 
