@@ -78,11 +78,11 @@ def async_sim_runner(self, quick_test, max_depth=10):
             current_app.logger.info("Running historical simulations")
 
             # Run simulations
-            run_simulations(NFLPredictor(), 110 if quick_test else 110, 275 if quick_test else 2750, False)
+            run_simulations(NFLPredictor(), 100, 1088 if quick_test else 4352, False)
 
             self.update_state(state='PROCESSING', meta={'info': 'Running future predictions'})
             current_app.logger.info("Running future predictions")
-            run_simulations(NFLPredictor(), 110 if quick_test else 110, None, True)
+            run_simulations(NFLPredictor(), 100, None, True)
 
             self.update_state(state='FINALIZING', meta={'info': 'Finalizing simulations'})
             current_app.logger.info("Finalizing simulations")

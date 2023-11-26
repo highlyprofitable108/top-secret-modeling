@@ -149,7 +149,8 @@ class SimVisualization:
         # Define different column sets based on the 'get_current' flag
         if get_current is True:
             results_df = pd.DataFrame(columns=[
-                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet', 'Expected Value (%)'
+                'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet',
+                'Expected Value (%)', 'Kelly Criterion (Standard %)', 'Kelly Criterion (Conservative %)', 'Kelly Criterion (Aggressive %)',
             ])
         else:
             results_df = pd.DataFrame(columns=[
@@ -262,7 +263,15 @@ class SimVisualization:
         if pd.isna(expected_value):
             return None
 
-        return expected_value
+        # Calculate Kelly Criterion
+        kelly_criterion = ((P_win * (1 / 0.9)) - (P_loss / 0.9)) * 100
+        logging.info(f"Calculated Kelly Criterion: {kelly_criterion}")
+
+        # Check for NaN in Kelly Criterion
+        if pd.isna(kelly_criterion):
+            return None, None
+
+        return expected_value, kelly_criterion
 
     def process_row(self, row, simulation_results, idx, get_current):
         """
@@ -316,7 +325,7 @@ class SimVisualization:
             recommended_bet = self.determine_recommended_bet(recommendation_calc)
             logging.info(f"Recommended Bet: {recommended_bet}")
 
-            expected_value = self.calculate_ev(np.mean(predicted_difference), vegas_line)
+            expected_value, kelly_criterion = self.calculate_ev(np.mean(predicted_difference), vegas_line)
             # Prepare the results dictionary
             results = {
                 'Date': date,
@@ -330,7 +339,9 @@ class SimVisualization:
             # Include 'Expected Value (%)' only if it's not None or NaN
             if expected_value is not None and not pd.isna(expected_value):
                 results['Expected Value (%)'] = expected_value
-
+                results['Kelly Criterion (Standard %)'] = kelly_criterion / 2
+                results['Kelly Criterion (Conservative %)'] = kelly_criterion / 4
+                results['Kelly Criterion (Aggressive %)'] = kelly_criterion
             return results
 
         # Process for historical games (calculate everything except EV)
@@ -491,6 +502,36 @@ class SimVisualization:
             recommendation_accuracy = (correct_recommendations / total_bets) * 100
 
         return recommendation_accuracy, total_actual_value
+
+    def save_raw_data_as_html(self):
+        """
+        Convert raw_data.csv to HTML and save it as an HTML file in the template directory.
+
+        Returns:
+            None: Saves the HTML file in the specified template directory.
+        """
+        try:
+            # Load raw_data.csv into a DataFrame
+            raw_data_df = pd.read_csv(os.path.join(self.static_dir, 'raw_data.csv'))
+
+            # Convert DataFrame to HTML with Tailwind CSS for styling
+            html_content = raw_data_df.to_html(classes="custom-table", border=0, index=False)
+
+            # Full HTML structure with additional styling and structure
+            full_html_content = f"""
+            <div class="container mx-auto mt-5 bg-white p-8 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Raw Data</h2>
+                {html_content}
+            </div>
+            """
+
+            # Save the HTML content to a file
+            raw_data_html_path = os.path.join(self.template_dir, 'raw_data.html')
+            with open(raw_data_html_path, 'w') as file:
+                file.write(full_html_content)
+
+        except Exception as e:
+            logging.error(f"Error converting raw data to HTML: {e}")
 
     def create_summary_dashboard(self, results_df, total_bets, recommendation_accuracy, total_actual_value):
         """
@@ -778,6 +819,8 @@ class SimVisualization:
             # Create and save the trending dashboard
             self.create_trending_dashboard(results_df)
             logging.info("Trending dashboard created and saved.")
+        elif get_current is True:
+            self.save_raw_data_as_html()
 
         logging.info("Evaluation and recommendation process completed.")
         return final_df, recommendation_accuracy, total_actual_value

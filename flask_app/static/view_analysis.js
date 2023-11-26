@@ -23,10 +23,4 @@ function showTab(tabName) {
     activeButton.classList.remove('bg-blue-200');
     activeButton.classList.add('text-white');
     activeButton.classList.remove('text-gray-700');
-
-    // If the heatmap tab is being shown, trigger a resize for the Plotly chart
-    if (contentId === 'interactiveHeatmapContent' && typeof Plotly !== 'undefined') {
-        var heatmapDiv = document.getElementById('interactiveHeatmapContent'); // Replace with the actual ID of your Plotly div
-        Plotly.Plots.resize(heatmapDiv);
-    }
 }

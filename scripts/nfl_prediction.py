@@ -249,6 +249,9 @@ class NFLPredictor:
         app.logger.debug(f"Retrieved {len(historical_df)} historical data rows")
 
         count = 0
+        raw_data_list = []
+        file_path = os.path.join(self.static_dir, 'raw_data.csv')
+
         # Prepare data for each game
         for _, row in historical_df.iterrows():
             game_id, home_team, away_team = row['game_id'], row['summary.home.name'], row['summary.away.name']
@@ -272,7 +275,36 @@ class NFLPredictor:
             if random_subset is None:
                 random_subset = 16
 
+            # Append data to raw_data_list
+            raw_data_dict = {
+                'Date': self.date,
+                'Home Team': home_team,
+                'Away Team': away_team,
+            }
+            for column_name, column_data in game_prediction_df.items():
+                raw_data_dict[column_name] = column_data.tolist()
+
+            raw_data_list.append(raw_data_dict)
+
             app.logger.info(f"Added game {count} of {random_subset}")
+
+        # Create a DataFrame from raw_data_list
+        raw_data_df = pd.DataFrame(raw_data_list)
+
+        # Determine if we should overwrite the entire CSV or append
+        if random_subset is not None and random_subset != 16:
+            # Overwrite the entire 'raw_data.csv' file
+            raw_data_df.to_csv(file_path, index=False)
+        else:
+            # Append to the existing 'raw_data.csv' file if it exists, otherwise create a new CSV
+            if os.path.exists(file_path):
+                # Read the existing CSV and append the new data
+                existing_raw_data_df = pd.read_csv(file_path)
+                combined_raw_data_df = pd.concat([existing_raw_data_df, raw_data_df], ignore_index=True)
+                combined_raw_data_df.to_csv(file_path, index=False)
+            else:
+                # Create a new 'raw_data.csv' file
+                raw_data_df.to_csv(file_path, index=False)
 
         app.logger.debug(f"Starting simulations for {len(params_list)} games")
 
