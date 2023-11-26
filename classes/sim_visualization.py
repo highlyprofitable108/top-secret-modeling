@@ -150,7 +150,7 @@ class SimVisualization:
         if get_current is True:
             results_df = pd.DataFrame(columns=[
                 'Date', 'Home Team', 'Vegas Odds', 'Simulation Results Mean', 'Away Team', 'Recommended Bet',
-                'Expected Value (%)', 'Kelly Criterion (Standard)', 'Kelly Criterion (Conservative)', 'Kelly Criterion (Aggressive)',
+                'Expected Value (%)', 'Kelly Criterion (Standard %)', 'Kelly Criterion (Conservative %)', 'Kelly Criterion (Aggressive %)',
             ])
         else:
             results_df = pd.DataFrame(columns=[
@@ -264,7 +264,7 @@ class SimVisualization:
             return None
 
         # Calculate Kelly Criterion
-        kelly_criterion = (P_win * (1 / 0.9)) - (P_loss / 0.9)
+        kelly_criterion = ((P_win * (1 / 0.9)) - (P_loss / 0.9)) * 100
         logging.info(f"Calculated Kelly Criterion: {kelly_criterion}")
 
         # Check for NaN in Kelly Criterion
@@ -339,9 +339,9 @@ class SimVisualization:
             # Include 'Expected Value (%)' only if it's not None or NaN
             if expected_value is not None and not pd.isna(expected_value):
                 results['Expected Value (%)'] = expected_value
-                results['Kelly Criterion (Standard)'] = kelly_criterion / 2
-                results['Kelly Criterion (Conservative)'] = kelly_criterion / 4
-                results['Kelly Criterion (Aggressive)'] = kelly_criterion
+                results['Kelly Criterion (Standard %)'] = kelly_criterion / 2
+                results['Kelly Criterion (Conservative %)'] = kelly_criterion / 4
+                results['Kelly Criterion (Aggressive %)'] = kelly_criterion
             return results
 
         # Process for historical games (calculate everything except EV)

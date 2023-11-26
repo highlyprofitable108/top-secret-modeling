@@ -11,7 +11,7 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.0/font/bootstrap-icons.css"
       rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <title>Top Secret Modeling</title>
+    <title>Full Monte: Football Sim</title>
 
   </head>
   <body>
@@ -19,7 +19,7 @@
 
     <section
       class="hero bg-gray-800 text-white py-16 container mx-auto text-center">
-      <h2 class="text-4xl font-bold mb-4">Welcome to Top Secret Modeling</h2>
+      <h2 class="text-4xl font-bold mb-4">Full Monte: Football Sim</h2>
       <p class="text-xl mb-8">Get insights, generate analysis, and explore
         football data at your fingertips</p>
       <div class="hero-buttons flex flex-col items-center space-y-4">
@@ -29,18 +29,6 @@
             class="bg-white text-gray-800 py-2 px-4 rounded-full font-semibold hover:bg-gray-200 w-300px text-center">Select
             Stats for Model</a>
 
-          <form action="/generate_analysis" method="POST">
-            <div id="loading-spinner"
-              style="display: none; text-align: center; background-color: rgba(0, 0, 0, 0.5); padding: 20px; border-radius: 10px; width: 300px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
-              <div class="loader" style="margin: 0 auto 10px auto;"></div>
-              <p style="color: white; font-size: 16px;">Generating analysis.
-                This process can take some time. Please do not close or refresh
-                the page.</p>
-              <div id="countdown-timer"
-                style="color: white; font-size: 16px; margin-top: 10px;"></div>
-            </div>
-          </form>
-
         </div>
       </div>
     </section>
@@ -49,31 +37,78 @@
 
       <section class="mb-10">
         <h2 class="text-2xl font-bold mb-4">About Us</h2>
-        <p>Your go-to platform for data-driven insights and competitive analysis
-          in the world of football. From casual fans to serious analysts, we
-          have something for everyone.</p>
+        <div class="text-lg text-gray-700 space-y-6">
+          <p>Where Data Meets Passion, and You Call the Shots.</p>
+
+          <p>Imagine a lively debate at a local bar over a thrilling football game, where every fan has a different opinion. "What if they played 100 times?" someone questions. At Full Monte, we bring these hypothetical scenarios to life, but with an exciting twist – you get to decide the stats that fuel our simulations.</p>
+          
+          <p>Our platform is a unique fusion of data science and football fervor. We don't just simulate games; we empower you to shape these simulations with your choice of stats. This means more than just predicting outcomes; it's about exploring the depths of football analytics tailored by you.</p>
+          
+          <h3 class="text-xl font-bold">What We Offer:</h3>
+          <ul class="list-disc list-inside space-y-2">
+            <li><strong>Customizable Simulations:</strong> Choose from over 100 stat categories to tailor your analysis. Wondering how turnover ratios affect game outcomes? You decide.</li>
+            <li><strong>Data-Driven Insights:</strong> Dive deep into stats for a nuanced understanding of what drives football game dynamics.</li>
+            <li><strong>Interactive Debates:</strong> Fuel your football discussions with personalized data. Challenge your friends with scenarios you've crafted.</li>
+            <li><strong>Strategic Betting Insights:</strong> With simulations based on your chosen stats, we provide expected value (EV) predictions and Kelly Criterion-based betting strategies.</li>
+            <li><strong>Enhanced Engagement:</strong> Engage in a fun, interactive way of exploring football analytics. It's not just about watching the game; it's about understanding and influencing the factors behind every play.</li>
+          </ul>
+
+          <p>At Full Monte, we turn your football arguments into an interactive, data-driven experience. Whether you're a casual fan or a seasoned analyst, our platform adds depth to your football enthusiasm. Join us, choose your stats, and transform your spirited debates into informed discussions.</p>
+        </div>
       </section>
 
       <section class="mt-12">
         <h2 class="text-2xl font-bold mb-4">Features</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div class="text-center">
             <div class="text-blue-500 text-6xl mb-4">
               <i class="bi bi-graph-up"></i>
             </div>
             <h4 class="text-xl font-bold mb-2">Comprehensive Database</h4>
-            <p>Over 100 stat categories to tailor your analysis.</p>
+            <p>Access over 100 stat categories to customize and deepen your analysis.</p>
           </div>
+          
           <div class="text-center">
             <div class="text-blue-500 text-6xl mb-4">
               <i class="bi bi-speedometer2"></i>
             </div>
-            <h4 class="text-xl font-bold mb-2">Simulation and Analysis</h4>
-            <p>Run thousands of simulations to predict potential outcomes and
-              strategies.</p>
+            <h4 class="text-xl font-bold mb-2">Dynamic Simulations</h4>
+            <p>Run thousands of simulations with customizable stats for precise outcome predictions.</p>
+          </div>
+    
+          <div class="text-center">
+            <div class="text-blue-500 text-6xl mb-4">
+              <i class="bi bi-bar-chart-line"></i>
+            </div>
+            <h4 class="text-xl font-bold mb-2">Raw Data Insights</h4>
+            <p>Explore the raw data inputs alongside simulation results for comprehensive analysis.</p>
+          </div>
+    
+          <div class="text-center">
+            <div class="text-blue-500 text-6xl mb-4">
+              <i class="bi bi-chat-right-dots"></i>
+            </div>
+            <h4 class="text-xl font-bold mb-2">Interactive Debates</h4>
+            <p>Engage in interactive debates with data-driven arguments, powered by our simulations.</p>
+          </div>
+    
+          <div class="text-center">
+            <div class="text-blue-500 text-6xl mb-4">
+              <i class="bi bi-calculator"></i>
+            </div>
+            <h4 class="text-xl font-bold mb-2">Betting Strategy Guide</h4>
+            <p>Utilize our Kelly Criterion-based strategies to aide in decision making and bankroll management.</p>
+          </div>
+
+          <div class="text-center">
+            <div class="text-blue-500 text-6xl mb-4">
+              <i class="bi bi-emoji-smile"></i>
+            </div>
+            <h4 class="text-xl font-bold mb-2">Fun Learning Experience</h4>
+            <p>Dive into the fun side of football analytics. Play, learn, and grow with every simulation.</p>
           </div>
         </div>
-      </section>
+      </section>    
     </main>
 
     <script src="{{ url_for('static', filename='home.js') }}"></script>

@@ -276,12 +276,15 @@ class NFLPredictor:
                 random_subset = 16
 
             # Append data to raw_data_list
-            raw_data_list.append({
+            raw_data_dict = {
                 'Date': self.date,
                 'Home Team': home_team,
                 'Away Team': away_team,
-                'Full Game Prediction': game_prediction_df.to_dict()  # Convert DataFrame to dictionary
-            })
+            }
+            for column_name, column_data in game_prediction_df.items():
+                raw_data_dict[column_name] = column_data.tolist()
+
+            raw_data_list.append(raw_data_dict)
 
             app.logger.info(f"Added game {count} of {random_subset}")
 

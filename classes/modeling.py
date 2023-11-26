@@ -176,7 +176,7 @@ class Modeling:
                 prediction = self.LOADED_MODEL.predict(scaled_df)
                 simulation_results.append(prediction[0])
             except Exception as e:
-                logging.error(f"Error during prediction in simulation {sim_num}: {e}", exc_info=True)
+                logging.warning(f"Warning ignoring simulation {sim_num}: {e}", exc_info=True)
                 return simulation_results, home_team, away_team, game_id
 
         # Save combined data and simulation results to CSV files
